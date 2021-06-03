@@ -1,0 +1,10 @@
+domain: rukpak.io
+repo: github.com/operator-framework/rukpak
+resources:
+- group: core
+  kind: Bundle
+  version: v1alpha1
+- group: core
+  kind: ProvisionerClass
+  version: v1alpha1
+version: "2"
