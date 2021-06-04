@@ -35,6 +35,8 @@ type BundleStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// TODO: Reference to volume containing unpacked bundle content
 }
 
 // +genclient
