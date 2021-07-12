@@ -1,0 +1,20 @@
+name: sanity
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    paths:
+      - '**'
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '~1.16'
+      - name: Run verification checks
+        run: make verify

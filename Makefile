@@ -29,7 +29,7 @@ tidy: ## Update dependencies
 	$(Q)go mod tidy -v
 
 vendor: tidy ## Update vendor directory
-	$(Q)go mod vendor 
+	$(Q)go mod vendor
 
 generate: controller-gen  ## Generate code
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./...
@@ -49,12 +49,11 @@ test: test-unit ## Run the tests
 test-unit: ## Run the unit tests
 	$(Q)go test -count=1 -short ${PKGS}
 
-verify: manifests generate
+verify: tidy format manifests generate
 	git diff --exit-code
 
 # Utilities.
 .PHONY: controller-gen
 
-controller-gen: vendor ## Find or download controller-gen 
+controller-gen: vendor ## Find or download controller-gen
 CONTROLLER_GEN=$(Q)go run -mod=vendor ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen
-
