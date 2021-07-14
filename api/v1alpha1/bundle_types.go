@@ -17,27 +17,56 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type BundleReference string
+type BundleSourceType string
+
+// BundleVolumeMount is the specification of a single
+// volume that contains bundle manifest content and
+// how to mount that content.
+type BundleVolumeMount struct {
+	// MountPath is the filesystem path to the bundle
+	// manifest content
+	MountPath string `json:"mountPath"`
+}
+
+// +union
+type BundleSource struct {
+	// +unionDiscriminator
+	// +optional
+	VolumeMounts []BundleVolumeMount `json:"volumeMounts,omitempty"`
+	Ref          string              `json:"ref,omitempty"`
+}
 
 // BundleSpec defines the desired state of Bundle
 type BundleSpec struct {
-	// Class specifies the name of the ProvisionerClass to use for unpacking the bundle.
-	Class string `json:"class,omitempty"`
+	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
 
-	Refs []BundleReference `json:"source"`
+	// Likely in the future, we'll have the immediate need to handle something
+	// like the `olm.bundle` class which has embedded knowledge that understands
+	// how to unpack registry+v1 bundle image(s).
+	// Class specifies the name of the ProvisionerClass to use for unpacking the bundle.
+	Class  ProvisionerID `json:"class,omitempty"`
+	Source BundleSource  `json:"source"`
 }
 
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	// TODO: Reference to volume containing unpacked bundle content
+	Conditions []metav1.Condition           `json:"conditions,omitempty"`
+	Unpacked   BundleUnpackStatusType       `json:"unpacked"`
+	Digest     string                       `json:"digest,omitempty"`
+	Volume     *corev1.LocalObjectReference `json:"volume"`
 }
+
+type BundleUnpackStatusType string
+
+const (
+	BundleUnpacked       BundleUnpackStatusType = "Unpacked"
+	BundleNeedsUnpacking BundleUnpackStatusType = "NeedsUnpacking"
+)
 
 // +genclient
 // +genclient:nonNamespaced
