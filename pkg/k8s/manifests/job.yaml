@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    job-name: {{.JobName}}
+  name: {{.JobName}}
+  namespace: {{.JobNamespace}}
+spec:
+  ttlSecondsAfterFinished: 60
+  backoffLimit: 2
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        job-name: {{.JobName}}
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: test
+        image: {{.UnpackImage}}
+        command:
+          - bin/unpacker
+        args:
+          - --image={{.BundleImage}}
+          - --manifest-dir=manifests
+          - --output-dir=/manifests
+        imagePullPolicy: Always
+        volumeMounts:
+          - mountPath: /manifests
+            name: manifests
+      serviceAccountName: rukpak-admin
+      volumes:
+        - name: manifests
+          persistentVolumeClaim:
+            claimName: {{.PVCName}}
