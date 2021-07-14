@@ -1,0 +1,6 @@
+FROM scratch
+
+COPY bin/serve bin/
+
+EXPOSE 8081
+CMD ["bin/serve"]
