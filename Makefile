@@ -57,3 +57,32 @@ verify: tidy format manifests generate
 
 controller-gen: vendor ## Find or download controller-gen
 CONTROLLER_GEN=$(Q)go run -mod=vendor ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen
+
+kind-install:
+	kind create cluster
+	kind export kubeconfig
+	$(MAKE) install
+
+install: manifests
+	$(MAKE) apply-manifests
+	kubectl create ns rukpak
+
+apply-manifests:
+	kubectl apply -f config/crd/bases
+
+.PHONY: vendor
+vendor:
+	go mod tidy
+	go mod vendor
+
+.PHONY: bin/provisioner
+bin/provisioner:
+	go build -o bin/provisioner ./cmd/provisioner/...
+
+.PHONY: bin/unpacker
+bin/unpacker:
+	go build -o bin/unpacker ./cmd/unpacker/...
+
+.PHONY: bin/serve
+bin/serve:
+	go build -tags netgo -o bin/serve ./cmd/serve/...
