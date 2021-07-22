@@ -25,12 +25,6 @@ help: ## Show this help screen
 format: ## Format the source code
 	$(Q)go fmt $(PKGS)
 
-tidy: ## Update dependencies
-	$(Q)go mod tidy -v
-
-vendor: tidy ## Update vendor directory
-	$(Q)go mod vendor
-
 generate: controller-gen  ## Generate code
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./...
 
@@ -68,12 +62,18 @@ install: manifests
 	kubectl create ns rukpak
 
 apply-manifests:
-	kubectl apply -f config/crd/bases
+	kubectl apply -f manifests
 
 .PHONY: vendor
 vendor:
 	go mod tidy
 	go mod vendor
+
+.PHONY: build
+build:
+	$(MAKE) bin/provisioner
+	$(MAKE) bin/unpacker
+	$(MAKE) bin/serve
 
 .PHONY: bin/provisioner
 bin/provisioner:
