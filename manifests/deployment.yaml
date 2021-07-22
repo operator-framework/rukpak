@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rukpak-serve
+  namespace: rukpak
+  labels:
+    app: rukpak-serve
+spec:
+  selector:
+    matchLabels:
+      app: rukpak-serve
+  template:
+    metadata:
+      labels:
+        app: rukpak-serve
+    spec:
+      containers:
+      - name: rukpak-serve
+        image: quay.io/tflannag/rukpak:serve
+        command:
+        - /bin/serve
+        resources:
+          limits:
+            memory: "50Mi"
+            cpu: "50m"
+        ports:
+        - containerPort: 8081
+        volumeMounts:
+          - name: manifests
+            mountPath: /manifests
+      # FIXME(tflannag): This is purely a debug artifact. Remove when provisioner has been fleshed out further.
+      - name: ubuntu
+        image: ubuntu:latest
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        volumeMounts:
+          - mountPath: /manifests
+            name: manifests
+      volumes:
+      - name: manifests
+        persistentVolumeClaim:
+          claimName: manifests

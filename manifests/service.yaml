@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rukpak-serve
+spec:
+  selector:
+    app: rukpak-serve
+  ports:
+  - name: http
+    port: 8081
