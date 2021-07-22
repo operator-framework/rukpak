@@ -67,14 +67,15 @@ func (r *Reconciler) ensureBundleVolume(ctx context.Context, bundleName string) 
 	}
 
 	if fresh.Status.Volume != nil {
-		// FIXME
-		r.log.Info("volume", "(stub) bundle volume already exists not validating yet", fresh.Name)
+		// TODO(tflannag): Check the status is still valid
+		// TODO(tlfannag): Handle case where the object was just updated and requeued
 		return nil
 	}
 
-	pvc, err := r.createPVC(fresh.GetName())
-	if err != nil {
-		return err
+	// TODO(tflannag): Avoid hardcoding -- likely can find the PVC by label selecting
+	pvc := &corev1.PersistentVolumeClaim{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: "manifests", Namespace: r.globalNamespace}, pvc); err != nil {
+		return client.IgnoreNotFound(err)
 	}
 	fresh.Status.Volume = &corev1.LocalObjectReference{
 		Name: pvc.GetName(),

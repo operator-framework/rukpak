@@ -25,7 +25,7 @@ spec:
         args:
           - --image={{.BundleImage}}
           - --manifest-dir=manifests
-          - --output-dir=/manifests
+          - --output-dir={{.UnpackOutputDir}}
         imagePullPolicy: Always
         volumeMounts:
           - mountPath: /manifests

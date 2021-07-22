@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -136,84 +134,13 @@ func (r *Reconciler) ReconcileBundle(ctx context.Context, req ctrl.Request) (rec
 		log.Error(err, "failed to unpack bunde")
 		return ctrl.Result{}, err
 	}
-	if err := r.ensureManifestService(8081, bundle); err != nil {
-		log.Error(err, "failed to ensure the manifest serving service exists")
-		return ctrl.Result{}, err
-	}
-	// TODO(tflannag): Need to wait until the job that's unpacking contents has become
-	// ready before serving filesystem content
-	if err := r.createManifestServingPod("/manifests", bundle); err != nil {
-		log.Error(err, "failed to create a manifest filesystem serving pod")
-		return ctrl.Result{}, err
-	}
 	// TODO(tflannag): Handle updating status
 
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) ensureManifestService(port int32, bundle *v1alpha1.Bundle) error {
-	r.log.Info("serve", "ensuring a service exists for serving bundle manifest content", bundle.Name)
-
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-service", bundle.Name),
-			Namespace: r.globalNamespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{{
-				Name: "serving",
-				Port: port,
-			}},
-			Selector: map[string]string{
-				// TODO(tflannag): Use a better label in the Pod manifest template
-				"name": bundle.Name,
-			},
-		},
-	}
-	if err := controllerutil.SetOwnerReference(bundle, service, r.Scheme()); err != nil {
-		return err
-	}
-	if err := r.Client.Create(context.Background(), service); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return nil
-		}
-		return err
-	}
-	// TODO: reconcile state as needed
-
-	return nil
-}
-
-func (r *Reconciler) createManifestServingPod(mountpath string, bundle *v1alpha1.Bundle) error {
-	pvcName := bundle.Status.Volume.Name
-	r.log.Info("serve", "creating a pod that serves the manifest bundle content", bundle.Name, "using pvc name", pvcName, "and mountpath", mountpath)
-	// TODO(tflannag): Use a better PodName here.
-	config := manifests.ManifestServingPod{
-		PodName:      fmt.Sprintf("%s-serve", bundle.Name),
-		PodNamespace: r.globalNamespace,
-		ServeImage:   r.serveImage,
-		PVCName:      pvcName,
-		PVCMountPath: mountpath,
-	}
-
-	pod, err := manifests.NewManifestServingPod(config)
-	if err != nil {
-		return err
-	}
-	if err := controllerutil.SetOwnerReference(bundle, pod, r.Scheme()); err != nil {
-		return err
-	}
-	if err := r.Client.Create(context.Background(), pod); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return nil
-		}
-		return err
-	}
-
-	return nil
-}
-
 func (r *Reconciler) unpackBundle(bundle *v1alpha1.Bundle) error {
+	// TODO(tflannag): Unpack everything to the manifests PVC
 	bundleSource := bundle.Spec.Source.Ref
 	if strings.Contains(bundleSource, "docker://") {
 		bundleSource = strings.TrimPrefix(bundleSource, "docker://")
@@ -234,11 +161,12 @@ func (r *Reconciler) newUnpackJob(image string, bundle *v1alpha1.Bundle) error {
 	// setup ttl delete
 	jobName := fmt.Sprintf("%s-bundle-job", bundle.Name)
 	config := manifests.BundleUnpackJobConfig{
-		JobName:      jobName,
-		JobNamespace: r.globalNamespace,
-		UnpackImage:  r.unpackImage,
-		BundleImage:  image,
-		PVCName:      bundle.Status.Volume.Name,
+		JobName:         jobName,
+		JobNamespace:    r.globalNamespace,
+		UnpackImage:     r.unpackImage,
+		BundleImage:     image,
+		PVCName:         bundle.Status.Volume.Name,
+		UnpackOutputDir: fmt.Sprintf("manifests/%s/%s", r.globalNamespace, bundle.Name),
 	}
 	job, err := manifests.NewJobManifest(config)
 	if err != nil {

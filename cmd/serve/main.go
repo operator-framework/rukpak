@@ -33,6 +33,8 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	dir := http.Dir(root)
 
+	// TODO(tflannag): Ignore hidden files/directories/etc.
+	// TODO(tflannag): Implement an HTTP API for GET/POST-ing tar files?
 	logger := logrus.New()
 	logger.Infof("serving filesystem content from %s directory on port %v", dir, port)
 	http.Handle("/", http.FileServer(dir))

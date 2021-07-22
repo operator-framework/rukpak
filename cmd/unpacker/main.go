@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,11 +20,15 @@ import (
 
 func main() {
 	cmd := &cobra.Command{
-		Use:   "unpack",
-		Short: "Unpack arbitrary bundle content from a container image",
-		RunE:  run,
+		Use:          "unpack",
+		Short:        "Unpack arbitrary bundle content from a container image",
+		SilenceUsage: true,
+		RunE:         run,
 	}
 
+	// TODO(tflannag): How to surface something like a unique ID?
+	// TODO(tflannag): Use a CronJob instead of a Job so we're not unnecessarily firing
+	// 				   off Jobs to check for new content?
 	// TODO(tflannag): Somehow inheriting this `--azure-container-registry-config` flag from the g/go-containerregistry import.
 	cmd.Flags().String("image", "", "configures the container image that contains bundle content")
 	cmd.Flags().String("namespace", "rukpak", "configures the namespace for in-cluster authentication")
@@ -32,7 +37,7 @@ func main() {
 	cmd.Flags().String("output-dir", "manifests", "configures the directory to store unpacked bundle content")
 
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "encountered an error while unpacking the bundle container image: %v", err)
+		fmt.Fprintf(os.Stderr, "encountered an error while unpacking the bundle container image: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -42,15 +47,23 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	manifestDir, err := cmd.Flags().GetString("manifest-dir")
-	if err != nil {
-		return err
-	}
 	outputDir, err := cmd.Flags().GetString("output-dir")
 	if err != nil {
 		return err
 	}
 	logger := logrus.New()
+
+	logger.Infof("stating the %s output directory", outputDir)
+	if _, err := os.Stat(outputDir); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		logger.Infof("attempting to create the %s output directory as it does not exist", outputDir)
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return err
+		}
+		logger.Infof("the output directory %s has been created", outputDir)
+	}
 
 	// TODO(tflannag): Need to handle more advance authentication methods.
 	// TODO(tflannag): Expose a way to run this locally w/o setting up any
@@ -62,10 +75,22 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	defer reader.Close()
 
-	// TODO(tflannag): expose a tar file vs. a flattened filesystem.
-	if err := unpackBundleTarToDirectory(logger, reader, manifestDir, outputDir); err != nil {
+	out, err := os.Create(filepath.Join(outputDir, "bundle.tar.gz"))
+	if err != nil {
 		return err
 	}
+	defer out.Close()
+
+	logger.Info("copying the tar reader contents to the output tar file")
+	if _, err := io.Copy(out, reader); err != nil {
+		return err
+	}
+	logger.Info("finished unpacking bundle contents")
+
+	// // TODO(tflannag): expose a tar file vs. a flattened filesystem.
+	// if err := unpackBundleTarToDirectory(logger, reader, manifestDir, outputDir); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
