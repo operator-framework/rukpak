@@ -56,8 +56,7 @@ type BundleSpec struct {
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
 	Conditions []metav1.Condition           `json:"conditions,omitempty"`
-	Unpacked   BundleUnpackStatusType       `json:"unpacked"`
-	Digest     string                       `json:"digest,omitempty"`
+	Unpacked   BundleUnpackStatusType       `json:"unpacked,omitempty"`
 	Volume     *corev1.LocalObjectReference `json:"volume"`
 }
 

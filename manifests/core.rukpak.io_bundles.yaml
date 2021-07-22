@@ -37,18 +37,31 @@ spec:
                 - source
               properties:
                 class:
-                  description: Class specifies the name of the ProvisionerClass to use for unpacking the bundle.
+                  description: Likely in the future, we'll have the immediate need to handle something like the `olm.bundle` class which has embedded knowledge that understands how to unpack registry+v1 bundle image(s). Class specifies the name of the ProvisionerClass to use for unpacking the bundle.
                   type: string
                 source:
-                  type: array
-                  items:
-                    type: string
+                  type: object
+                  properties:
+                    ref:
+                      type: string
+                    volumeMounts:
+                      type: array
+                      items:
+                        description: BundleVolumeMount is the specification of a single volume that contains bundle manifest content and how to mount that content.
+                        type: object
+                        required:
+                          - mountPath
+                        properties:
+                          mountPath:
+                            description: MountPath is the filesystem path to the bundle manifest content
+                            type: string
             status:
               description: BundleStatus defines the observed state of Bundle
               type: object
+              required:
+                - volume
               properties:
                 conditions:
-                  description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file'
                   type: array
                   items:
                     description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, type FooStatus struct{     // Represents the observations of a foo's current state.     // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     // +patchStrategy=merge     // +listType=map     // +listMapKey=type     Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n     // other fields }"
@@ -91,6 +104,15 @@ spec:
                         type: string
                         maxLength: 316
                         pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                unpacked:
+                  type: string
+                volume:
+                  description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                  type: object
+                  properties:
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                      type: string
       served: true
       storage: true
       subresources:
