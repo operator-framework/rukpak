@@ -28,6 +28,7 @@ spec:
         volumeMounts:
           - name: manifests
             mountPath: /manifests
+      # TODO(tflannag): Add an proxy sidecar container (likely kube-rbac-proxy)
       # FIXME(tflannag): This is purely a debug artifact. Remove when provisioner has been fleshed out further.
       - name: ubuntu
         image: ubuntu:latest

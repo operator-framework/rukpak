@@ -134,7 +134,21 @@ func (r *Reconciler) ReconcileBundle(ctx context.Context, req ctrl.Request) (rec
 		log.Error(err, "failed to unpack bunde")
 		return ctrl.Result{}, err
 	}
-	// TODO(tflannag): Handle updating status
+	// get the URI: http://localhost:8081/manifests/<r.globalName>/<bundle.Name>/bundle.tar.gz
+	// update the status
+	// ensure the svc exists?
+	// TODO(tflannag): Use an actual URL builder
+	uri := fmt.Sprintf("http://localhost:%d/manifests/%s/%s/bundle.tar.gz", 8081, r.globalNamespace, bundle.Name)
+	if bundle.Status.URI == uri {
+		log.Info("bundle status already contains a reference to a URI")
+		return ctrl.Result{}, nil
+	}
+
+	bundle.Status.URI = uri
+	if err := r.Client.Status().Update(ctx, bundle); err != nil {
+		log.Error(err, "failed to update the bundle status with the bundle.tar.gz URI")
+		return ctrl.Result{}, err
+	}
 
 	return reconcile.Result{}, nil
 }

@@ -58,6 +58,7 @@ type BundleStatus struct {
 	Conditions []metav1.Condition           `json:"conditions,omitempty"`
 	Unpacked   BundleUnpackStatusType       `json:"unpacked,omitempty"`
 	Volume     *corev1.LocalObjectReference `json:"volume"`
+	URI        string                       `json:"uri,omitempty"`
 }
 
 type BundleUnpackStatusType string
