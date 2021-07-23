@@ -16,7 +16,14 @@ spec:
     singular: bundle
   scope: Cluster
   versions:
-    - name: v1alpha1
+    - additionalPrinterColumns:
+        - jsonPath: .status.unpacked
+          name: Unpacked
+          type: string
+        - jsonPath: .status.uri
+          name: URI
+          type: string
+      name: v1alpha1
       schema:
         openAPIV3Schema:
           description: Bundle is the Schema for the bundles API

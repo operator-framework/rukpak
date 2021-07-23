@@ -74,6 +74,8 @@ const (
 // +kubebuilder:storageversion
 // +kubebuilder:resource:categories=rukpak,scope=Cluster
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Unpacked",type=string,JSONPath=`.status.unpacked`
+// +kubebuilder:printcolumn:name="URI",type=string,JSONPath=`.status.uri`
 
 // Bundle is the Schema for the bundles API
 type Bundle struct {
