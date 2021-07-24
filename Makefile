@@ -25,6 +25,12 @@ help: ## Show this help screen
 format: ## Format the source code
 	$(Q)go fmt $(PKGS)
 
+tidy: ## Update dependencies
+	$(Q)go mod tidy -v
+
+vendor: tidy ## Update vendor directory
+	$(Q)go mod vendor
+
 generate: controller-gen  ## Generate code
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./...
 
@@ -52,28 +58,12 @@ verify: tidy format manifests generate
 controller-gen: vendor ## Find or download controller-gen
 CONTROLLER_GEN=$(Q)go run -mod=vendor ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen
 
-kind-install:
-	kind create cluster
-	kind export kubeconfig
-	$(MAKE) install
-
 install: manifests
-	$(MAKE) apply-manifests
 	kubectl create ns rukpak
+	$(MAKE) apply-manifests
 
 apply-manifests:
 	kubectl apply -f manifests
-
-.PHONY: vendor
-vendor:
-	go mod tidy
-	go mod vendor
-
-.PHONY: build
-build:
-	$(MAKE) bin/provisioner
-	$(MAKE) bin/unpacker
-	$(MAKE) bin/serve
 
 .PHONY: bin/provisioner
 bin/provisioner:
