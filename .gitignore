@@ -13,3 +13,4 @@
 
 # Dependency directories
 vendor/
+bin/
