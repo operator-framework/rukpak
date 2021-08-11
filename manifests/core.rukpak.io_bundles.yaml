@@ -37,18 +37,16 @@ spec:
                 - source
               properties:
                 class:
-                  description: Class specifies the name of the ProvisionerClass to use for unpacking the bundle.
+                  description: Class specifies the name of the provisioner that should manage the Bundle.
                   type: string
                 source:
-                  type: array
-                  items:
-                    type: string
+                  description: Source locates all remote content to be staged by the Bundle.
+                  type: string
             status:
               description: BundleStatus defines the observed state of Bundle
               type: object
               properties:
                 conditions:
-                  description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file'
                   type: array
                   items:
                     description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, type FooStatus struct{     // Represents the observations of a foo's current state.     // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     // +patchStrategy=merge     // +listType=map     // +listMapKey=type     Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n     // other fields }"
@@ -91,6 +89,15 @@ spec:
                         type: string
                         maxLength: 316
                         pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                contents:
+                  description: Contents provides access to all staged bundle content.
+                  type: array
+                  items:
+                    description: Content surfaces staged content for clients to access.
+                    type: object
+                provisioner:
+                  description: Provisioner is the ID of the provisioner managing this Bundle.
+                  type: string
       served: true
       storage: true
       subresources:
