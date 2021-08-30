@@ -48,3 +48,10 @@ test-unit: ## Run the unit tests
 verify: tidy generate format
 	git diff --exit-code
 
+# Binary builds
+GO_BUILD := $(Q)go build
+
+build: bin/k8s
+
+bin/k8s:
+	$(GO_BUILD) -o $@ ./provisioner/k8s
