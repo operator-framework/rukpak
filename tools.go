@@ -3,6 +3,6 @@
 package tools
 
 import (
-	// Generate deepcopy and conversion.
-	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint" // Better linting
+	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"     // Generate deepcopy, conversion, and CRDs
 )

@@ -9,7 +9,6 @@ else
   Q = @
 endif
 
-PKGS = $(shell go list ./... | grep -v /vendor/)
 
 .PHONY: help
 help: ## Show this help screen
@@ -20,26 +19,23 @@ help: ## Show this help screen
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 # Code management
-.PHONY: format tidy clean vendor generate manifests
+.PHONY: lint format tidy clean generate
+
+PKGS = $(shell go list ./...)
+
+lint:
+	$(Q)go run github.com/golangci/golangci-lint/cmd/golangci-lint run
 
 format: ## Format the source code
-	$(Q)go fmt $(PKGS)
+	$(Q)go fmt ./...
 
 tidy: ## Update dependencies
-	$(Q)go mod tidy -v
+	$(Q)go mod tidy
 
-vendor: tidy ## Update vendor directory
-	$(Q)go mod vendor
+CONTROLLER_GEN=$(Q)go run sigs.k8s.io/controller-tools/cmd/controller-gen
 
-generate: controller-gen  ## Generate code
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./...
-
-manifests: controller-gen ## Generate manifests e.g. CRD, RBAC etc
-	@# Create CRDs for new APIs
-	$(CONTROLLER_GEN) crd:crdVersions=v1 output:crd:dir=./manifests paths=./api/v1alpha1/...
-
-	@# Update existing CRDs from type changes
-	$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests paths=./api/v1alpha1/...
+generate: ## Generate code and manifests
+	$(Q)go generate ./...
 
 # Static tests.
 .PHONY: test test-unit verify
@@ -47,13 +43,15 @@ manifests: controller-gen ## Generate manifests e.g. CRD, RBAC etc
 test: test-unit ## Run the tests
 
 test-unit: ## Run the unit tests
-	$(Q)go test -count=1 -short ${PKGS}
+	$(Q)go test -count=1 -short ./...
 
-verify: tidy format manifests generate
+verify: tidy generate format
 	git diff --exit-code
 
-# Utilities.
-.PHONY: controller-gen
+# Binary builds
+GO_BUILD := $(Q)go build
 
-controller-gen: vendor ## Find or download controller-gen
-CONTROLLER_GEN=$(Q)go run -mod=vendor ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen
+build: bin/k8s
+
+bin/k8s:
+	$(GO_BUILD) -o $@ ./provisioner/k8s
