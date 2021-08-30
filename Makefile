@@ -38,7 +38,7 @@ generate: ## Generate code and manifests
 	$(Q)go generate ./...
 
 # Static tests.
-.PHONY: test test-unit verify
+.PHONY: test test-unit verify build bin/k8s
 
 test: test-unit ## Run the tests
 
