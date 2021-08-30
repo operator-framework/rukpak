@@ -1,0 +1,30 @@
+name: build
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    paths:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '~1.17'
+      - run: make build
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build the container image
+        uses: docker/build-push-action@v1
+        with:
+          repository: operator-framework/rukpak
+          dockerfile: ./Dockerfile
+          push: false
