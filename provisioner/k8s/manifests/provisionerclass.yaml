@@ -1,0 +1,6 @@
+apiVersion: core.rukpak.io/v1alpha1
+kind: ProvisionerClass
+metadata:
+  name: default
+spec:
+  provisioner: rukpak.io/k8s
