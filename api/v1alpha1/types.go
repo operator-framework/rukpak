@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 type ProvisionerID string
@@ -58,6 +58,10 @@ type ProvisionerClassList struct {
 // Source locates content to stage.
 type Source string
 
+func (s Source) String() string {
+	return string(s)
+}
+
 // BundleSpec defines the desired state of Bundle
 type BundleSpec struct {
 	// Class specifies the name of the provisioner that should manage the Bundle.
@@ -69,21 +73,37 @@ type BundleSpec struct {
 }
 
 // Content surfaces staged content for clients to access.
-type Content struct {
-	runtime.RawExtension `json:"-"`
-}
+type Content string
+
+type BundleUnpackStatusType string
+
+const (
+	BundleUnpacked       BundleUnpackStatusType = "Unpacked"
+	BundleNeedsUnpacking BundleUnpackStatusType = "NeedsUnpacking"
+)
 
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
 	// Provisioner is the ID of the provisioner managing this Bundle.
 	// +optional
 	Provisioner ProvisionerID `json:"provisioner,omitempty"`
-
+	// Volume is a reference to a local volume
+	Volume *corev1.LocalObjectReference `json:"volume,omitempty"`
+	// Unpacked reflects whether the bundle needs unpacking or has already been unpacked
+	Unpacked BundleUnpackStatusType `json:"unpacked,omitempty"`
 	// Contents provides access to all staged bundle content.
 	// +optional
 	Contents []Content `json:"contents,omitempty"`
 
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+func (b *Bundle) SetUnpackedStatus(unpacked BundleUnpackStatusType) {
+	b.Status.Unpacked = unpacked
+}
+
+func (b *Bundle) SetVolumeRef(ref *corev1.LocalObjectReference) {
+	b.Status.Volume = ref
 }
 
 // +genclient

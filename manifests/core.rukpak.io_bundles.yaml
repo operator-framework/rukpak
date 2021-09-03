@@ -94,10 +94,20 @@ spec:
                   type: array
                   items:
                     description: Content surfaces staged content for clients to access.
-                    type: object
+                    type: string
                 provisioner:
                   description: Provisioner is the ID of the provisioner managing this Bundle.
                   type: string
+                unpacked:
+                  description: Unpacked reflects whether the bundle needs unpacking or has already been unpacked
+                  type: string
+                volume:
+                  description: Volume is a reference to a local volume
+                  type: object
+                  properties:
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                      type: string
       served: true
       storage: true
       subresources:
