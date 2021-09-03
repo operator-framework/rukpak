@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    job-name: {{.JobName}}
+  name: {{.JobName}}
+  namespace: {{.JobNamespace}}
+spec:
+  backoffLimit: 3
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        job-name: {{.JobName}}
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: test
+        image: {{.UnpackImage}}
+        imagePullPolicy: Always
+        command:
+        - /bin/unpacker
+        - run
+        args:
+        - --bundle={{.BundleName}}
+        - --namespace={{.JobNamespace}}
+      serviceAccountName: rukpak-admin
