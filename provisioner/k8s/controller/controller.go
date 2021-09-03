@@ -21,6 +21,7 @@ var (
 )
 
 const (
+	// ProvisionerID is the unique ID for identifying the k8s bundle provisioner
 	ProvisionerID v1alpha1.ProvisionerID = "rukpack.io/k8s"
 )
 
@@ -46,6 +47,7 @@ func (m manageables) manageWith(mgr ctrl.Manager) error {
 	return nil
 }
 
+// TODO(tflannag): Should this be unexported?
 type controller struct {
 	client.Client
 
@@ -53,7 +55,7 @@ type controller struct {
 	managed manageables
 }
 
-// NewReconciler constructs and returns a controller.
+// NewController constructs and returns a controller.
 func NewController(cli client.Client, log logr.Logger) (*controller, error) {
 	return &controller{
 		Client: cli,
@@ -64,8 +66,9 @@ func NewController(cli client.Client, log logr.Logger) (*controller, error) {
 				log:    log.WithValues("controller", "provisionerclass"),
 			},
 			&bundleController{
-				Client: cli,
-				log:    log.WithValues("controller", "bundle"),
+				Client:      cli,
+				log:         log.WithValues("controller", "bundle"),
+				unpackImage: "quay.io/tflannag/rukpak:unpacker",
 			},
 		},
 	}, nil
