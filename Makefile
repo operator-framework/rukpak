@@ -38,7 +38,7 @@ generate: ## Generate code and manifests
 	$(Q)go generate ./...
 
 # Static tests.
-.PHONY: test test-unit verify build bin/k8s
+.PHONY: test test-unit verify build bin/k8s bin/unpacker
 
 test: test-unit ## Run the tests
 
@@ -51,7 +51,10 @@ verify: tidy generate format
 # Binary builds
 GO_BUILD := $(Q)go build
 
-build: bin/k8s
+build: bin/k8s bin/unpacker
 
 bin/k8s:
 	$(GO_BUILD) -o $@ ./provisioner/k8s
+
+bin/unpacker:
+	$(GO_BUILD) -o $@ ./provisioner/unpacker
