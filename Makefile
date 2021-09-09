@@ -48,6 +48,10 @@ test-unit: ## Run the unit tests
 verify: tidy generate format
 	git diff --exit-code
 
+install: generate
+	kubectl apply -f manifests
+	kubectl apply -f provisioner/k8s/manifests
+
 # Binary builds
 GO_BUILD := $(Q)go build
 
