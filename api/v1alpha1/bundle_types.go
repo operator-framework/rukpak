@@ -20,7 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type ProvisionerID string
 type BundleConditionType string
 
 const (
@@ -54,6 +53,8 @@ type ImagePullSecret struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 }
+
+type ProvisionerID string
 
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
