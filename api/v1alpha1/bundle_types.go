@@ -1,5 +1,5 @@
 /*
-
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,48 +18,73 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
-// Source locates content to stage.
-type Source string
+type ProvisionerID string
+type BundleConditionType string
+
+const (
+	TypeUnpacked = "Unpacked"
+
+	ReasonUnpackPending    = "UnpackPending"
+	ReasonUnpacking        = "Unpacking"
+	ReasonUnpackSuccessful = "UnpackSuccessful"
+	ReasonUnpackFailed     = "UnpackFailed"
+
+	PhasePending   = "Pending"
+	PhaseUnpacking = "Unpacking"
+	PhaseFailing   = "Failing"
+	PhaseUnpacked  = "Unpacked"
+)
 
 // BundleSpec defines the desired state of Bundle
 type BundleSpec struct {
-	// Class specifies the name of the provisioner that should manage the Bundle.
-	// +optional
-	Class string `json:"class,omitempty"`
+	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
+	ProvisionerClassName string `json:"provisionerClassName"`
 
-	// Source locates all remote content to be staged by the Bundle.
-	Source Source `json:"source"`
+	// Image is the bundle image that backs the content of this bundle.
+	Image string `json:"image"`
+
+	// ImagePullSecrets is a list of pull secrets to have available to
+	// pull the referenced image.
+	ImagePullSecrets []ImagePullSecret `json:"imagePullSecrets,omitempty"`
 }
 
-// Content surfaces staged content for clients to access.
-type Content struct {
-	runtime.RawExtension `json:"-"`
+type ImagePullSecret struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
 }
-
-type ProvisionerID string
 
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
-	// Provisioner is the ID of the provisioner managing this Bundle.
-	// +optional
-	Provisioner ProvisionerID `json:"provisioner,omitempty"`
-
-	// Contents provides access to all staged bundle content.
-	// +optional
-	Contents []Content `json:"contents,omitempty"`
-
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Info               *BundleInfo        `json:"info,omitempty"`
+	Phase              string             `json:"phase,omitempty"`
+	Digest             string             `json:"digest,omitempty"`
+	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
+	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 }
 
-// +genclient
-// +genclient:nonNamespaced
-// +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +kubebuilder:resource:categories=rukpak,scope=Cluster
-// +kubebuilder:subresource:status
+type BundleInfo struct {
+	Package string         `json:"package"`
+	Name    string         `json:"name"`
+	Version string         `json:"version"`
+	Objects []BundleObject `json:"objects,omitempty"`
+}
+
+type BundleObject struct {
+	Group     string `json:"group"`
+	Version   string `json:"version"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+//+kubebuilder:object:root=true
+//+kubebuilder:resource:scope=Cluster
+//+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name=Image,type=string,JSONPath=`.spec.image`
+//+kubebuilder:printcolumn:name=Phase,type=string,JSONPath=`.status.phase`
+//+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Bundle is the Schema for the bundles API
 type Bundle struct {
@@ -70,7 +95,7 @@ type Bundle struct {
 	Status BundleStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+//+kubebuilder:object:root=true
 
 // BundleList contains a list of Bundle
 type BundleList struct {
