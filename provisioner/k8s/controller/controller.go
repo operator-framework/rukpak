@@ -59,10 +59,6 @@ func NewController(cli client.Client, log logr.Logger) (*controller, error) {
 		Client: cli,
 		log:    log,
 		managed: manageables{
-			&provisionerClassController{
-				Client: cli,
-				log:    log.WithValues("controller", "provisionerclass"),
-			},
 			&bundleController{
 				Client: cli,
 				log:    log.WithValues("controller", "bundle"),
