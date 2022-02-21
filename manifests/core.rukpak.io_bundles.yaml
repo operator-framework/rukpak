@@ -48,19 +48,6 @@ spec:
                 image:
                   description: Image is the bundle image that backs the content of this bundle.
                   type: string
-                imagePullSecrets:
-                  description: ImagePullSecrets is a list of pull secrets to have available to pull the referenced image.
-                  type: array
-                  items:
-                    type: object
-                    required:
-                      - name
-                      - namespace
-                    properties:
-                      name:
-                        type: string
-                      namespace:
-                        type: string
                 provisionerClassName:
                   description: ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
                   type: string

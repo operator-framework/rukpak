@@ -43,15 +43,6 @@ type BundleSpec struct {
 
 	// Image is the bundle image that backs the content of this bundle.
 	Image string `json:"image"`
-
-	// ImagePullSecrets is a list of pull secrets to have available to
-	// pull the referenced image.
-	ImagePullSecrets []ImagePullSecret `json:"imagePullSecrets,omitempty"`
-}
-
-type ImagePullSecret struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
 }
 
 type ProvisionerID string
