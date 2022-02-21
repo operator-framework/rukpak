@@ -8,15 +8,23 @@ metadata:
 spec:
   group: core.rukpak.io
   names:
-    categories:
-      - rukpak
     kind: Bundle
     listKind: BundleList
     plural: bundles
     singular: bundle
   scope: Cluster
   versions:
-    - name: v1alpha1
+    - additionalPrinterColumns:
+        - jsonPath: .spec.image
+          name: Image
+          type: string
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1alpha1
       schema:
         openAPIV3Schema:
           description: Bundle is the Schema for the bundles API
@@ -34,13 +42,27 @@ spec:
               description: BundleSpec defines the desired state of Bundle
               type: object
               required:
-                - source
+                - image
+                - provisionerClassName
               properties:
-                class:
-                  description: Class specifies the name of the provisioner that should manage the Bundle.
+                image:
+                  description: Image is the bundle image that backs the content of this bundle.
                   type: string
-                source:
-                  description: Source locates all remote content to be staged by the Bundle.
+                imagePullSecrets:
+                  description: ImagePullSecrets is a list of pull secrets to have available to pull the referenced image.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - namespace
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                provisionerClassName:
+                  description: ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
                   type: string
             status:
               description: BundleStatus defines the observed state of Bundle
@@ -89,14 +111,46 @@ spec:
                         type: string
                         maxLength: 316
                         pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                contents:
-                  description: Contents provides access to all staged bundle content.
-                  type: array
-                  items:
-                    description: Content surfaces staged content for clients to access.
-                    type: object
-                provisioner:
-                  description: Provisioner is the ID of the provisioner managing this Bundle.
+                digest:
+                  type: string
+                info:
+                  type: object
+                  required:
+                    - name
+                    - package
+                    - version
+                  properties:
+                    name:
+                      type: string
+                    objects:
+                      type: array
+                      items:
+                        type: object
+                        required:
+                          - group
+                          - kind
+                          - name
+                          - namespace
+                          - version
+                        properties:
+                          group:
+                            type: string
+                          kind:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          version:
+                            type: string
+                    package:
+                      type: string
+                    version:
+                      type: string
+                observedGeneration:
+                  type: integer
+                  format: int64
+                phase:
                   type: string
       served: true
       storage: true
