@@ -21,40 +21,6 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
-type ProvisionerID string
-
-// ProvisionerClassSpec defines the desired state of ProvisionerClass
-type ProvisionerClassSpec struct {
-	Provisioner ProvisionerID `json:"provisioner"`
-
-	// +optional
-	Parameters map[string]string `json:"parameters,omitempty"`
-}
-
-// +genclient
-// +genclient:nonNamespaced
-// +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +kubebuilder:resource:categories=rukpak,scope=Cluster
-// +kubebuilder:subresource:status
-
-// ProvisionerClass is the Schema for the provisionerclasses API
-type ProvisionerClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec ProvisionerClassSpec `json:"spec"`
-}
-
-// +kubebuilder:object:root=true
-
-// ProvisionerClassList contains a list of ProvisionerClass
-type ProvisionerClassList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ProvisionerClass `json:"items"`
-}
-
 // Source locates content to stage.
 type Source string
 
@@ -72,6 +38,8 @@ type BundleSpec struct {
 type Content struct {
 	runtime.RawExtension `json:"-"`
 }
+
+type ProvisionerID string
 
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
@@ -112,5 +80,5 @@ type BundleList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&ProvisionerClass{}, &ProvisionerClassList{}, &Bundle{}, &BundleList{})
+	SchemeBuilder.Register(&Bundle{}, &BundleList{})
 }
