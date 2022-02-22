@@ -4,22 +4,22 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: bundles.core.rukpak.io
+  name: bundleinstances.core.rukpak.io
 spec:
   group: core.rukpak.io
   names:
-    kind: Bundle
-    listKind: BundleList
-    plural: bundles
-    singular: bundle
+    kind: BundleInstance
+    listKind: BundleInstanceList
+    plural: bundleinstances
+    singular: bundleinstance
   scope: Cluster
   versions:
     - additionalPrinterColumns:
-        - jsonPath: .spec.image
-          name: Image
+        - jsonPath: .spec.bundleName
+          name: Desired Bundle
           type: string
-        - jsonPath: .status.phase
-          name: Phase
+        - jsonPath: .status.installedBundleName
+          name: Installed Bundle
           type: string
         - jsonPath: .metadata.creationTimestamp
           name: Age
@@ -27,7 +27,7 @@ spec:
       name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: Bundle is the Schema for the bundles API
+          description: BundleInstance is the Schema for the bundleinstances API
           type: object
           properties:
             apiVersion:
@@ -39,23 +39,24 @@ spec:
             metadata:
               type: object
             spec:
-              description: BundleSpec defines the desired state of Bundle
+              description: BundleInstanceSpec defines the desired state of BundleInstance
               type: object
               required:
-                - image
+                - bundleName
                 - provisionerClassName
               properties:
-                image:
-                  description: Image is the bundle image that backs the content of this bundle.
+                bundleName:
+                  description: BundleName is the name of the bundle that this instance is managing on the cluster.
                   type: string
                 provisionerClassName:
                   description: ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
                   type: string
             status:
-              description: BundleStatus defines the observed state of Bundle
+              description: BundleInstanceStatus defines the observed state of BundleInstance
               type: object
               properties:
                 conditions:
+                  description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file'
                   type: array
                   items:
                     description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, type FooStatus struct{     // Represents the observations of a foo's current state.     // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     // +patchStrategy=merge     // +listType=map     // +listMapKey=type     Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n     // other fields }"
@@ -98,46 +99,7 @@ spec:
                         type: string
                         maxLength: 316
                         pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                digest:
-                  type: string
-                info:
-                  type: object
-                  required:
-                    - name
-                    - package
-                    - version
-                  properties:
-                    name:
-                      type: string
-                    objects:
-                      type: array
-                      items:
-                        type: object
-                        required:
-                          - group
-                          - kind
-                          - name
-                          - namespace
-                          - version
-                        properties:
-                          group:
-                            type: string
-                          kind:
-                            type: string
-                          name:
-                            type: string
-                          namespace:
-                            type: string
-                          version:
-                            type: string
-                    package:
-                      type: string
-                    version:
-                      type: string
-                observedGeneration:
-                  type: integer
-                  format: int64
-                phase:
+                installedBundleName:
                   type: string
       served: true
       storage: true

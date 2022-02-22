@@ -16,7 +16,7 @@ var (
 
 // Execute executes the root command.
 func Execute(log logr.Logger) error {
-	if log != nil {
+	if log.GetSink() != nil {
 		rootLog = log
 	}
 
