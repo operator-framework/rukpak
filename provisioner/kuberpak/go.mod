@@ -1,4 +1,4 @@
-module github.com/joelanford/kuberpak
+module github.com/operator-framework/rukpak
 
 go 1.17
 

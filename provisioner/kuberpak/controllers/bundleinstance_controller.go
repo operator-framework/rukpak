@@ -50,10 +50,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/yaml"
 
-	olmv1alpha1 "github.com/joelanford/kuberpak/api/v1alpha1"
-	"github.com/joelanford/kuberpak/internal/convert"
-	helmpredicate "github.com/joelanford/kuberpak/internal/helm-operator-plugins/predicate"
-	"github.com/joelanford/kuberpak/internal/storage"
+	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/convert"
+	helmpredicate "github.com/operator-framework/rukpak/provisioner/kuberpak/internal/helm-operator-plugins/predicate"
+	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/storage"
 )
 
 // BundleInstanceReconciler reconciles a BundleInstance object
