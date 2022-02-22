@@ -32,7 +32,6 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -54,6 +53,11 @@ import (
 	"github.com/operator-framework/rukpak/internal/convert"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/storage"
+)
+
+const (
+	installedNamespaceAnnotation = "kuberpak.io/install-namespace"
+	suggestedNamespaceAnnotation = "operatorframework.io/suggested-namespace"
 )
 
 // BundleInstanceReconciler reconciles a BundleInstance object
@@ -79,10 +83,6 @@ type BundleInstanceReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the BundleInstance object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
@@ -93,10 +93,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	bi := &olmv1alpha1.BundleInstance{}
 	if err := r.Get(ctx, req.NamespacedName, bi); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	defer func() {
 		bi := bi.DeepCopy()
@@ -142,13 +139,13 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	installNamespace := fmt.Sprintf("%s-system", b.Status.Info.Package)
-	if ns, ok := bi.Annotations["core.rukpak.io/install-namespace"]; ok && ns != "" {
+	if ns, ok := bi.Annotations[installedNamespaceAnnotation]; ok && ns != "" {
 		installNamespace = ns
-	} else if ns, ok := reg.CSV.Annotations["operatorframework.io/suggested-namespace"]; ok && ns != "" {
+	} else if ns, ok := reg.CSV.Annotations[suggestedNamespaceAnnotation]; ok && ns != "" {
 		installNamespace = ns
 	}
 
-	og, err := r.getOperatorGroup(ctx, installNamespace)
+	og, err := getOperatorGroup(ctx, r.Client, installNamespace)
 	if err != nil {
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    "Installed",
@@ -159,7 +156,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 	if og.Status.LastUpdated == nil {
-		err := errors.New("target naemspaces unknown")
+		err := errors.New("target namespace unknown")
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    "Installed",
 			Status:  metav1.ConditionFalse,
@@ -168,7 +165,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		})
 		return ctrl.Result{}, err
 	}
-	desiredObjects, err := r.getDesiredObjects(*reg, installNamespace, og.Status.Namespaces)
+	desiredObjects, err := getDesiredObjects(*reg, installNamespace, og.Status.Namespaces)
 	if err != nil {
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    "Installed",
@@ -213,7 +210,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	rel, state, err := r.getReleaseState(cl, bi, chrt)
+	rel, state, err := getReleaseState(cl, bi, r.ReleaseNamespace, chrt)
 	if err != nil {
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    "Installed",
@@ -320,9 +317,9 @@ const (
 	stateError        releaseState = "Error"
 )
 
-func (r *BundleInstanceReconciler) getOperatorGroup(ctx context.Context, installNamespace string) (*v1.OperatorGroup, error) {
+func getOperatorGroup(ctx context.Context, c client.Client, installNamespace string) (*v1.OperatorGroup, error) {
 	ogs := v1.OperatorGroupList{}
-	if err := r.List(ctx, &ogs, client.InNamespace(installNamespace)); err != nil {
+	if err := c.List(ctx, &ogs, client.InNamespace(installNamespace)); err != nil {
 		return nil, err
 	}
 	switch len(ogs.Items) {
@@ -335,7 +332,7 @@ func (r *BundleInstanceReconciler) getOperatorGroup(ctx context.Context, install
 	}
 }
 
-func (r *BundleInstanceReconciler) getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, chrt *chart.Chart) (*release.Release, releaseState, error) {
+func getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, namespace string, chrt *chart.Chart) (*release.Release, releaseState, error) {
 	currentRelease, err := cl.Get(obj.GetName())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateError, err
@@ -343,7 +340,7 @@ func (r *BundleInstanceReconciler) getReleaseState(cl helmclient.ActionInterface
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateNeedsInstall, nil
 	}
-	desiredRelease, err := cl.Upgrade(obj.GetName(), r.ReleaseNamespace, chrt, nil, func(upgrade *action.Upgrade) error {
+	desiredRelease, err := cl.Upgrade(obj.GetName(), namespace, chrt, nil, func(upgrade *action.Upgrade) error {
 		upgrade.DryRun = true
 		return nil
 	})
@@ -410,7 +407,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alph
 	return &reg, nil
 }
 
-func (r *BundleInstanceReconciler) getDesiredObjects(reg convert.RegistryV1, installNamespace string, watchNamespaces []string) ([]client.Object, error) {
+func getDesiredObjects(reg convert.RegistryV1, installNamespace string, watchNamespaces []string) ([]client.Object, error) {
 	reg.CSV.Namespace = installNamespace
 	plain, err := convert.Convert(reg, installNamespace, watchNamespaces)
 	if err != nil {
