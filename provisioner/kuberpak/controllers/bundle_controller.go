@@ -19,36 +19,28 @@ package controllers
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing/fstest"
 
-	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-registry/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/yaml"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
@@ -201,27 +193,15 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 }
 
 func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
-	imagePullSecrets, err := r.ensureImagePullSecrets(ctx, bundle)
-	if err != nil {
-		return controllerutil.OperationResultNone, err
-	}
-	var imagePullSecretRefs []corev1.LocalObjectReference
-	for _, ips := range imagePullSecrets {
-		imagePullSecretRefs = append(imagePullSecretRefs, corev1.LocalObjectReference{Name: ips.Name})
-	}
-	sort.Slice(imagePullSecretRefs, func(i, j int) bool {
-		return imagePullSecretRefs[i].Name < imagePullSecretRefs[j].Name
-	})
-
 	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
 	automountServiceAccountToken := false
 	pod.SetName(util.PodName(bundle.Name))
 	pod.SetNamespace(r.PodNamespace)
+
 	return util.CreateOrRecreate(ctx, r.Client, pod, func() error {
 		pod.SetLabels(map[string]string{"kuberpak.io/owner-name": bundle.Name})
 		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
 		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
-		pod.Spec.ImagePullSecrets = imagePullSecretRefs
 		pod.Spec.Volumes = []corev1.Volume{
 			{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			{Name: "bundle", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
@@ -254,58 +234,6 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 		pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "bundle", MountPath: "/bundle"}}
 		return nil
 	})
-}
-
-func (r *BundleReconciler) ensureImagePullSecrets(ctx context.Context, bundle *olmv1alpha1.Bundle) ([]corev1.Secret, error) {
-	actualPullSecretsList := &corev1.SecretList{}
-	if err := r.List(ctx, actualPullSecretsList, client.MatchingLabels(util.BundleLabels(bundle.Name)), client.InNamespace(r.PodNamespace)); err != nil {
-		return nil, err
-	}
-	actualPullSecrets := map[types.NamespacedName]corev1.Secret{}
-	for _, pullSecret := range actualPullSecretsList.Items {
-		key := types.NamespacedName{Namespace: pullSecret.Namespace, Name: pullSecret.Name}
-		actualPullSecrets[key] = pullSecret
-	}
-
-	var bundlePullSecrets []corev1.Secret
-	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
-	for _, remoteKey := range bundle.Spec.ImagePullSecrets {
-		localName := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%s/%s", remoteKey.Namespace, remoteKey.Name))))
-		localSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: localName, Namespace: r.PodNamespace}}
-
-		ips := &corev1.Secret{}
-		if err := r.Get(ctx, types.NamespacedName(remoteKey), ips); err != nil {
-			if apierrors.IsNotFound(err) {
-				// Ignore missing image pull secrets. This aligns with what happens with pods
-				// if a non-existent image pull localSecret is specified?
-				continue
-			}
-			return nil, fmt.Errorf("get image pull localSecret: %v", err)
-		}
-		if _, err := util.CreateOrRecreate(ctx, r.Client, localSecret, func() error {
-			localSecret.SetLabels(util.BundleLabels(bundle.Name))
-			localSecret.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
-			immutable := true
-			localSecret.Immutable = &immutable
-			localSecret.Type = ips.Type
-			localSecret.Data = ips.Data
-			localSecret.Annotations = ips.Annotations
-			localSecret.StringData = ips.StringData
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-		delete(actualPullSecrets, types.NamespacedName{Namespace: r.PodNamespace, Name: localName})
-		bundlePullSecrets = append(bundlePullSecrets, *localSecret)
-	}
-
-	for _, aps := range actualPullSecrets {
-		aps := aps
-		if err := r.Delete(ctx, &aps); client.IgnoreNotFound(err) != nil {
-			return nil, fmt.Errorf("delete undesired image pull secret: %v", err)
-		}
-	}
-	return bundlePullSecrets, nil
 }
 
 func updateStatusUnpackPending(u *updater.Updater) {
@@ -482,7 +410,6 @@ func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Pod{}).
 		Owns(&corev1.ConfigMap{}).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, mapSecretToBundleHandler(mgr.GetClient(), mgr.GetLogger())).
 		Complete(r)
 }
 
@@ -490,26 +417,5 @@ func bundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
 		b := obj.(*olmv1alpha1.Bundle)
 		return b.Spec.ProvisionerClassName == provisionerClassName
-	})
-}
-
-func mapSecretToBundleHandler(cl client.Client, log logr.Logger) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
-		secret := object.(*corev1.Secret)
-		bundles := &olmv1alpha1.BundleList{}
-		var requests []reconcile.Request
-		if err := cl.List(context.Background(), bundles); err != nil {
-			log.WithName("mapSecretToBundleHandler").Error(err, "list bundles")
-			return requests
-		}
-		for _, b := range bundles.Items {
-			b := b
-			for _, ips := range b.Spec.ImagePullSecrets {
-				if ips.Namespace == secret.Namespace && ips.Name == secret.Name {
-					requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&b)})
-				}
-			}
-		}
-		return requests
 	})
 }
