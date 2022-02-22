@@ -40,10 +40,14 @@ generate: ## Generate code and manifests
 # Static tests.
 .PHONY: test test-unit verify build bin/k8s
 
-test: test-unit ## Run the tests
+test: test-unit test-e2e ## Run the tests
 
+UNIT_TEST_DIRS=$(shell go list ./... | grep -v /test/)
 test-unit: ## Run the unit tests
-	$(Q)go test -count=1 -short ./...
+	$(Q)go test -count=1 -short $(UNIT_TEST_DIRS)
+
+test-e2e: ## Run the e2e tests
+	go run "github.com/onsi/ginkgo/ginkgo" run test/e2e
 
 verify: tidy generate format ## Verify the current code generation and lint
 	git diff --exit-code

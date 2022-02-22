@@ -1,0 +1,45 @@
+name: test
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    paths:
+      - '**'
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '~1.17'
+      - run: make test-unit
+  e2e-kind:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '~1.17'
+    - name: Install kind
+      env:
+        KIND_VERSION: v0.11.1
+        KIND_OS: kind-linux-amd64
+      run: |
+        curl -sLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/${KIND_OS}"
+        chmod +x kind
+        sudo mv kind /bin/
+    - name: Create kind cluster
+      run: |
+        kind version
+        kind create cluster
+        kind export kubeconfig
+    - name: Run e2e tests
+      # TODO: Make install has been removed until the Kuberpak manifests are brought in
+      run: |
+        # make install
+        make test-e2e
+
