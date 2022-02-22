@@ -93,37 +93,40 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 	u.UpdateStatus(updater.EnsureObservedGeneration(bundle.Generation))
 
 	pod := &corev1.Pod{}
-	if op, err := r.ensureUnpackPod(ctx, bundle, pod); err != nil {
+	op, err := r.ensureUnpackPod(ctx, bundle, pod)
+	if err != nil {
 		u.UpdateStatus(updater.SetBundleInfo(nil), updater.EnsureBundleDigest(""))
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("ensure unpack pod: %w", err))
-	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
+		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("ensure unpack pod: %v", err))
+	}
+	if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
 		updateStatusUnpackPending(&u)
 		return ctrl.Result{}, nil
 	}
 
 	switch phase := pod.Status.Phase; phase {
 	case corev1.PodPending:
-		r.handlePendingPod(&u, pod)
+		handlePendingPod(&u, pod)
 		return ctrl.Result{}, nil
 	case corev1.PodRunning:
-		r.handleRunningPod(&u)
+		handleRunningPod(&u)
 		return ctrl.Result{}, nil
 	case corev1.PodFailed:
-		return ctrl.Result{}, r.handleFailedPod(ctx, &u, pod)
+		return ctrl.Result{}, handleFailedPod(ctx, r.Client, r.KubeClient, &u, bundle, pod)
 	case corev1.PodSucceeded:
+		// TODO(tflannag): Refactor this method as it's doing a bunch of different things
 		return ctrl.Result{}, r.handleCompletedPod(ctx, &u, bundle, pod)
 	default:
-		return ctrl.Result{}, r.handleUnexpectedPod(ctx, &u, pod)
+		return ctrl.Result{}, handleUnexpectedPod(ctx, r.Client, &u, pod)
 	}
 }
 
-func (r *BundleReconciler) handleUnexpectedPod(ctx context.Context, u *updater.Updater, pod *corev1.Pod) error {
+func handleUnexpectedPod(ctx context.Context, c client.Client, u *updater.Updater, pod *corev1.Pod) error {
 	err := fmt.Errorf("unexpected pod phase: %v", pod.Status.Phase)
-	_ = r.Delete(ctx, pod)
+	_ = c.Delete(ctx, pod)
 	return updateStatusUnpackFailing(u, err)
 }
 
-func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod) {
+func handlePendingPod(u *updater.Updater, pod *corev1.Pod) {
 	var messages []string
 	for _, cStatus := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
 		if cStatus.State.Waiting != nil && cStatus.State.Waiting.Reason == "ErrImagePull" {
@@ -146,7 +149,7 @@ func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod)
 	)
 }
 
-func (r *BundleReconciler) handleRunningPod(u *updater.Updater) {
+func handleRunningPod(u *updater.Updater) {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
@@ -159,13 +162,13 @@ func (r *BundleReconciler) handleRunningPod(u *updater.Updater) {
 	)
 }
 
-func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updater, pod *corev1.Pod) error {
+func handleFailedPod(ctx context.Context, c client.Client, kubeClient kubernetes.Interface, u *updater.Updater, bundle *olmv1alpha1.Bundle, pod *corev1.Pod) error {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
 		updater.SetPhase(olmv1alpha1.PhaseFailing),
 	)
-	logs, err := r.getPodLogs(ctx, pod)
+	logs, err := getPodLogs(ctx, kubeClient, pod)
 	if err != nil {
 		err = fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %w", err)
 		u.UpdateStatus(
@@ -187,7 +190,7 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 			Message: logStr,
 		}),
 	)
-	_ = r.Delete(ctx, pod)
+	_ = c.Delete(ctx, pod)
 	return fmt.Errorf("unpack failed: %v", logStr)
 }
 
@@ -261,13 +264,18 @@ func updateStatusUnpackFailing(u *updater.Updater, err error) error {
 	return err
 }
 
+// TODO: looking to DI as much as possible before introducing an Unpacker interface
 func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Updater, bundle *olmv1alpha1.Bundle, pod *corev1.Pod) error {
-	bundleFS, err := r.getBundleContents(ctx, pod)
+	contents, err := getPodLogs(ctx, r.KubeClient, pod)
+	if err != nil {
+		return updateStatusUnpackFailing(u, fmt.Errorf("parse pod logs for bundle contents: %v", err))
+	}
+	bundleFS, err := getBundleContents(ctx, contents)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle contents: %w", err))
 	}
 
-	bundleImageDigest, err := r.getBundleImageDigest(pod)
+	bundleImageDigest, err := getBundleImageDigest(pod)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle image digest: %w", err))
 	}
@@ -317,12 +325,8 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 	return nil
 }
 
-func (r *BundleReconciler) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
-	bundleContentsData, err := r.getPodLogs(ctx, pod)
-	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %w", err)
-	}
-	decoder := json.NewDecoder(bytes.NewReader(bundleContentsData))
+func getBundleContents(ctx context.Context, contents []byte) (fs.FS, error) {
+	decoder := json.NewDecoder(bytes.NewReader(contents))
 	bundleContents := map[string][]byte{}
 	if err := decoder.Decode(&bundleContents); err != nil {
 		return nil, err
@@ -334,8 +338,8 @@ func (r *BundleReconciler) getBundleContents(ctx context.Context, pod *corev1.Po
 	return bundleFS, nil
 }
 
-func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
-	logReader, err := r.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(ctx)
+func getPodLogs(ctx context.Context, kubeClient kubernetes.Interface, pod *corev1.Pod) ([]byte, error) {
+	logReader, err := kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get pod logs: %w", err)
 	}
@@ -347,7 +351,7 @@ func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]b
 	return buf.Bytes(), nil
 }
 
-func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error) {
+func getBundleImageDigest(pod *corev1.Pod) (string, error) {
 	for _, ps := range pod.Status.InitContainerStatuses {
 		if ps.Name == "copy-bundle" && ps.ImageID != "" {
 			return ps.ImageID, nil
