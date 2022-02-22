@@ -1,0 +1,25 @@
+run:
+  # Default timeout is 1m, up to give more room
+  timeout: 4m
+
+linters:
+  enable:
+  - asciicheck
+  - deadcode
+  - depguard
+  - errorlint
+  - gofmt
+  - goimports
+  - importas
+  - prealloc
+  - nestif
+  - revive
+  - misspell
+  - stylecheck
+  - tparallel
+  - unconvert
+  - unparam
+  - whitespace
+
+output:
+  format: tab

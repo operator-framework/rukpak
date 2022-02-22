@@ -28,7 +28,7 @@ func main() {
 				}
 				data, err := fs.ReadFile(bundleFS, path)
 				if err != nil {
-					return fmt.Errorf("read file %q: %v", path, err)
+					return fmt.Errorf("read file %q: %w", path, err)
 				}
 				bundleContents[path] = data
 				return nil

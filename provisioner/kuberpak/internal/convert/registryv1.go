@@ -109,12 +109,12 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 			},
 		}
 	}
-	var (
-		roles               []rbacv1.Role
-		roleBindings        []rbacv1.RoleBinding
-		clusterRoles        []rbacv1.ClusterRole
-		clusterRoleBindings []rbacv1.ClusterRoleBinding
-	)
+
+	roles := []rbacv1.Role{}
+	roleBindings := []rbacv1.RoleBinding{}
+	clusterRoles := []rbacv1.ClusterRole{}
+	clusterRoleBindings := []rbacv1.ClusterRoleBinding{}
+
 	for _, ns := range targetNamespaces {
 		if ns == "" {
 			continue
@@ -215,7 +215,7 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 		})
 	}
 
-	var objs []client.Object
+	objs := []client.Object{}
 	for _, obj := range serviceAccounts {
 		obj := obj
 		objs = append(objs, &obj)

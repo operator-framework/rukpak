@@ -95,7 +95,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 	pod := &corev1.Pod{}
 	if op, err := r.ensureUnpackPod(ctx, bundle, pod); err != nil {
 		u.UpdateStatus(updater.SetBundleInfo(nil), updater.EnsureBundleDigest(""))
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("ensure unpack pod: %v", err))
+		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("ensure unpack pod: %w", err))
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
 		updateStatusUnpackPending(&u)
 		return ctrl.Result{}, nil
@@ -103,11 +103,13 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 
 	switch phase := pod.Status.Phase; phase {
 	case corev1.PodPending:
-		return ctrl.Result{}, r.handlePendingPod(&u, pod)
+		r.handlePendingPod(&u, pod)
+		return ctrl.Result{}, nil
 	case corev1.PodRunning:
-		return ctrl.Result{}, r.handleRunningPod(&u)
+		r.handleRunningPod(&u)
+		return ctrl.Result{}, nil
 	case corev1.PodFailed:
-		return ctrl.Result{}, r.handleFailedPod(ctx, &u, bundle, pod)
+		return ctrl.Result{}, r.handleFailedPod(ctx, &u, pod)
 	case corev1.PodSucceeded:
 		return ctrl.Result{}, r.handleCompletedPod(ctx, &u, bundle, pod)
 	default:
@@ -121,12 +123,11 @@ func (r *BundleReconciler) handleUnexpectedPod(ctx context.Context, u *updater.U
 	return updateStatusUnpackFailing(u, err)
 }
 
-func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod) error {
+func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod) {
 	var messages []string
 	for _, cStatus := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
 		if cStatus.State.Waiting != nil && cStatus.State.Waiting.Reason == "ErrImagePull" {
 			messages = append(messages, cStatus.State.Waiting.Message)
-
 		}
 		if cStatus.State.Waiting != nil && cStatus.State.Waiting.Reason == "ImagePullBackoff" {
 			messages = append(messages, cStatus.State.Waiting.Message)
@@ -143,10 +144,9 @@ func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod)
 			Message: strings.Join(messages, "; "),
 		}),
 	)
-	return nil
 }
 
-func (r *BundleReconciler) handleRunningPod(u *updater.Updater) error {
+func (r *BundleReconciler) handleRunningPod(u *updater.Updater) {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
@@ -157,10 +157,9 @@ func (r *BundleReconciler) handleRunningPod(u *updater.Updater) error {
 			Reason: olmv1alpha1.ReasonUnpacking,
 		}),
 	)
-	return nil
 }
 
-func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updater, bundle *olmv1alpha1.Bundle, pod *corev1.Pod) error {
+func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updater, pod *corev1.Pod) error {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
@@ -168,7 +167,7 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 	)
 	logs, err := r.getPodLogs(ctx, pod)
 	if err != nil {
-		err = fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %v", err)
+		err = fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %w", err)
 		u.UpdateStatus(
 			updater.EnsureCondition(metav1.Condition{
 				Type:    olmv1alpha1.TypeUnpacked,
@@ -265,26 +264,26 @@ func updateStatusUnpackFailing(u *updater.Updater, err error) error {
 func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Updater, bundle *olmv1alpha1.Bundle, pod *corev1.Pod) error {
 	bundleFS, err := r.getBundleContents(ctx, pod)
 	if err != nil {
-		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle contents: %v", err))
+		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle contents: %w", err))
 	}
 
 	bundleImageDigest, err := r.getBundleImageDigest(pod)
 	if err != nil {
-		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle image digest: %v", err))
+		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle image digest: %w", err))
 	}
 
 	annotations, err := getAnnotations(bundleFS)
 	if err != nil {
-		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle annotations: %v", err))
+		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle annotations: %w", err))
 	}
 
 	objects, err := getObjects(bundleFS)
 	if err != nil {
-		return updateStatusUnpackFailing(u, fmt.Errorf("get objects from bundle manifests: %v", err))
+		return updateStatusUnpackFailing(u, fmt.Errorf("get objects from bundle manifests: %w", err))
 	}
 
 	if err := r.Storage.Store(ctx, bundle, objects); err != nil {
-		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %v", err))
+		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %w", err))
 	}
 
 	info := &olmv1alpha1.BundleInfo{Package: annotations.PackageName}
@@ -321,7 +320,7 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 func (r *BundleReconciler) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
 	bundleContentsData, err := r.getPodLogs(ctx, pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %v", err)
+		return nil, fmt.Errorf("get bundle contents: %w", err)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(bundleContentsData))
 	bundleContents := map[string][]byte{}
@@ -338,7 +337,7 @@ func (r *BundleReconciler) getBundleContents(ctx context.Context, pod *corev1.Po
 func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
 	logReader, err := r.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get pod logs: %v", err)
+		return nil, fmt.Errorf("get pod logs: %w", err)
 	}
 	defer logReader.Close()
 	buf := &bytes.Buffer{}
@@ -375,7 +374,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 
 	entries, err := fs.ReadDir(bundleFS, manifestsDir)
 	if err != nil {
-		return nil, fmt.Errorf("read manifests: %v", err)
+		return nil, fmt.Errorf("read manifests: %w", err)
 	}
 	for _, e := range entries {
 		if e.IsDir() {

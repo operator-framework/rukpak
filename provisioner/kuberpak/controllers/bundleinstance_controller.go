@@ -131,15 +131,14 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Reason: reason,
 			})
 			return ctrl.Result{}, nil
-		} else {
-			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "Installed",
-				Status:  metav1.ConditionFalse,
-				Reason:  "BundleLookupFailed",
-				Message: err.Error(),
-			})
-			return ctrl.Result{}, err
 		}
+		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
+			Type:    "Installed",
+			Status:  metav1.ConditionFalse,
+			Reason:  "BundleLookupFailed",
+			Message: err.Error(),
+		})
+		return ctrl.Result{}, err
 	}
 
 	installNamespace := fmt.Sprintf("%s-system", b.Status.Info.Package)
@@ -227,7 +226,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	switch state {
 	case stateNeedsInstall:
-		rel, err = cl.Install(bi.Name, r.ReleaseNamespace, chrt, nil, func(install *action.Install) error {
+		_, err = cl.Install(bi.Name, r.ReleaseNamespace, chrt, nil, func(install *action.Install) error {
 			install.CreateNamespace = false
 			return nil
 		})
@@ -241,7 +240,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
-		rel, err = cl.Upgrade(bi.Name, r.ReleaseNamespace, chrt, nil)
+		_, err = cl.Upgrade(bi.Name, r.ReleaseNamespace, chrt, nil)
 		if err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 				Type:    "Installed",
@@ -374,7 +373,7 @@ func (err errBundleNotUnpacked) Error() string {
 func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alpha1.BundleInstance) (*convert.RegistryV1, error) {
 	b := &olmv1alpha1.Bundle{}
 	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
-		return nil, fmt.Errorf("get bundle %q: %v", bi.Spec.BundleName, err)
+		return nil, fmt.Errorf("get bundle %q: %w", bi.Spec.BundleName, err)
 	}
 	if b.Status.Phase != olmv1alpha1.PhaseUnpacked {
 		return nil, &errBundleNotUnpacked{currentPhase: b.Status.Phase}
@@ -382,7 +381,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alph
 
 	objects, err := r.BundleStorage.Load(ctx, b)
 	if err != nil {
-		return nil, fmt.Errorf("load bundle objects: %v", err)
+		return nil, fmt.Errorf("load bundle objects: %w", err)
 	}
 
 	reg := convert.RegistryV1{}
