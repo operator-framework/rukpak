@@ -45,7 +45,7 @@ test: test-unit ## Run the tests
 test-unit: ## Run the unit tests
 	$(Q)go test -count=1 -short ./...
 
-verify: tidy generate format
+verify: tidy generate format ## Verify the current code generation and lint
 	git diff --exit-code
 
 install: generate
