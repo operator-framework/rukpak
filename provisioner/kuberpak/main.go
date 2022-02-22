@@ -35,9 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	olmv1alpha1 "github.com/joelanford/kuberpak/api/v1alpha1"
-	"github.com/joelanford/kuberpak/controllers"
-	"github.com/joelanford/kuberpak/internal/storage"
+	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/provisioner/kuberpak/controllers"
+	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/storage"
 )
 
 var (

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	olmv1alpha1 "github.com/joelanford/kuberpak/api/v1alpha1"
+	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
 func New(client client.Client) Updater {

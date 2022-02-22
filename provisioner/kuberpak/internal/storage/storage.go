@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 
-	"github.com/joelanford/kuberpak/internal/util"
+	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/util"
 )
 
 type Storage interface {
