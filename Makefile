@@ -49,17 +49,17 @@ verify: tidy generate format
 	git diff --exit-code
 
 install: generate
-	# TODO(tflannag): Introduce kuberpak manifests
+	# TODO(tflannag): Introduce registryv1 manifests
 	kubectl apply -f manifests
 	kubectl apply -f provisioner/k8s/manifests
 
 # Binary builds
 GO_BUILD := $(Q)go build
 
-build: bin/k8s bin/kuberpak
+build: bin/k8s bin/registryv1
 
 bin/k8s:
 	$(GO_BUILD) -o $@ ./provisioner/k8s
 
-bin/kuberpak:
-	$(GO_BUILD) -o $@ ./provisioner/kuberpak
+bin/registryv1:
+	$(GO_BUILD) -o $@ ./provisioner/registryv1

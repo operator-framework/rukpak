@@ -17,11 +17,11 @@ import (
 )
 
 func PodName(bundleName string) string {
-	return fmt.Sprintf("kuberpak-unpack-bundle-%s", bundleName)
+	return fmt.Sprintf("registryv1-unpack-bundle-%s", bundleName)
 }
 
 func BundleLabels(bundleName string) map[string]string {
-	return map[string]string{"kuberpak.io/bundle-name": bundleName}
+	return map[string]string{"core.rukpak.io/bundle-name": bundleName}
 }
 
 func MetadataConfigMapName(bundleName string) string {

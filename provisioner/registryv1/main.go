@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/controllers"
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/storage"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/controllers"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/storage"
 )
 
 var (
@@ -77,7 +77,7 @@ func main() {
 		setupLog.Error(err, "unable to create kubernetes client")
 		os.Exit(1)
 	}
-	dependentRequirement, err := labels.NewRequirement("kuberpak.io/owner-name", selection.Exists, nil)
+	dependentRequirement, err := labels.NewRequirement("core.rukpak.io/owner-name", selection.Exists, nil)
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
@@ -108,7 +108,7 @@ func main() {
 	}
 
 	// TODO: derive pod namespace from the pod that this process is running in.
-	ns := "kuberpak-system"
+	ns := "registryv1-system"
 
 	bundleStorage := &storage.ConfigMaps{
 		Client:     mgr.GetClient(),

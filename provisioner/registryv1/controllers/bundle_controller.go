@@ -44,9 +44,9 @@ import (
 	"sigs.k8s.io/yaml"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/storage"
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/updater"
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/util"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/storage"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/updater"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/util"
 )
 
 // BundleReconciler reconciles a Bundle object
@@ -199,7 +199,7 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 	pod.SetNamespace(r.PodNamespace)
 
 	return util.CreateOrRecreate(ctx, r.Client, pod, func() error {
-		pod.SetLabels(map[string]string{"kuberpak.io/owner-name": bundle.Name})
+		pod.SetLabels(map[string]string{"core.rukpak.io/owner-name": bundle.Name})
 		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
 		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 		pod.Spec.Volumes = []corev1.Volume{
@@ -405,7 +405,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&olmv1alpha1.Bundle{}, builder.WithPredicates(
-			bundleProvisionerFilter("kuberpak.io/registry+v1"),
+			bundleProvisionerFilter("core.rukpak.io/registry+v1"),
 		)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Pod{}).

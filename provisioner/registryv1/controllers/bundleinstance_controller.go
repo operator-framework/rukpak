@@ -51,9 +51,9 @@ import (
 	"sigs.k8s.io/yaml"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/convert"
-	helmpredicate "github.com/operator-framework/rukpak/provisioner/kuberpak/internal/helm-operator-plugins/predicate"
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/storage"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/convert"
+	helmpredicate "github.com/operator-framework/rukpak/provisioner/registryv1/internal/helm-operator-plugins/predicate"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/storage"
 )
 
 // BundleInstanceReconciler reconciles a BundleInstance object
@@ -101,7 +101,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	defer func() {
 		bi := bi.DeepCopy()
 		bi.ObjectMeta.ManagedFields = nil
-		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner("kuberpak.io/registry+v1")); err != nil {
+		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner("core.rukpak.io/registry+v1")); err != nil {
 			l.Error(err, "failed to patch status")
 		}
 	}()
@@ -143,7 +143,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	installNamespace := fmt.Sprintf("%s-system", b.Status.Info.Package)
-	if ns, ok := bi.Annotations["kuberpak.io/install-namespace"]; ok && ns != "" {
+	if ns, ok := bi.Annotations["core.rukpak.io/install-namespace"]; ok && ns != "" {
 		installNamespace = ns
 	} else if ns, ok := reg.CSV.Annotations["operatorframework.io/suggested-namespace"]; ok && ns != "" {
 		installNamespace = ns
@@ -389,7 +389,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alph
 	for _, obj := range objects {
 		obj := obj
 		obj.SetLabels(map[string]string{
-			"kuberpak.io/owner-name": bi.Name,
+			"core.rukpak.io/owner-name": bi.Name,
 		})
 		switch obj.GetObjectKind().GroupVersionKind().Kind {
 		case "ClusterServiceVersion":
@@ -425,7 +425,7 @@ func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	//r.ActionConfigGetter = helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
 	//r.ActionClientGetter = helmclient.NewActionClientGetter(r.ActionConfigGetter)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter("kuberpak.io/registry+v1"))).
+		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter("core.rukpak.io/registry+v1"))).
 		Watches(&source.Kind{Type: &olmv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(mapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {
