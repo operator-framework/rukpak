@@ -80,11 +80,11 @@ func (s *ConfigMaps) getMetadata(ctx context.Context, owner client.Object) (*met
 func convertConfigMapToObject(cm corev1.ConfigMap, obj client.Object) error {
 	r, err := gzip.NewReader(bytes.NewReader(cm.BinaryData["object"]))
 	if err != nil {
-		return fmt.Errorf("create gzip reader for bundle object data: %v", err)
+		return fmt.Errorf("create gzip reader for bundle object data: %w", err)
 	}
 	objData, err := ioutil.ReadAll(r)
 	if err != nil {
-		return fmt.Errorf("read gzip data for bundle object: %v", err)
+		return fmt.Errorf("read gzip data for bundle object: %w", err)
 	}
 	return yaml.Unmarshal(objData, obj)
 }
@@ -131,10 +131,10 @@ func (s *ConfigMaps) buildObject(obj client.Object, owner client.Object) (*corev
 	objCompressed := &bytes.Buffer{}
 	gzipper := gzip.NewWriter(objCompressed)
 	if _, err := gzipper.Write(objData); err != nil {
-		return nil, fmt.Errorf("gzip object data: %v", err)
+		return nil, fmt.Errorf("gzip object data: %w", err)
 	}
 	if err := gzipper.Close(); err != nil {
-		return nil, fmt.Errorf("close gzip writer: %v", err)
+		return nil, fmt.Errorf("close gzip writer: %w", err)
 	}
 	gvk := obj.GetObjectKind().GroupVersionKind()
 

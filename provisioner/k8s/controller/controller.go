@@ -46,7 +46,7 @@ func (m manageables) manageWith(mgr ctrl.Manager) error {
 	return nil
 }
 
-type controller struct {
+type Controller struct {
 	client.Client
 
 	log     logr.Logger
@@ -54,8 +54,8 @@ type controller struct {
 }
 
 // NewReconciler constructs and returns a controller.
-func NewController(cli client.Client, log logr.Logger) (*controller, error) {
-	return &controller{
+func NewController(cli client.Client, log logr.Logger) (*Controller, error) {
+	return &Controller{
 		Client: cli,
 		log:    log,
 		managed: manageables{
@@ -68,7 +68,7 @@ func NewController(cli client.Client, log logr.Logger) (*controller, error) {
 }
 
 // ManageWith adds the controller to the given controller manager.
-func (c *controller) ManageWith(mgr ctrl.Manager) error {
+func (c *Controller) ManageWith(mgr ctrl.Manager) error {
 	// Add shared watched types to scheme
 	if err := addToScheme(mgr.GetScheme()); err != nil {
 		return err

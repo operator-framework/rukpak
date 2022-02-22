@@ -140,16 +140,16 @@ func validateExistingCRs(ctx context.Context, dynamicClient client.Client, listG
 	crList := &unstructured.UnstructuredList{}
 	crList.SetGroupVersionKind(listGVK)
 	if err := dynamicClient.List(ctx, crList); err != nil {
-		return fmt.Errorf("error listing objects for %s: %v", listGVK, err)
+		return fmt.Errorf("error listing objects for %s: %w", listGVK, err)
 	}
 	for _, cr := range crList.Items {
 		validator, _, err := validation.NewSchemaValidator(convertedVersion.Schema)
 		if err != nil {
-			return fmt.Errorf("error creating validator for the schema of version %q: %v", newVersion.Name, err)
+			return fmt.Errorf("error creating validator for the schema of version %q: %w", newVersion.Name, err)
 		}
 		err = validation.ValidateCustomResource(field.NewPath(""), cr.UnstructuredContent(), validator).ToAggregate()
 		if err != nil {
-			return fmt.Errorf("existing custom object %s/%s failed validation for new schema version %s: %v", cr.GetNamespace(), cr.GetName(), newVersion.Name, err)
+			return fmt.Errorf("existing custom object %s/%s failed validation for new schema version %s: %w", cr.GetNamespace(), cr.GetName(), newVersion.Name, err)
 		}
 	}
 	return nil
