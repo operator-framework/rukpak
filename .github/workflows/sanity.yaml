@@ -1,12 +1,11 @@
 name: sanity
 
 on:
+  workflow_dispatch:
+  pull_request:
   push:
     branches:
-      - '**'
-  pull_request:
-    paths:
-      - '**'
+    - main
 
 jobs:
   sanity:
