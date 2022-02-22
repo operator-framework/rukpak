@@ -20,7 +20,6 @@ import (
 	"flag"
 	"os"
 
-	openshiftv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	v1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -71,11 +70,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	if err := openshiftv1alpha1.Install(scheme); err != nil {
-		setupLog.Error(err, "unable to add openshift/operators/v1alpha1 api types to scheme")
-		os.Exit(1)
-	}
 
 	cfg := ctrl.GetConfigOrDie()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
