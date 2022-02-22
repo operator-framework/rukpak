@@ -101,7 +101,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	defer func() {
 		bi := bi.DeepCopy()
 		bi.ObjectMeta.ManagedFields = nil
-		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner("core.rukpak.io/registry+v1")); err != nil {
+		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner(registryV1ProvisionerID)); err != nil {
 			l.Error(err, "failed to patch status")
 		}
 	}()
@@ -424,7 +424,7 @@ func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	//r.ActionConfigGetter = helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
 	//r.ActionClientGetter = helmclient.NewActionClientGetter(r.ActionConfigGetter)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter("core.rukpak.io/registry+v1"))).
+		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter(registryV1ProvisionerID))).
 		Watches(&source.Kind{Type: &olmv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(mapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -14,7 +15,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
+
+func BundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		b := obj.(*olmv1alpha1.Bundle)
+		return b.Spec.ProvisionerClassName == provisionerClassName
+	})
+}
 
 func PodName(bundleName string) string {
 	return fmt.Sprintf("registryv1-unpack-bundle-%s", bundleName)
