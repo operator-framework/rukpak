@@ -23,8 +23,8 @@ help: ## Show this help screen
 
 PKGS = $(shell go list ./...)
 
-lint:
-	$(Q)go run github.com/golangci/golangci-lint/cmd/golangci-lint run
+lint: golangci-lint
+	$(Q)$(GOLANGCI_LINT) run
 
 format: ## Format the source code
 	$(Q)go fmt ./...
@@ -32,10 +32,10 @@ format: ## Format the source code
 tidy: ## Update dependencies
 	$(Q)go mod tidy
 
-CONTROLLER_GEN=$(Q)go run sigs.k8s.io/controller-tools/cmd/controller-gen
-
-generate: ## Generate code and manifests
-	$(Q)go generate ./...
+generate: controller-gen ## Generate code and manifests
+	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1 output:crd:dir=./manifests paths=./api/...
+	$(Q)$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests paths=./api/...
+	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 
 # Static tests.
 .PHONY: test test-unit verify build bin/k8s
@@ -46,8 +46,8 @@ UNIT_TEST_DIRS=$(shell go list ./... | grep -v /test/)
 test-unit: ## Run the unit tests
 	$(Q)go test -count=1 -short $(UNIT_TEST_DIRS)
 
-test-e2e: ## Run the e2e tests
-	go run "github.com/onsi/ginkgo/ginkgo" run test/e2e
+test-e2e: ginkgo ## Run the e2e tests
+	$(GINKGO) run test/e2e
 
 verify: tidy generate format ## Verify the current code generation and lint
 	git diff --exit-code
@@ -67,3 +67,30 @@ bin/k8s:
 
 bin/kuberpak:
 	$(GO_BUILD) -o $@ ./provisioner/kuberpak
+
+
+## --------------------------------------
+## Hack / Tools
+## --------------------------------------
+BIN_DIR := bin
+TOOLS_DIR := hack/tools
+TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
+
+##@ hack/tools:
+
+.PHONY: golangci-lint ginkgo controller-gen
+
+GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/golangci-lint)
+GINKGO := $(abspath $(TOOLS_BIN_DIR)/ginkgo)
+CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
+
+controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
+ginkgo: $(GINKGO) ## Build a local copy of ginkgo
+golangci-lint: $(GOLANGCI_LINT) ## Build a local copy of golangci-lint
+
+$(CONTROLLER_GEN): $(TOOLS_DIR)/go.mod # Build controller-gen from tools folder.
+	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen
+$(GINKGO): $(TOOLS_DIR)/go.mod # Build ginkgo from tools folder.
+	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/ginkgo github.com/onsi/ginkgo/ginkgo
+$(GOLANGCI_LINT): $(TOOLS_DIR)/go.mod # Build golangci-lint from tools folder.
+	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
