@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 
-	"github.com/operator-framework/rukpak/provisioner/kuberpak/internal/util"
+	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/util"
 )
 
 type Storage interface {
@@ -114,7 +114,7 @@ func (s *ConfigMaps) Store(ctx context.Context, owner client.Object, objects []c
 func (s *ConfigMaps) getExistingConfigMaps(ctx context.Context, owner client.Object) ([]corev1.ConfigMap, error) {
 	cmList := &corev1.ConfigMapList{}
 	labels := map[string]string{
-		"kuberpak.io/owner-name": owner.GetName(),
+		"core.rukpak.io/owner-name": owner.GetName(),
 	}
 	if err := s.Client.List(ctx, cmList, client.MatchingLabels(labels), client.InNamespace(s.Namespace)); err != nil {
 		return nil, err
@@ -139,13 +139,13 @@ func (s *ConfigMaps) buildObject(obj client.Object, owner client.Object) (*corev
 	gvk := obj.GetObjectKind().GroupVersionKind()
 
 	labels := map[string]string{
-		"kuberpak.io/owner-name":       owner.GetName(),
-		"kuberpak.io/configmap-type":   "object",
-		"kuberpak.io/object-group":     gvk.Group,
-		"kuberpak.io/object-version":   gvk.Version,
-		"kuberpak.io/object-kind":      gvk.Kind,
-		"kuberpak.io/object-name":      obj.GetName(),
-		"kuberpak.io/object-namespace": obj.GetNamespace(),
+		"core.rukpak.io/owner-name":       owner.GetName(),
+		"core.rukpak.io/configmap-type":   "object",
+		"core.rukpak.io/object-group":     gvk.Group,
+		"core.rukpak.io/object-version":   gvk.Version,
+		"core.rukpak.io/object-kind":      gvk.Kind,
+		"core.rukpak.io/object-name":      obj.GetName(),
+		"core.rukpak.io/object-namespace": obj.GetNamespace(),
 	}
 	immutable := true
 	cm := &corev1.ConfigMap{
@@ -185,8 +185,8 @@ func (s *ConfigMaps) buildMetadata(dcms []corev1.ConfigMap, owner client.Object)
 			Namespace: s.Namespace,
 			Name:      fmt.Sprintf("%smetadata-%s", s.NamePrefix, owner.GetName()),
 			Labels: map[string]string{
-				"kuberpak.io/owner-name":     owner.GetName(),
-				"kuberpak.io/configmap-type": "metadata",
+				"core.rukpak.io/owner-name":     owner.GetName(),
+				"core.rukpak.io/configmap-type": "metadata",
 			},
 		},
 		Immutable: &immutable,
@@ -293,13 +293,13 @@ func (s *ConfigMaps) createOrUpdateConfigMaps(ctx context.Context, acms, dcms []
 //func labelsFor(obj client.Object) map[string]string {
 //	gvk := obj.GetObjectKind().GroupVersionKind()
 //	labels := map[string]string{
-//		"kuberpak.io/object-group":   gvk.Group,
-//		"kuberpak.io/object-version": gvk.Version,
-//		"kuberpak.io/object-kind":    gvk.Kind,
-//		"kuberpak.io/object-name":    obj.GetName(),
+//		"core.rukpak.io/object-group":   gvk.Group,
+//		"core.rukpak.io/object-version": gvk.Version,
+//		"core.rukpak.io/object-kind":    gvk.Kind,
+//		"core.rukpak.io/object-name":    obj.GetName(),
 //	}
 //	if obj.GetNamespace() != "" {
-//		labels["kuberpak.io/object-namespace"] = obj.GetNamespace()
+//		labels["core.rukpak.io/object-namespace"] = obj.GetNamespace()
 //	}
 //	return labels
 //}

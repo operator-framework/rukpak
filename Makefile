@@ -24,7 +24,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 
 # Static tests.
-.PHONY: test test-unit verify build bin/k8s bin/kuberpak
+.PHONY: test test-unit verify build bin/k8s bin/registryv1
 
 test: test-unit test-e2e ## Run the tests
 
@@ -39,21 +39,20 @@ verify: tidy generate ## Verify the current code generation and lint
 	git diff --exit-code
 
 install: generate
-	# TODO(tflannag): Introduce kuberpak manifests
+	# TODO(tflannag): Introduce registryv1 manifests
 	kubectl apply -f manifests
 	kubectl apply -f provisioner/k8s/manifests
 
 # Binary builds
 GO_BUILD := $(Q)go build
 
-build: bin/k8s bin/kuberpak
+build: bin/k8s bin/registryv1
 
 bin/k8s:
 	CGO_ENABLED=0 go build -o $@ ./provisioner/k8s
 
-bin/kuberpak:
-	CGO_ENABLED=0 go build -o $@ ./provisioner/kuberpak
-
+bin/registryv1:
+	CGO_ENABLED=0 go build -o $@ ./provisioner/registryv1
 
 ## --------------------------------------
 ## Hack / Tools
@@ -80,4 +79,3 @@ $(GINKGO): $(TOOLS_DIR)/go.mod # Build ginkgo from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/ginkgo github.com/onsi/ginkgo/ginkgo
 $(GOLANGCI_LINT): $(TOOLS_DIR)/go.mod # Build golangci-lint from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
-	CGO_ENABLED=0 go build -o $@ ./provisioner/kuberpak
