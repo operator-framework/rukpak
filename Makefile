@@ -1,14 +1,3 @@
-# kernel-style V=1 build verbosity
-ifeq ("$(origin V)", "command line")
-  BUILD_VERBOSE = $(V)
-endif
-
-ifeq ($(BUILD_VERBOSE),1)
-  Q =
-else
-  Q = @
-endif
-
 
 .PHONY: help
 help: ## Show this help screen
@@ -38,7 +27,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 
 # Static tests.
-.PHONY: test test-unit verify build bin/k8s
+.PHONY: test test-unit verify build bin/k8s bin/kuberpak
 
 test: test-unit test-e2e ## Run the tests
 
@@ -63,10 +52,10 @@ GO_BUILD := $(Q)go build
 build: bin/k8s bin/kuberpak
 
 bin/k8s:
-	$(GO_BUILD) -o $@ ./provisioner/k8s
+	CGO_ENABLED=0 go build -o $@ ./provisioner/k8s
 
 bin/kuberpak:
-	$(GO_BUILD) -o $@ ./provisioner/kuberpak
+	CGO_ENABLED=0 go build -o $@ ./provisioner/kuberpak
 
 
 ## --------------------------------------
@@ -94,3 +83,4 @@ $(GINKGO): $(TOOLS_DIR)/go.mod # Build ginkgo from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/ginkgo github.com/onsi/ginkgo/ginkgo
 $(GOLANGCI_LINT): $(TOOLS_DIR)/go.mod # Build golangci-lint from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
+	CGO_ENABLED=0 go build -o $@ ./provisioner/kuberpak

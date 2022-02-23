@@ -19,5 +19,5 @@ WORKDIR /
 COPY --from=builder /workspace/bin/k8s .
 EXPOSE 8080
 
-ENTRYPOINT ["k8s"]
+ENTRYPOINT ["/k8s"]
 CMD ["run"]
