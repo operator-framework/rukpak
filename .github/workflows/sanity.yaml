@@ -21,7 +21,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Run linting checks
-        uses: "golangci/golangci-lint-action@v2"
+      - uses: actions/setup-go@v2
         with:
-          version: "v1.43"
+          go-version: '~1.17'
+      - id: golangci-lint
+        run: echo "::set-output name=version::$(cd hack/tools; go list -m github.com/golangci/golangci-lint | cut -d' ' -f2)"
+      - name: Run linting checks
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: ${{ steps.golangci-lint.outputs.version }}
+  go-apidiff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '~1.17'
+      - name: Run go-apidiff
+        run: make apidiff
+        env:
+          GO_APIDIFF_BASE_REF: 'origin/${{ github.base_ref }}'
