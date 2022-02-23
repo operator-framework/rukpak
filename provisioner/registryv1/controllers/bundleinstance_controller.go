@@ -51,9 +51,9 @@ import (
 	"sigs.k8s.io/yaml"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/convert"
-	helmpredicate "github.com/operator-framework/rukpak/provisioner/registryv1/internal/helm-operator-plugins/predicate"
-	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/storage"
+	"github.com/operator-framework/rukpak/internal/convert"
+	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+	"github.com/operator-framework/rukpak/internal/storage"
 )
 
 // BundleInstanceReconciler reconciles a BundleInstance object

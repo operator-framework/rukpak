@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/provisioner/registryv1/controllers"
-	"github.com/operator-framework/rukpak/provisioner/registryv1/internal/storage"
 )
 
 var (
