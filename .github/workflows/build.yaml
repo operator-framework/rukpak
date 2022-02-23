@@ -17,7 +17,7 @@ jobs:
           go-version: '~1.17'
       - run: make build
 
-  image:
+  provisioner-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -26,4 +26,14 @@ jobs:
         with:
           repository: operator-framework/rukpak
           dockerfile: ./Dockerfile
+          push: false
+  unpack-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build the bundle unpack container image
+        uses: docker/build-push-action@v1
+        with:
+          repository: operator-framework/rukpak
+          dockerfile: ./unpack.Dockerfile
           push: false
