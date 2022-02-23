@@ -10,6 +10,7 @@ RUN go mod download
 
 COPY Makefile Makefile
 COPY api api
+COPY internal internal
 COPY provisioner provisioner
 RUN make build
 
@@ -17,6 +18,7 @@ FROM gcr.io/distroless/static:debug
 
 WORKDIR /
 COPY --from=builder /workspace/bin/k8s .
+COPY --from=builder /workspace/bin/registryv1 .
 EXPOSE 8080
 
 ENTRYPOINT ["/k8s"]
