@@ -24,7 +24,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 
 # Static tests.
-.PHONY: test test-unit verify build bin/k8s bin/registryv1
+.PHONY: test test-unit verify build bin/k8s bin/registryv1 bin/unpack
 
 test: test-unit test-e2e ## Run the tests
 
@@ -53,6 +53,10 @@ bin/k8s:
 
 bin/registryv1:
 	CGO_ENABLED=0 go build -o $@ ./provisioner/registryv1
+
+bin/unpack:
+	CGO_ENABLED=0 go build -o $@ ./cmd/unpack/...
+
 
 ## --------------------------------------
 ## Hack / Tools
