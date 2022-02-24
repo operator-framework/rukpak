@@ -38,10 +38,16 @@ test-e2e: ginkgo ## Run the e2e tests
 verify: tidy generate ## Verify the current code generation and lint
 	git diff --exit-code
 
-install: generate
-	# TODO(tflannag): Introduce registryv1 manifests
+install-apis: generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
+
+install-k8s: install-apis ## Install the rukpak CRDs and the k8s provisioner
 	kubectl apply -f provisioner/k8s/manifests
+
+install-registryv1: install-apis ## Install the rukpak CRDs and the registryv1 provisioner
+	# TODO create deployment manifests for registryv1 provisioner
+
+install: install-k8s install-registryv1 ## Install all rukpak core CRDs and provisioners 
 
 # Binary builds
 GO_BUILD := $(Q)go build
