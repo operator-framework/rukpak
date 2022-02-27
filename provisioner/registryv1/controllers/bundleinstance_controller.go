@@ -56,6 +56,10 @@ import (
 	"github.com/operator-framework/rukpak/internal/storage"
 )
 
+const (
+	registryV1ProvisionerID = "core.rukpak.io/registry+v1"
+)
+
 // BundleInstanceReconciler reconciles a BundleInstance object
 type BundleInstanceReconciler struct {
 	client.Client
@@ -93,28 +97,28 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	bi := &olmv1alpha1.BundleInstance{}
 	if err := r.Get(ctx, req.NamespacedName, bi); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	defer func() {
 		bi := bi.DeepCopy()
 		bi.ObjectMeta.ManagedFields = nil
-		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner("core.rukpak.io/registry+v1")); err != nil {
+		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner(registryV1ProvisionerID)); err != nil {
 			l.Error(err, "failed to patch status")
 		}
 	}()
 
 	b := &olmv1alpha1.Bundle{}
 	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
+		if apierrors.IsNotFound(err) {
+			bi.Status.InstalledBundleName = ""
+		}
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    "Installed",
 			Status:  metav1.ConditionFalse,
 			Reason:  "BundleLookupFailed",
 			Message: err.Error(),
 		})
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	reg, err := r.loadBundle(ctx, bi)
@@ -424,7 +428,7 @@ func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	//r.ActionConfigGetter = helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
 	//r.ActionClientGetter = helmclient.NewActionClientGetter(r.ActionConfigGetter)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter("core.rukpak.io/registry+v1"))).
+		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter(registryV1ProvisionerID))).
 		Watches(&source.Kind{Type: &olmv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(mapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {
