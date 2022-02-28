@@ -17,7 +17,12 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o unpack ./cmd/unpack/
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+#
+# Note(tflannag): Use the `debug` image tag so we have access to a shell when unpacking
+# Bundle contents. This allows us to use the `cp` shell command for copying the /unpack binary
+# to a scratch-based container image, which doesn't contain a shell environment, but contains the
+# Bundle manifests we need to extract.
+FROM gcr.io/distroless/static:debug
 WORKDIR /
 COPY --from=builder /workspace/unpack .
 USER 65532:65532
