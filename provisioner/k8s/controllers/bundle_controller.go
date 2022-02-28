@@ -54,8 +54,9 @@ type BundleReconciler struct {
 	Scheme     *runtime.Scheme
 	Storage    storage.Storage
 
-	PodNamespace string
-	UnpackImage  string
+	PodNamespace    string
+	UnpackImage     string
+	CopyBundleImage string
 }
 
 //+kubebuilder:rbac:groups=olm.operatorframework.io,resources=bundles,verbs=get;list;watch;create;update;patch;delete
@@ -208,14 +209,14 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 			pod.Spec.InitContainers = make([]corev1.Container, 2)
 		}
 		pod.Spec.InitContainers[0].Name = "install-cpb"
-		pod.Spec.InitContainers[0].Image = "quay.io/operator-framework/olm:latest"
+		pod.Spec.InitContainers[0].Image = r.CopyBundleImage
 		pod.Spec.InitContainers[0].Command = []string{"/bin/cp", "-Rv", "/bin/cpb", "/util/cpb"}
 		pod.Spec.InitContainers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/util"}}
 
 		pod.Spec.InitContainers[1].Name = "copy-bundle"
 		pod.Spec.InitContainers[1].Image = bundle.Spec.Image
 		pod.Spec.InitContainers[1].ImagePullPolicy = corev1.PullAlways
-		pod.Spec.InitContainers[1].Command = []string{"/util/cpb", "/bundle"}
+		pod.Spec.InitContainers[1].Command = []string{"/util/cpb", "--ignore-annotations-file", "/bundle"}
 		pod.Spec.InitContainers[1].VolumeMounts = []corev1.VolumeMount{
 			{Name: "util", MountPath: "/util"},
 			{Name: "bundle", MountPath: "/bundle"},
