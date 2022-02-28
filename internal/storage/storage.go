@@ -139,20 +139,24 @@ func (s *ConfigMaps) buildObject(obj client.Object, owner client.Object) (*corev
 	gvk := obj.GetObjectKind().GroupVersionKind()
 
 	labels := map[string]string{
-		"core.rukpak.io/owner-name":       owner.GetName(),
-		"core.rukpak.io/configmap-type":   "object",
+		"core.rukpak.io/owner-name":     owner.GetName(),
+		"core.rukpak.io/configmap-type": "object",
+	}
+	annotations := map[string]string{
 		"core.rukpak.io/object-group":     gvk.Group,
 		"core.rukpak.io/object-version":   gvk.Version,
 		"core.rukpak.io/object-kind":      gvk.Kind,
 		"core.rukpak.io/object-name":      obj.GetName(),
 		"core.rukpak.io/object-namespace": obj.GetNamespace(),
 	}
+
 	immutable := true
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%sobject-%s-%s", s.NamePrefix, owner.GetName(), hash[0:8]),
-			Namespace: s.Namespace,
-			Labels:    labels,
+			Name:        fmt.Sprintf("%sobject-%s-%s", s.NamePrefix, owner.GetName(), hash[0:8]),
+			Namespace:   s.Namespace,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Immutable: &immutable,
 		Data: map[string]string{
