@@ -47,6 +47,10 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
+const (
+	bundleUnpackContainerName = "bundle"
+)
+
 // BundleReconciler reconciles a Bundle object
 type BundleReconciler struct {
 	client.Client
@@ -215,7 +219,7 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 		if len(pod.Spec.Containers) != 1 {
 			pod.Spec.Containers = make([]corev1.Container, 1)
 		}
-		pod.Spec.Containers[0].Name = "copy-bundle"
+		pod.Spec.Containers[0].Name = bundleUnpackContainerName
 		pod.Spec.Containers[0].Image = bundle.Spec.Image
 		pod.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 		pod.Spec.Containers[0].Command = []string{"/util/unpack", "--bundle-dir", "/manifests"}
@@ -328,7 +332,7 @@ func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]b
 
 func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error) {
 	for _, ps := range pod.Status.ContainerStatuses {
-		if ps.Name == "copy-bundle" && ps.ImageID != "" {
+		if ps.Name == bundleUnpackContainerName && ps.ImageID != "" {
 			return ps.ImageID, nil
 		}
 	}
