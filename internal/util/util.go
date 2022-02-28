@@ -16,8 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func PodName(bundleName string) string {
-	return fmt.Sprintf("registryv1-unpack-bundle-%s", bundleName)
+func PodName(provisionerName, bundleName string) string {
+	return fmt.Sprintf("%s-unpack-bundle-%s", provisionerName, bundleName)
 }
 
 func BundleLabels(bundleName string) map[string]string {
