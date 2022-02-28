@@ -1,101 +1,94 @@
+[![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
+[![Slack Channel](https://img.shields.io/badge/chat-4A154B?logo=slack&logoColor=white "Slack Channel")](https://kubernetes.slack.com/archives/C0181L6JYQ2)
+
 # RukPak
 
-RukPak runs in a Kubernetes cluster and defines an API for installing cloud native bundle content. 
+RukPak runs in a Kubernetes cluster and defines an API for installing cloud native bundle content.
 
-## Introduction 
+## Introduction
 
-RukPak is a pluggable solution for the packaging and distribution of cloud-native content and supports advanced strategies for installation, updates, and policy.
-The project provides a content ecosystem for installing a variety of artifacts, such as Git repositories, Helm charts, OLM bundles, and more onto a Kubernetes cluster. 
-These artifacts can then be managed, scaled, and upgraded in a safe way to enable powerful cluster extensions. 
+RukPak is a pluggable solution for the packaging and distribution of cloud-native content and supports advanced
+strategies for installation, updates, and policy. The project provides a content ecosystem for installing a variety of
+artifacts, such as Git repositories, Helm charts, OLM bundles, and more onto a Kubernetes cluster. These artifacts can
+then be managed, scaled, and upgraded in a safe way to enable powerful cluster extensions.
 
-At its core, RukPak is a small set of APIs, packaged as Kubernetes CustomResourceDefinitions, and controllers that watch for those APIs. These APIs express what 
-content is being installed on-cluster and how to create a running instance of the content. 
+At its core, RukPak is a small set of APIs, packaged as Kubernetes CustomResourceDefinitions, and controllers that watch
+for those APIs. These APIs express what content is being installed on-cluster and how to create a running instance of
+the content.
 
-## Components 
+## Components
 
-RukPak is composed of a few primary APIs: `Bundle`, `Instance`, and `ProvisionerClass`
+RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleInstance](#bundleInstance), as well as the concept
+of a [Provisioner](#provisioner). These components work together to bring content onto the cluster and install it,
+generating resources within the cluster. Below is a high level diagram depicting the interaction of the RukPak
+components.
+
+```mermaid
+graph TD
+    C[Provisioner]
+    C -->|Unpacks| D[Bundle]
+    C -->|Reconciles| E[BundleInstance]
+    D ---|References| F((Content))
+    E -->|Creates/Manages| G([Cluster Resources])
+```
+
+A provisioner places a watch on both Bundles and BundleInstances that refer to it explicitly. For a given bundle, the
+provisioner unpacks the contents of the Bundle onto the cluster. Then, given a BundleInstance referring to that Bundle,
+the provisioner then installs the bundle contents and is responsible for managing the lifecycle of those resources.
 
 ### Bundle
-A `Bundle` represents content that needs to be made available to other consumers in the cluster.
-Much like the contents of a container image need to be pulled and unpacked in order for Pods to start using them, 
-`Bundles` are used to reference content that may need to be pulled and should be unpacked. 
-In this sense, Bundle is a generalization of the image concept, and can be used to represent any type of content.
 
-`Bundles` do nothing on their own - they require a `Provisioner` to unpack and make their content available in-cluster. They can be
-unpacked to any arbitrary storage medium such as a PersistentVolume or ConfigMap. Each `Bundle` has an associated `spec.class` field which 
-indicates the `Provisioner` that should be watching and unpacking that particular bundle type. 
+A `Bundle` represents content that needs to be made available to other consumers in the cluster. Much like the contents
+of a container image need to be pulled and unpacked in order for Pods to start using them,
+`Bundles` are used to reference content that may need to be pulled and should be unpacked. In this sense, Bundle is a
+generalization of the image concept, and can be used to represent any type of content.
 
-Example Bundle
+`Bundles` do nothing on their own - they require a `Provisioner` to unpack and make their content available in-cluster.
+They can be unpacked to any arbitrary storage medium such as a series of ConfigMaps. Each `Bundle` has an
+associated `spec.provisionerClassName` field which indicates the `Provisioner` that should be watching and unpacking
+that particular bundle type.
+
+Example Bundle configured to work with the [plain-v0 provisioner](provisioner/plain-v0/README.md).
+
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
 kind: Bundle
-metadata: 
-  name: example-operator.v0.9.3
+metadata:
+  name: my-bundle
 spec:
-  class: rukpack.io/k8s
-  refs:
-  - file://content
-  volumeMounts:
-  - mountPath: /content
-    configMap:
-      name: local 
-      namespace: plumbus
+  image: my-bundle@sha256:xyz123
+  provisionerClassName: core.rukpak.io/plain-v0
 ```
 
-### Instance 
-The `Instance` API points to a Bundle and indicates that it should be “active”. This includes pivoting from older versions of an active bundle. 
-`Instance` may also include an embedded spec for a desired Bundle.
+### BundleInstance
 
-Much like Pods stamp out instances of container images, `Instances` stamp out an instance of Bundles. `Instance` can be seen as a generalization of the Pod concept.
+The `BundleInstance` API points to a Bundle and indicates that it should be “active”. This includes pivoting from older
+versions of an active bundle.`BundleInstance` may also include an embedded spec for a desired Bundle.
 
-The specifics of how an `Instance` makes changes to a cluster based on a referenced `Bundle` is defined by the 
-`ProvisionerClass` and the `Provisioner` that is configured to handle that `ProvisionerClass`.
+Much like Pods stamp out instances of container images, `BundleInstances` stamp out an instance of
+Bundles. `BundleInstance` can be seen as a generalization of the Pod concept.
 
-Example Instance
+The specifics of how an `BundleInstance` makes changes to a cluster based on a referenced `Bundle` is defined by the
+`Provisioner` that is configured to watch that `BundleInstance`.
+
+Example BundleInstance configured to work with the [plain-v0 provisioner](provisioner/plain-v0/README.md).
+
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
-kind: Instance
+kind: BundleInstance
 metadata:
-  name: resolved-654adh
+  name: my-bundle-instance
 spec:
-  selector: 
-    matchLabels:
-      subscription: etcd-operator
-  bundle:
-    name: resolved-654adh
-    spec:
-      class: rukpack.io/k8s
-      refs:
-      - file://content
-      volumeMounts:
-      - mountPath: /content
-        configMap:
-          name: resolved-654adh-content
-          namespace: olm
+  bundleName: my-bundle
+  provisionerClassName: core.rukpak.io/plain-v0
 ```
 
-### ProvisionerClass
-`ProvisionerClass` defines a configuration for a `Provisioner`. Provisioners are controllers that understand `Instance`, `Bundle`, and `ProvisionerClass` APIs and take action.
+### Provisioner
 
-Each `Provisioner` has a unique id. For example, a `Provisioner` that understands bundles composed of arbitrary Kubernetes YAML manifests can have the id: rukpack.io/k8s.
+A Provisioner is a controller that understands `BundleInstance` and `Bundle` APIs and can take action.
+Each `Provisioner` is assigned a unique ID, and is responsible for reconciling a `Bundle` and `BundleInstance` with
+a `spec.provisionerClassName` that matches that particular ID.
 
-A `ProvisionerClass` specifies a specific configuration of provisioning (i.e. settings to interpret Instance and Bundle APIs). 
-A `Provisioner` will only operate on Instance and Bundle objects that reference a `ProvisionerClass` that contain the provisioner’s unique id.
-
-If this seems familiar, it is the same pattern that is used by StorageClass / PeristentVolume / PersistentVolumeClaim in Kubernetes. This design is meant to be extendable 
-to support `Bundles` and `Instances` backed by different content sources. 
-
-Example ProvisionerClass
-```yaml
-apiVersion: core.rukpak.io/v1alpha1
-kind: ProvisionerClass
-metadata:
-  name: <good name>
-provisioner: <unique id>
-# parameters has no schema, is provisioner-specific
-parameters: {}
-```
-
-## Contributing 
-
-RukPak is a community-based open source project, and all are welcome to get involved. 
+For example, in this repository the [plain-v0](provisioner/plain-v0/README.md) provisioner is implemented.
+The `plain-v0` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
+the content of the bundle available in the cluster.
