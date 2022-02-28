@@ -5,7 +5,7 @@ import (
 	"os"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/provisioner/k8s/controller"
+	"github.com/operator-framework/rukpak/provisioner/k8s/controllers"
 	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -56,7 +56,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.BundleController{
+	if err = (&controllers.BundleController{
 		Client: mgr.GetClient(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Bundle")
