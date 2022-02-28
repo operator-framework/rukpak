@@ -28,7 +28,6 @@ import (
 	"strings"
 	"testing/fstest"
 
-	"github.com/operator-framework/operator-registry/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,7 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/yaml"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/storage"
@@ -272,11 +270,6 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle image digest: %w", err))
 	}
 
-	annotations, err := getAnnotations(bundleFS)
-	if err != nil {
-		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle annotations: %w", err))
-	}
-
 	objects, err := getObjects(bundleFS)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get objects from bundle manifests: %w", err))
@@ -286,13 +279,8 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %w", err))
 	}
 
-	info := &olmv1alpha1.BundleInfo{Package: annotations.PackageName}
+	info := &olmv1alpha1.BundleInfo{}
 	for _, obj := range objects {
-		if obj.GetObjectKind().GroupVersionKind().Kind == "ClusterServiceVersion" {
-			info.Name = obj.GetName()
-			u := obj.(*unstructured.Unstructured)
-			info.Version, _, _ = unstructured.NestedString(u.Object, "spec", "version")
-		}
 		gvk := obj.GetObjectKind().GroupVersionKind()
 		info.Objects = append(info.Objects, olmv1alpha1.BundleObject{
 			Group:     gvk.Group,
@@ -356,18 +344,6 @@ func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error)
 	return "", fmt.Errorf("bundle image digest not found")
 }
 
-func getAnnotations(bundleFS fs.FS) (*registry.Annotations, error) {
-	fileData, err := fs.ReadFile(bundleFS, filepath.Join("metadata", "annotations.yaml"))
-	if err != nil {
-		return nil, err
-	}
-	annotationsFile := registry.AnnotationsFile{}
-	if err := yaml.Unmarshal(fileData, &annotationsFile); err != nil {
-		return nil, err
-	}
-	return &annotationsFile.Annotations, nil
-}
-
 func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 	var objects []client.Object
 	const manifestsDir = "manifests"
@@ -404,7 +380,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&olmv1alpha1.Bundle{}, builder.WithPredicates(
-			bundleProvisionerFilter("core.rukpak.io/registry+v1"),
+			bundleProvisionerFilter(plainBundleProvisionerID),
 		)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Pod{}).
