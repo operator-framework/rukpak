@@ -35,6 +35,7 @@ import (
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/storage"
+	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/provisioner/k8s/controllers"
 )
 
@@ -54,8 +55,10 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var systemNamespace string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -101,9 +104,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: derive pod namespace from the pod that this process is running in.
-	ns := "rukpak-system"
-
+	ns := util.PodNamespace(systemNamespace)
 	bundleStorage := &storage.ConfigMaps{
 		Client:     mgr.GetClient(),
 		Namespace:  ns,

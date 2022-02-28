@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"time"
 
@@ -15,6 +16,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+// GetPodNamespace checks whether the controller is running in a Pod vs.
+// being run locally by inspecting the namespace file that gets mounted
+// automatically for Pods at runtime. If that file doesn't exist, then
+// return the @defaultNamespace namespace parameter.
+func PodNamespace(defaultNamespace string) string {
+	namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		return defaultNamespace
+	}
+	return string(namespace)
+}
 
 func PodName(provisionerName, bundleName string) string {
 	return fmt.Sprintf("%s-unpack-bundle-%s", provisionerName, bundleName)
