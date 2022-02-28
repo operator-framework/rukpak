@@ -24,14 +24,11 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	v1 "github.com/operator-framework/api/pkg/operators/v1"
-	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,13 +48,13 @@ import (
 	"sigs.k8s.io/yaml"
 
 	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/convert"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/storage"
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 const (
-	registryV1ProvisionerID = "core.rukpak.io/registry+v1"
+	plainBundleProvisionerID = "core.rukpak.io/plain"
 )
 
 // BundleInstanceReconciler reconciles a BundleInstance object
@@ -102,7 +99,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	defer func() {
 		bi := bi.DeepCopy()
 		bi.ObjectMeta.ManagedFields = nil
-		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner(registryV1ProvisionerID)); err != nil {
+		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner(plainBundleProvisionerID)); err != nil {
 			l.Error(err, "failed to patch status")
 		}
 	}()
@@ -121,7 +118,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	reg, err := r.loadBundle(ctx, bi)
+	desiredObjects, err := r.loadBundle(ctx, bi)
 	if err != nil {
 		var bnuErr *errBundleNotUnpacked
 		if errors.As(err, &bnuErr) {
@@ -136,44 +133,6 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			})
 			return ctrl.Result{}, nil
 		}
-		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "Installed",
-			Status:  metav1.ConditionFalse,
-			Reason:  "BundleLookupFailed",
-			Message: err.Error(),
-		})
-		return ctrl.Result{}, err
-	}
-
-	installNamespace := fmt.Sprintf("%s-system", b.Status.Info.Package)
-	if ns, ok := bi.Annotations["core.rukpak.io/install-namespace"]; ok && ns != "" {
-		installNamespace = ns
-	} else if ns, ok := reg.CSV.Annotations["operatorframework.io/suggested-namespace"]; ok && ns != "" {
-		installNamespace = ns
-	}
-
-	og, err := r.getOperatorGroup(ctx, installNamespace)
-	if err != nil {
-		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "Installed",
-			Status:  metav1.ConditionFalse,
-			Reason:  "OperatorGroupLookupFailed",
-			Message: err.Error(),
-		})
-		return ctrl.Result{}, err
-	}
-	if og.Status.LastUpdated == nil {
-		err := errors.New("target naemspaces unknown")
-		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "Installed",
-			Status:  metav1.ConditionFalse,
-			Reason:  "OperatorGroupNotReady",
-			Message: err.Error(),
-		})
-		return ctrl.Result{}, err
-	}
-	desiredObjects, err := r.getDesiredObjects(*reg, installNamespace, og.Status.Namespaces)
-	if err != nil {
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    "Installed",
 			Status:  metav1.ConditionFalse,
@@ -324,21 +283,6 @@ const (
 	stateError        releaseState = "Error"
 )
 
-func (r *BundleInstanceReconciler) getOperatorGroup(ctx context.Context, installNamespace string) (*v1.OperatorGroup, error) {
-	ogs := v1.OperatorGroupList{}
-	if err := r.List(ctx, &ogs, client.InNamespace(installNamespace)); err != nil {
-		return nil, err
-	}
-	switch len(ogs.Items) {
-	case 0:
-		return nil, fmt.Errorf("no operator group found in install namespace %q", installNamespace)
-	case 1:
-		return &ogs.Items[0], nil
-	default:
-		return nil, fmt.Errorf("multiple operator groups found in install namespace")
-	}
-}
-
 func (r *BundleInstanceReconciler) getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, chrt *chart.Chart) (*release.Release, releaseState, error) {
 	currentRelease, err := cl.Get(obj.GetName())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
@@ -374,7 +318,7 @@ func (err errBundleNotUnpacked) Error() string {
 	return fmt.Sprintf("%s, current phase=%s", baseError, err.currentPhase)
 }
 
-func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alpha1.BundleInstance) (*convert.RegistryV1, error) {
+func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alpha1.BundleInstance) ([]client.Object, error) {
 	b := &olmv1alpha1.Bundle{}
 	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
 		return nil, fmt.Errorf("get bundle %q: %w", bi.Spec.BundleName, err)
@@ -388,47 +332,21 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alph
 		return nil, fmt.Errorf("load bundle objects: %w", err)
 	}
 
-	reg := convert.RegistryV1{}
+	objs := make([]client.Object, len(objects))
 	for _, obj := range objects {
 		obj := obj
-		obj.SetLabels(map[string]string{
+		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
 			"core.rukpak.io/owner-name": bi.Name,
-		})
-		switch obj.GetObjectKind().GroupVersionKind().Kind {
-		case "ClusterServiceVersion":
-			csv := v1alpha1.ClusterServiceVersion{}
-			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &csv); err != nil {
-				return nil, err
-			}
-			reg.CSV = csv
-		case "CustomResourceDefinition":
-			crd := apiextensionsv1.CustomResourceDefinition{}
-			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crd); err != nil {
-				return nil, err
-			}
-			reg.CRDs = append(reg.CRDs, crd)
-		default:
-			reg.Others = append(reg.Others, obj)
-		}
+		}))
+		objs = append(objs, &obj)
 	}
-	return &reg, nil
-}
-
-func (r *BundleInstanceReconciler) getDesiredObjects(reg convert.RegistryV1, installNamespace string, watchNamespaces []string) ([]client.Object, error) {
-	reg.CSV.Namespace = installNamespace
-	plain, err := convert.Convert(reg, installNamespace, watchNamespaces)
-	if err != nil {
-		return nil, err
-	}
-	return append(plain.Objects, &reg.CSV), nil
+	return objs, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	//r.ActionConfigGetter = helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	//r.ActionClientGetter = helmclient.NewActionClientGetter(r.ActionConfigGetter)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter(registryV1ProvisionerID))).
+		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter(plainBundleProvisionerID))).
 		Watches(&source.Kind{Type: &olmv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(mapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {
