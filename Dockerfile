@@ -18,7 +18,6 @@ FROM gcr.io/distroless/static:debug
 
 WORKDIR /
 COPY --from=builder /workspace/bin/k8s .
-COPY --from=builder /workspace/bin/registryv1 .
 EXPOSE 8080
 
 ENTRYPOINT ["/k8s"]

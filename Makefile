@@ -44,21 +44,15 @@ install-apis: generate ## Install the core rukpak CRDs
 install-k8s: install-apis ## Install the rukpak CRDs and the k8s provisioner
 	kubectl apply -f provisioner/k8s/manifests
 
-install-registryv1: install-apis ## Install the rukpak CRDs and the registryv1 provisioner
-	# TODO create deployment manifests for registryv1 provisioner
-
-install: install-k8s install-registryv1 ## Install all rukpak core CRDs and provisioners 
+install: install-k8s ## Install all rukpak core CRDs and provisioners
 
 # Binary builds
 GO_BUILD := $(Q)go build
 
-build: bin/k8s bin/registryv1
+build: bin/k8s
 
 bin/k8s:
 	CGO_ENABLED=0 go build -o $@ ./provisioner/k8s
-
-bin/registryv1:
-	CGO_ENABLED=0 go build -o $@ ./provisioner/registryv1
 
 bin/unpack:
 	CGO_ENABLED=0 go build -o $@ ./cmd/unpack/...
