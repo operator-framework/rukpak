@@ -202,34 +202,24 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 		pod.Spec.Volumes = []corev1.Volume{
 			{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-			{Name: "bundle", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
 		pod.Spec.RestartPolicy = corev1.RestartPolicyNever
-		if len(pod.Spec.InitContainers) != 2 {
-			pod.Spec.InitContainers = make([]corev1.Container, 2)
+		if len(pod.Spec.InitContainers) != 1 {
+			pod.Spec.InitContainers = make([]corev1.Container, 1)
 		}
 		pod.Spec.InitContainers[0].Name = "install-cpb"
-		pod.Spec.InitContainers[0].Image = r.CopyBundleImage
-		pod.Spec.InitContainers[0].Command = []string{"/bin/cp", "-Rv", "/bin/cpb", "/util/cpb"}
+		pod.Spec.InitContainers[0].Image = r.UnpackImage
+		pod.Spec.InitContainers[0].Command = []string{"cp", "-Rv", "/unpack", "/util/unpack"}
 		pod.Spec.InitContainers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/util"}}
-
-		pod.Spec.InitContainers[1].Name = "copy-bundle"
-		pod.Spec.InitContainers[1].Image = bundle.Spec.Image
-		pod.Spec.InitContainers[1].ImagePullPolicy = corev1.PullAlways
-		pod.Spec.InitContainers[1].Command = []string{"/util/cpb", "--ignore-annotations-file", "/bundle"}
-		pod.Spec.InitContainers[1].VolumeMounts = []corev1.VolumeMount{
-			{Name: "util", MountPath: "/util"},
-			{Name: "bundle", MountPath: "/bundle"},
-		}
 
 		if len(pod.Spec.Containers) != 1 {
 			pod.Spec.Containers = make([]corev1.Container, 1)
 		}
-		pod.Spec.Containers[0].Name = "unpack-bundle"
-		pod.Spec.Containers[0].Image = r.UnpackImage
+		pod.Spec.Containers[0].Name = "copy-bundle"
+		pod.Spec.Containers[0].Image = bundle.Spec.Image
 		pod.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-		pod.Spec.Containers[0].Args = []string{"--bundle-dir=/bundle"}
-		pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "bundle", MountPath: "/bundle"}}
+		pod.Spec.Containers[0].Command = []string{"/util/unpack", "--bundle-dir", "/manifests"}
+		pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/util"}}
 		return nil
 	})
 }
@@ -337,7 +327,7 @@ func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]b
 }
 
 func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error) {
-	for _, ps := range pod.Status.InitContainerStatuses {
+	for _, ps := range pod.Status.ContainerStatuses {
 		if ps.Name == "copy-bundle" && ps.ImageID != "" {
 			return ps.ImageID, nil
 		}
@@ -347,7 +337,7 @@ func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error)
 
 func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 	var objects []client.Object
-	const manifestsDir = "manifests"
+	const manifestsDir = "."
 
 	entries, err := fs.ReadDir(bundleFS, manifestsDir)
 	if err != nil {

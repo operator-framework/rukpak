@@ -112,13 +112,12 @@ func main() {
 	}
 
 	if err = (&controllers.BundleReconciler{
-		Client:          mgr.GetClient(),
-		KubeClient:      kubeClient,
-		Scheme:          mgr.GetScheme(),
-		PodNamespace:    ns,
-		Storage:         bundleStorage,
-		UnpackImage:     "quay.io/joelanford/kuberpak-unpack:v0.1.0",
-		CopyBundleImage: "quay.io/tflannag/olm:cpb-hacks-latest",
+		Client:       mgr.GetClient(),
+		KubeClient:   kubeClient,
+		Scheme:       mgr.GetScheme(),
+		PodNamespace: ns,
+		Storage:      bundleStorage,
+		UnpackImage:  "quay.io/tflannag/unpack:latest",
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Bundle")
 		os.Exit(1)
