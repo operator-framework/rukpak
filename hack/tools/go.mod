@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/golangci/golangci-lint v1.42.0
-	github.com/joelanford/go-apidiff v0.2.0
+	github.com/joelanford/go-apidiff v0.3.0
 	github.com/onsi/ginkgo v1.16.5
 	sigs.k8s.io/controller-tools v0.7.0
 )
