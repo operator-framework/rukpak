@@ -332,7 +332,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alph
 		return nil, fmt.Errorf("load bundle objects: %w", err)
 	}
 
-	objs := make([]client.Object, len(objects))
+	objs := make([]client.Object, 0, len(objects))
 	for _, obj := range objects {
 		obj := obj
 		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
