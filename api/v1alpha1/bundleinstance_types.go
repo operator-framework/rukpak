@@ -46,6 +46,7 @@ type BundleInstanceStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Desired Bundle",type=string,JSONPath=`.spec.bundleName`
 //+kubebuilder:printcolumn:name="Installed Bundle",type=string,JSONPath=`.status.installedBundleName`
+//+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 
 // BundleInstance is the Schema for the bundleinstances API
