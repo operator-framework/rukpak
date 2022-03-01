@@ -36,8 +36,18 @@ jobs:
         kind version
         kind create cluster
         kind export kubeconfig
-    - name: Run e2e tests
-      # TODO: Make install has been removed until the Kuberpak manifests are brought in
+    - name: Install the rukpak k8s provisioner
       run: |
-        # make install
+        make generate
+        kubectl create namespace rukpak-system
+        kubectl apply -f manifests
+
+        # Note: run the provisioner in the background so we don't block
+        # running ginkgo tests in the foreground.
+        # TODO: remove this hack when we have k8s provisioner manifests
+        # and more fleshed out CI pipeline that builds/pushes the unpack
+        # and provisioner image(s) so we can reference them at runtime.
+        nohup go run provisioner/k8s/main.go &
+    - name: Run e2e tests
+      run: |
         make test-e2e
