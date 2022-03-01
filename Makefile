@@ -37,7 +37,7 @@ test-unit: ## Run the unit tests
 	$(Q)go test -count=1 -short $(UNIT_TEST_DIRS)
 
 test-e2e: ginkgo ## Run the e2e tests
-	$(GINKGO) run test/e2e
+	$(GINKGO) -v -trace -progress test/e2e
 
 verify: tidy generate ## Verify the current code generation and lint
 	git diff --exit-code
