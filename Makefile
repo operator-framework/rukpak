@@ -23,8 +23,12 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests paths=./api/...
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 
+
+## --------------------------------------
+## Testing and Verification
+## --------------------------------------
 # Static tests.
-.PHONY: test test-unit verify build bin/k8s bin/registryv1 bin/unpack
+.PHONY: test test-unit verify build bin/k8s bin/unpack
 
 test: test-unit test-e2e ## Run the tests
 
@@ -38,6 +42,9 @@ test-e2e: ginkgo ## Run the e2e tests
 verify: tidy generate ## Verify the current code generation and lint
 	git diff --exit-code
 
+## --------------------------------------
+## Install and Run
+## --------------------------------------
 install-apis: generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
 
@@ -45,6 +52,10 @@ install-k8s: install-apis ## Install the rukpak CRDs and the k8s provisioner
 	kubectl apply -f provisioner/k8s/manifests
 
 install: install-k8s ## Install all rukpak core CRDs and provisioners
+
+run-local: install-apis ## Install CRDs and run provisioner locally
+	kubectl create namespace rukpak-system
+	$(Q)go run provisioner/k8s/main.go
 
 # Binary builds
 GO_BUILD := $(Q)go build
