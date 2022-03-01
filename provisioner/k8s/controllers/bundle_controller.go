@@ -201,7 +201,10 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 	pod.SetNamespace(r.PodNamespace)
 
 	return util.CreateOrRecreate(ctx, r.Client, pod, func() error {
-		pod.SetLabels(map[string]string{"core.rukpak.io/owner-name": bundle.Name})
+		pod.SetLabels(map[string]string{
+			"core.rukpak.io/owner-kind": "Bundle",
+			"core.rukpak.io/owner-name": bundle.Name,
+		})
 		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
 		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 		pod.Spec.Volumes = []corev1.Volume{
