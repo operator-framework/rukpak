@@ -114,6 +114,7 @@ func (s *ConfigMaps) Store(ctx context.Context, owner client.Object, objects []c
 func (s *ConfigMaps) getExistingConfigMaps(ctx context.Context, owner client.Object) ([]corev1.ConfigMap, error) {
 	cmList := &corev1.ConfigMapList{}
 	labels := map[string]string{
+		"core.rukpak.io/owner-kind": owner.GetObjectKind().GroupVersionKind().Kind,
 		"core.rukpak.io/owner-name": owner.GetName(),
 	}
 	if err := s.Client.List(ctx, cmList, client.MatchingLabels(labels), client.InNamespace(s.Namespace)); err != nil {
@@ -139,6 +140,7 @@ func (s *ConfigMaps) buildObject(obj client.Object, owner client.Object) (*corev
 	gvk := obj.GetObjectKind().GroupVersionKind()
 
 	labels := map[string]string{
+		"core.rukpak.io/owner-kind":     owner.GetObjectKind().GroupVersionKind().Kind,
 		"core.rukpak.io/owner-name":     owner.GetName(),
 		"core.rukpak.io/configmap-type": "object",
 	}
@@ -189,6 +191,7 @@ func (s *ConfigMaps) buildMetadata(dcms []corev1.ConfigMap, owner client.Object)
 			Namespace: s.Namespace,
 			Name:      fmt.Sprintf("%smetadata-%s", s.NamePrefix, owner.GetName()),
 			Labels: map[string]string{
+				"core.rukpak.io/owner-kind":     owner.GetObjectKind().GroupVersionKind().Kind,
 				"core.rukpak.io/owner-name":     owner.GetName(),
 				"core.rukpak.io/configmap-type": "metadata",
 			},

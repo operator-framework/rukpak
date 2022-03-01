@@ -78,7 +78,7 @@ func main() {
 		setupLog.Error(err, "unable to create kubernetes client")
 		os.Exit(1)
 	}
-	dependentRequirement, err := labels.NewRequirement("core.rukpak.io/owner-name", selection.Exists, nil)
+	dependentRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.In, []string{"Bundle", "BundleInstance"})
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
