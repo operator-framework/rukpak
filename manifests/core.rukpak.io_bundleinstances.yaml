@@ -21,6 +21,9 @@ spec:
         - jsonPath: .status.installedBundleName
           name: Installed Bundle
           type: string
+        - jsonPath: .status.conditions[?(.type=="Installed")].reason
+          name: Install State
+          type: string
         - jsonPath: .metadata.creationTimestamp
           name: Age
           type: date
