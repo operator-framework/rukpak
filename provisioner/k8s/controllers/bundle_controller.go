@@ -132,7 +132,7 @@ func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod)
 		if cStatus.State.Waiting != nil && cStatus.State.Waiting.Reason == "ErrImagePull" {
 			messages = append(messages, cStatus.State.Waiting.Message)
 		}
-		if cStatus.State.Waiting != nil && cStatus.State.Waiting.Reason == "ImagePullBackoff" {
+		if cStatus.State.Waiting != nil && cStatus.State.Waiting.Reason == "ImagePullBackOff" {
 			messages = append(messages, cStatus.State.Waiting.Message)
 		}
 	}
