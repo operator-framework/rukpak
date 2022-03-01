@@ -68,8 +68,11 @@ func (u *Updater) Apply(ctx context.Context, b *olmv1alpha1.Bundle) error {
 func EnsureCondition(condition metav1.Condition) UpdateStatusFunc {
 	return func(status *olmv1alpha1.BundleStatus) bool {
 		existing := meta.FindStatusCondition(status.Conditions, condition.Type)
-		meta.SetStatusCondition(&status.Conditions, condition)
-		return existing == nil || !conditionsSemanticallyEqual(*existing, condition)
+		if existing == nil || !conditionsSemanticallyEqual(*existing, condition) {
+			meta.SetStatusCondition(&status.Conditions, condition)
+			return true
+		}
+		return false
 	}
 }
 
