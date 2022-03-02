@@ -61,10 +61,6 @@ install-k8s: install-apis ## Install the rukpak CRDs and the k8s provisioner
 
 install: install-k8s ## Install all rukpak core CRDs and provisioners
 
-run-local: install-apis ## Install CRDs and run provisioner locally
-	kubectl create namespace rukpak-system
-	$(Q)go run provisioner/k8s/main.go
-
 deploy: install-apis ## Deploy the operator to the current cluster
 	kubectl apply -f provisioner/k8s/manifests
 
