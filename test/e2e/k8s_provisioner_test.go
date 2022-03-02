@@ -11,8 +11,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	// TODO: make this is a CLI flag?
+	defaultSystemNamespace = "rukpak-system"
 )
 
 func Logf(f string, v ...interface{}) {
@@ -77,6 +84,46 @@ var _ = Describe("k8s provisioner", func() {
 					return len(bundle.Status.Info.Objects) == 8
 				}).Should(BeTrue())
 			})
+		})
+
+		// TODO(tflannag): add test specs for ensuring the object and metadata ConfigMaps get re-created when deleted
+		It("should re-create underlying system resources", func() {
+			var (
+				pod *corev1.Pod
+			)
+
+			By("getting the underlying bundle unpacking pod")
+			Eventually(func() bool {
+				requirement, err := labels.NewRequirement("core.rukpak.io/owner-name", selection.Equals, []string{bundle.GetName()})
+				if err != nil {
+					return false
+				}
+				pods := &corev1.PodList{}
+				if err := c.List(context.Background(), pods, &client.ListOptions{
+					LabelSelector: labels.NewSelector().Add(*requirement),
+					Namespace:     defaultSystemNamespace,
+				}); err != nil {
+					return false
+				}
+				if len(pods.Items) != 1 {
+					return false
+				}
+				pod = &pods.Items[0]
+				return true
+			}).Should(BeTrue())
+
+			By("storing the pod's original UID")
+			originalUID := pod.GetUID()
+
+			By("deleting the underlying pod and waiting for it to be re-created")
+			err := client.IgnoreNotFound(c.Delete(context.Background(), pod))
+			Expect(err).To(BeNil())
+
+			By("verifying the pod's UID has changed")
+			Eventually(func() (types.UID, error) {
+				err := c.Get(context.Background(), client.ObjectKeyFromObject(pod), pod)
+				return pod.GetUID(), err
+			}).ShouldNot(Equal(originalUID))
 		})
 	})
 
