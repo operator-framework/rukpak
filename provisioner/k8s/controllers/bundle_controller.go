@@ -202,7 +202,7 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 
 	return util.CreateOrRecreate(ctx, r.Client, pod, func() error {
 		pod.SetLabels(map[string]string{
-			"core.rukpak.io/owner-kind": "Bundle",
+			"core.rukpak.io/owner-kind": bundle.Kind,
 			"core.rukpak.io/owner-name": bundle.Name,
 		})
 		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
@@ -216,6 +216,7 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alp
 		}
 		pod.Spec.InitContainers[0].Name = "install-cpb"
 		pod.Spec.InitContainers[0].Image = r.UnpackImage
+		pod.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
 		pod.Spec.InitContainers[0].Command = []string{"cp", "-Rv", "/unpack", "/util/unpack"}
 		pod.Spec.InitContainers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/util"}}
 
