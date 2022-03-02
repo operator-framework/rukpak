@@ -7,6 +7,11 @@ help: ## Show this help screen
 	@echo ''
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+# Container build options
+IMAGE_REPO=quay.io/operator-framework/k8s-provisioner
+IMAGE_TAG=latest
+IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
+
 # Code management
 .PHONY: lint tidy clean generate
 
@@ -57,11 +62,17 @@ run-local: install-apis ## Install CRDs and run provisioner locally
 	kubectl create namespace rukpak-system
 	$(Q)go run provisioner/k8s/main.go
 
+deploy: install-apis ## Deploy the operator to the current cluster
+	kubectl apply -f provisioner/k8s/manifests
+
+run: build-local-container load-image deploy ## Build image and run operator in-cluster
+
 ## --------------------------------------
-## Building
+## Build and Load
 ## --------------------------------------
 .PHONY: build bin/k8s bin/unpack
 
+# Binary builds
 GO_BUILD := $(Q)go build
 build: bin/k8s bin/unpack
 
@@ -70,6 +81,12 @@ bin/k8s:
 
 bin/unpack:
 	CGO_ENABLED=0 go build -o $@ ./cmd/unpack/...
+
+build-local-container: ## Builds provisioner container image locally
+	docker build -f Dockerfile -t $(IMAGE) .
+
+load-image: ## Loads the currently constructed image onto the cluster
+	 kind load docker-image $(IMAGE)
 
 ## --------------------------------------
 ## Hack / Tools
