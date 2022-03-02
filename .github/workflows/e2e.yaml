@@ -15,7 +15,8 @@ jobs:
     - uses: actions/setup-go@v2
       with:
         go-version: '~1.17'
-    - name: Install kind
+
+    - name: Install kind binary
       env:
         KIND_VERSION: v0.11.1
         KIND_OS: kind-linux-amd64
@@ -23,23 +24,6 @@ jobs:
         curl -sLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/${KIND_OS}"
         chmod +x kind
         sudo mv kind /bin/
-    - name: Create kind cluster
-      run: |
-        kind version
-        kind create cluster
-        kind export kubeconfig
-    - name: Install the rukpak k8s provisioner
-      run: |
-        make generate
-        kubectl create namespace rukpak-system
-        kubectl apply -f manifests
 
-        # Note: run the provisioner in the background so we don't block
-        # running ginkgo tests in the foreground.
-        # TODO: remove this hack when we have k8s provisioner manifests
-        # and more fleshed out CI pipeline that builds/pushes the unpack
-        # and provisioner image(s) so we can reference them at runtime.
-        nohup go run provisioner/k8s/main.go &
     - name: Run e2e tests
-      run: |
-        make test-e2e
+      run: make e2e KIND=/bin/kind

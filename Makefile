@@ -12,6 +12,9 @@ IMAGE_REPO=quay.io/operator-framework/k8s-provisioner
 IMAGE_TAG=latest
 IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
 
+KIND_CLUSTER_NAME := rukpak-e2e
+KIND := kind
+
 # Code management
 .PHONY: lint tidy clean generate
 
@@ -85,8 +88,13 @@ bin/unpack:
 build-local-container: ## Builds provisioner container image locally
 	docker build -f Dockerfile -t $(IMAGE) .
 
-load-image: ## Loads the currently constructed image onto the cluster
-	 kind load docker-image $(IMAGE)
+kind-load: ## Load-image loads the currently constructed image onto the cluster
+	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
+
+kind-cluster: ## Standup a kind cluster for e2e testing usage
+	${KIND} get clusters | grep ${KIND_CLUSTER_NAME} || ${KIND} create cluster --name ${KIND_CLUSTER_NAME}
+
+e2e: build-local-container kind-cluster kind-load deploy test-e2e ## Run e2e tests against a kind cluster
 
 ## --------------------------------------
 ## Hack / Tools
