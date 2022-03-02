@@ -28,7 +28,7 @@ generate: controller-gen ## Generate code and manifests
 ## Testing and Verification
 ## --------------------------------------
 # Static tests.
-.PHONY: test test-unit verify build bin/k8s bin/unpack
+.PHONY: test test-unit verify
 
 test: test-unit test-e2e ## Run the tests
 
@@ -57,17 +57,19 @@ run-local: install-apis ## Install CRDs and run provisioner locally
 	kubectl create namespace rukpak-system
 	$(Q)go run provisioner/k8s/main.go
 
-# Binary builds
-GO_BUILD := $(Q)go build
+## --------------------------------------
+## Building
+## --------------------------------------
+.PHONY: build bin/k8s bin/unpack
 
-build: bin/k8s
+GO_BUILD := $(Q)go build
+build: bin/k8s bin/unpack
 
 bin/k8s:
 	CGO_ENABLED=0 go build -o $@ ./provisioner/k8s
 
 bin/unpack:
 	CGO_ENABLED=0 go build -o $@ ./cmd/unpack/...
-
 
 ## --------------------------------------
 ## Hack / Tools
