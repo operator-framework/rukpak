@@ -9,6 +9,7 @@ COPY go.sum go.sum
 RUN go mod download
 
 COPY Makefile Makefile
+COPY cmd cmd
 COPY api api
 COPY internal internal
 COPY provisioner provisioner
@@ -18,6 +19,7 @@ FROM gcr.io/distroless/static:debug
 
 WORKDIR /
 COPY --from=builder /workspace/bin/k8s .
+COPY --from=builder /workspace/bin/unpack .
 EXPOSE 8080
 
 ENTRYPOINT ["/k8s"]
