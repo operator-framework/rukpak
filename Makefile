@@ -81,8 +81,11 @@ bin/plain-v0:
 bin/unpack:
 	CGO_ENABLED=0 go build -o $@ ./cmd/unpack/...
 
-build-local-container: ## Builds provisioner container image locally
+build-container: ## Builds provisioner container image locally
 	docker build -f Dockerfile -t $(IMAGE) .
+
+build-local-container: build ## Builds the provisioner container image using locally built binaries
+	docker build -f Dockerfile.local -t $(IMAGE) .
 
 kind-load: ## Load-image loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)

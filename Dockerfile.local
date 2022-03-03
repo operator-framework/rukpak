@@ -1,0 +1,9 @@
+FROM gcr.io/distroless/static:debug
+
+WORKDIR /
+COPY bin/plain-v0 .
+COPY bin/unpack .
+EXPOSE 8080
+
+ENTRYPOINT ["/plain-v0"]
+CMD ["run"]
