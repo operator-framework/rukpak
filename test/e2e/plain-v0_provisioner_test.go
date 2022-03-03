@@ -10,7 +10,7 @@ import (
 	"github.com/operator-framework/rukpak/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,7 +34,7 @@ var _ = Describe("plain-v0 provisioner", func() {
 		BeforeEach(func() {
 			By("creating the testing Bundle resource")
 			bundle = &v1alpha1.Bundle{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "olm-crds",
 				},
 				Spec: v1alpha1.BundleSpec{
@@ -134,7 +134,7 @@ var _ = Describe("plain-v0 provisioner", func() {
 		BeforeEach(func() {
 			By("creating the testing Bundle resource")
 			bundle = &v1alpha1.Bundle{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "olm-crds",
 				},
 				Spec: v1alpha1.BundleSpec{

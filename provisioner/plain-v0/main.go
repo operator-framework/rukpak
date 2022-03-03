@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/provisioner/plain-v0/controllers"
@@ -47,7 +47,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
-	utilruntime.Must(olmv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(rukpakv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -93,8 +93,8 @@ func main() {
 		LeaderElectionID:       "510f803c.olm.operatorframework.io",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
-				&olmv1alpha1.BundleInstance{}: {},
-				&olmv1alpha1.Bundle{}:         {},
+				&rukpakv1alpha1.BundleInstance{}: {},
+				&rukpakv1alpha1.Bundle{}:         {},
 			},
 			DefaultSelector: cache.ObjectSelector{
 				Label: dependentSelector,
