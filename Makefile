@@ -91,7 +91,7 @@ kind-load: ## Load-image loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
 kind-cluster: ## Standup a kind cluster for e2e testing usage
-ifeq (1, $(shell kind get clusters | grep ${KIND_CLUSTER_NAME} | wc -l))
+ifeq (1, $(shell ${KIND} get clusters | grep ${KIND_CLUSTER_NAME} | wc -l | xargs))
 	@echo "Deleting the existing ${KIND_CLUSTER_NAME} test cluster"
 	${KIND} delete cluster --name ${KIND_CLUSTER_NAME}
 endif
