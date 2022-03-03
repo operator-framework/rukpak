@@ -26,7 +26,7 @@ func Logf(f string, v ...interface{}) {
 	fmt.Fprintf(GinkgoWriter, f, v...)
 }
 
-var _ = Describe("k8s provisioner", func() {
+var _ = Describe("plain-v0 provisioner", func() {
 	When("a valid Bundle referencing a remote container image is created", func() {
 		var (
 			bundle *v1alpha1.Bundle
@@ -38,7 +38,7 @@ var _ = Describe("k8s provisioner", func() {
 					Name: "olm-crds",
 				},
 				Spec: v1alpha1.BundleSpec{
-					ProvisionerClassName: "core.rukpak.io/plain",
+					ProvisionerClassName: "core.rukpak.io/plain-v0",
 					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
 				},
 			}
@@ -138,7 +138,7 @@ var _ = Describe("k8s provisioner", func() {
 					Name: "olm-crds",
 				},
 				Spec: v1alpha1.BundleSpec{
-					ProvisionerClassName: "core.rukpak.io/plain",
+					ProvisionerClassName: "core.rukpak.io/plain-v0",
 					Image:                "quay.io/tflannag/olm-plain-bundle:non-existent-tag",
 				},
 			}

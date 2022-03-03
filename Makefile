@@ -8,7 +8,7 @@ help: ## Show this help screen
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 # Container build options
-IMAGE_REPO=quay.io/operator-framework/k8s-provisioner
+IMAGE_REPO=quay.io/operator-framework/plain-v0-provisioner
 IMAGE_TAG=latest
 IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
 
@@ -56,27 +56,27 @@ verify: tidy generate ## Verify the current code generation and lint
 install-apis: generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
 
-install-k8s: install-apis ## Install the rukpak CRDs and the k8s provisioner
-	kubectl apply -f provisioner/k8s/manifests
+install-plain-v0: install-apis ## Install the rukpak CRDs and the plain-v0 provisioner
+	kubectl apply -f provisioner/plain-v0/manifests
 
-install: install-k8s ## Install all rukpak core CRDs and provisioners
+install: install-plain-v0 ## Install all rukpak core CRDs and provisioners
 
 deploy: install-apis ## Deploy the operator to the current cluster
-	kubectl apply -f provisioner/k8s/manifests
+	kubectl apply -f provisioner/plain-v0/manifests
 
 run: build-local-container load-image deploy ## Build image and run operator in-cluster
 
 ## --------------------------------------
 ## Build and Load
 ## --------------------------------------
-.PHONY: build bin/k8s bin/unpack
+.PHONY: build bin/plain-v0 bin/unpack
 
 # Binary builds
 GO_BUILD := $(Q)go build
-build: bin/k8s bin/unpack
+build: bin/plain-v0 bin/unpack
 
-bin/k8s:
-	CGO_ENABLED=0 go build -o $@ ./provisioner/k8s
+bin/plain-v0:
+	CGO_ENABLED=0 go build -o $@ ./provisioner/plain-v0
 
 bin/unpack:
 	CGO_ENABLED=0 go build -o $@ ./cmd/unpack/...

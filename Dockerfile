@@ -18,9 +18,9 @@ RUN make build
 FROM gcr.io/distroless/static:debug
 
 WORKDIR /
-COPY --from=builder /workspace/bin/k8s .
+COPY --from=builder /workspace/bin/plain-v0 .
 COPY --from=builder /workspace/bin/unpack .
 EXPOSE 8080
 
-ENTRYPOINT ["/k8s"]
+ENTRYPOINT ["/plain-v0"]
 CMD ["run"]

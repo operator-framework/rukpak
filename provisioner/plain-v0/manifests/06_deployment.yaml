@@ -2,23 +2,23 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: rukpak-system
-  name: k8s-provisioner
+  name: plain-v0-provisioner
   labels:
-    app: k8s-provisioner
+    app: plain-v0-provisioner
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: k8s-provisioner
+      app: plain-v0-provisioner
   template:
     metadata:
       labels:
-        app: k8s-provisioner
+        app: plain-v0-provisioner
     spec:
-      serviceAccountName: k8s-provisioner-admin
+      serviceAccountName: plain-v0-provisioner-admin
       containers:
-        - name: k8s-provisioner
-          image: quay.io/operator-framework/k8s-provisioner:latest
+        - name: plain-v0-provisioner
+          image: quay.io/operator-framework/plain-v0-provisioner:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
