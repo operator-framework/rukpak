@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -21,13 +22,14 @@ import (
 const (
 	// TODO: make this is a CLI flag?
 	defaultSystemNamespace = "rukpak-system"
+	plainProvisionerID     = "core.rukpak.io/plain-v0"
 )
 
 func Logf(f string, v ...interface{}) {
 	fmt.Fprintf(GinkgoWriter, f, v...)
 }
 
-var _ = Describe("plain-v0 provisioner", func() {
+var _ = Describe("plain-v0 provisioner bundle", func() {
 	When("a valid Bundle referencing a remote container image is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
@@ -42,7 +44,7 @@ var _ = Describe("plain-v0 provisioner", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: "core.rukpak.io/plain-v0",
+					ProvisionerClassName: plainProvisionerID,
 					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
 				},
 			}
@@ -203,7 +205,7 @@ var _ = Describe("plain-v0 provisioner", func() {
 			Eventually(func() bool {
 				pod := &corev1.Pod{}
 				if err := c.Get(ctx, types.NamespacedName{
-					Name:      fmt.Sprintf("plain-unpack-bundle-%s", bundle.GetName()),
+					Name:      util.PodName("plain", bundle.GetName()),
 					Namespace: defaultSystemNamespace,
 				}, pod); err != nil {
 					return false
@@ -240,3 +242,189 @@ var _ = Describe("plain-v0 provisioner", func() {
 		})
 	})
 })
+
+var _ = Describe("plain-v0 provisioner bundleinstance", func() {
+	When("a BundleInstance targets a valid Bundle", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			bi     *rukpakv1alpha1.BundleInstance
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			bi = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           bundle.GetName(),
+				},
+			}
+			err = c.Create(ctx, bi)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, bundle))
+			}).Should(Succeed())
+
+			By("deleting the testing BundleInstance resource")
+			Eventually(func() error {
+				return c.Delete(ctx, bi)
+			}).Should(Succeed())
+		})
+
+		It("should rollout the bundle contents successfully", func() {
+			By("eventually writing a successful installation state back to the bundleinstance status")
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return false
+				}
+				if bi.Status.InstalledBundleName != bundle.GetName() {
+					return false
+				}
+				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				if existing == nil {
+					return false
+				}
+				expected := metav1.Condition{
+					Type:    "Installed",
+					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
+					Reason:  "InstallationSucceeded",
+					Message: "",
+				}
+				return conditionsSemanticallyEqual(expected, *existing)
+			}).Should(BeTrue())
+
+			By("eventually reseting a bundle lookup failure when the targeted bundle has been deleted")
+			Eventually(func() error {
+				return c.Delete(ctx, bundle)
+			}).Should(Succeed())
+
+			// TODO(tflannag): Right now deleting an unpacked Bundle after the BI stamped
+			// out it's contents reset's the Bundle's lookup information from BI's status
+			// but the unpacked resources are still present on the cluster. This is because
+			// the BI places ownerreferences on these resources, but the condition we write
+			// to it's status can be confusing to the end user as it implies the installation
+			// failed and the resources aren't present on-cluster.
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return false
+				}
+				if bi.Status.InstalledBundleName != "" {
+					return false
+				}
+				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				if existing == nil {
+					return false
+				}
+				expected := metav1.Condition{
+					Type:    "Installed",
+					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
+					Reason:  "BundleLookupFailed",
+					Message: fmt.Sprintf(`Bundle.core.rukpak.io "%s" not found`, bundle.GetName()),
+				}
+				return conditionsSemanticallyEqual(expected, *existing)
+			}).Should(BeTrue())
+		})
+	})
+
+	When("a BundleInstance targets an invalid Bundle", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			bi     *rukpakv1alpha1.BundleInstance
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-apis",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Image:                "quay.io/tflannag/olm-plain-bundle:olm-api-v0.20.0",
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			bi = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-apis",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           bundle.GetName(),
+				},
+			}
+			err = c.Create(ctx, bi)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, bundle))
+			}).Should(Succeed())
+
+			By("deleting the testing BundleInstance resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, bi))
+			}).Should(Succeed())
+		})
+
+		It("should project a failed installation state", func() {
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return false
+				}
+				if bi.Status.InstalledBundleName != "" {
+					return false
+				}
+				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				if existing == nil {
+					return false
+				}
+				// TODO(tflannag): Add a custom error type for API-based Bundle installations that
+				// are missing the requisite CRDs to be able to deploy the unpacked Bundle successfully.
+				expectedMessage := `
+				error while running post render on files: [unable to recognize "": no
+				matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1",
+				unable to recognize "": no matches for kind "ClusterServiceVersion" in version
+				"operators.coreos.com/v1alpha1", unable to recognize "": no matches for kind
+				"OLMConfig" in version "operators.coreos.com/v1", unable to recognize "": no
+				matches for kind "OperatorGroup" in version "operators.coreos.com/v1"]
+				`
+				expected := metav1.Condition{
+					Type:    "Installed",
+					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
+					Reason:  "InstallFailed",
+					Message: strings.Join(strings.Fields(expectedMessage), " "),
+				}
+				return conditionsSemanticallyEqual(expected, *existing)
+			}).Should(BeTrue())
+		})
+	})
+})
+
+func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
+	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && a.Message == b.Message
+}
