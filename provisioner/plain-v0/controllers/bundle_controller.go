@@ -41,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/updater"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -82,7 +82,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 	l := log.FromContext(ctx)
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
-	bundle := &olmv1alpha1.Bundle{}
+	bundle := &rukpakv1alpha1.Bundle{}
 	if err := r.Get(ctx, req.NamespacedName, bundle); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -139,11 +139,11 @@ func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod)
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
-		updater.SetPhase(olmv1alpha1.PhasePending),
+		updater.SetPhase(rukpakv1alpha1.PhasePending),
 		updater.EnsureCondition(metav1.Condition{
-			Type:    olmv1alpha1.TypeUnpacked,
+			Type:    rukpakv1alpha1.TypeUnpacked,
 			Status:  metav1.ConditionFalse,
-			Reason:  olmv1alpha1.ReasonUnpackPending,
+			Reason:  rukpakv1alpha1.ReasonUnpackPending,
 			Message: strings.Join(messages, "; "),
 		}),
 	)
@@ -153,11 +153,11 @@ func (r *BundleReconciler) handleRunningPod(u *updater.Updater) {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
-		updater.SetPhase(olmv1alpha1.PhaseUnpacking),
+		updater.SetPhase(rukpakv1alpha1.PhaseUnpacking),
 		updater.EnsureCondition(metav1.Condition{
-			Type:   olmv1alpha1.TypeUnpacked,
+			Type:   rukpakv1alpha1.TypeUnpacked,
 			Status: metav1.ConditionFalse,
-			Reason: olmv1alpha1.ReasonUnpacking,
+			Reason: rukpakv1alpha1.ReasonUnpacking,
 		}),
 	)
 }
@@ -166,16 +166,16 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
-		updater.SetPhase(olmv1alpha1.PhaseFailing),
+		updater.SetPhase(rukpakv1alpha1.PhaseFailing),
 	)
 	logs, err := r.getPodLogs(ctx, pod)
 	if err != nil {
 		err = fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %w", err)
 		u.UpdateStatus(
 			updater.EnsureCondition(metav1.Condition{
-				Type:    olmv1alpha1.TypeUnpacked,
+				Type:    rukpakv1alpha1.TypeUnpacked,
 				Status:  metav1.ConditionFalse,
-				Reason:  olmv1alpha1.ReasonUnpackFailed,
+				Reason:  rukpakv1alpha1.ReasonUnpackFailed,
 				Message: err.Error(),
 			}),
 		)
@@ -184,9 +184,9 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 	logStr := string(logs)
 	u.UpdateStatus(
 		updater.EnsureCondition(metav1.Condition{
-			Type:    olmv1alpha1.TypeUnpacked,
+			Type:    rukpakv1alpha1.TypeUnpacked,
 			Status:  metav1.ConditionFalse,
-			Reason:  olmv1alpha1.ReasonUnpackFailed,
+			Reason:  rukpakv1alpha1.ReasonUnpackFailed,
 			Message: logStr,
 		}),
 	)
@@ -194,7 +194,7 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 	return fmt.Errorf("unpack failed: %v", logStr)
 }
 
-func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *olmv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
+func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
 	automountServiceAccountToken := false
 	pod.SetName(util.PodName("plain", bundle.Name))
@@ -236,29 +236,29 @@ func updateStatusUnpackPending(u *updater.Updater) {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
-		updater.SetPhase(olmv1alpha1.PhasePending),
+		updater.SetPhase(rukpakv1alpha1.PhasePending),
 		updater.EnsureCondition(metav1.Condition{
-			Type:   olmv1alpha1.TypeUnpacked,
+			Type:   rukpakv1alpha1.TypeUnpacked,
 			Status: metav1.ConditionFalse,
-			Reason: olmv1alpha1.ReasonUnpackPending,
+			Reason: rukpakv1alpha1.ReasonUnpackPending,
 		}),
 	)
 }
 
 func updateStatusUnpackFailing(u *updater.Updater, err error) error {
 	u.UpdateStatus(
-		updater.SetPhase(olmv1alpha1.PhaseFailing),
+		updater.SetPhase(rukpakv1alpha1.PhaseFailing),
 		updater.EnsureCondition(metav1.Condition{
-			Type:    olmv1alpha1.TypeUnpacked,
+			Type:    rukpakv1alpha1.TypeUnpacked,
 			Status:  metav1.ConditionFalse,
-			Reason:  olmv1alpha1.ReasonUnpackFailed,
+			Reason:  rukpakv1alpha1.ReasonUnpackFailed,
 			Message: err.Error(),
 		}),
 	)
 	return err
 }
 
-func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Updater, bundle *olmv1alpha1.Bundle, pod *corev1.Pod) error {
+func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Updater, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) error {
 	bundleFS, err := r.getBundleContents(ctx, pod)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle contents: %w", err))
@@ -278,10 +278,10 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %w", err))
 	}
 
-	info := &olmv1alpha1.BundleInfo{}
+	info := &rukpakv1alpha1.BundleInfo{}
 	for _, obj := range objects {
 		gvk := obj.GetObjectKind().GroupVersionKind()
-		info.Objects = append(info.Objects, olmv1alpha1.BundleObject{
+		info.Objects = append(info.Objects, rukpakv1alpha1.BundleObject{
 			Group:     gvk.Group,
 			Version:   gvk.Version,
 			Kind:      gvk.Kind,
@@ -293,11 +293,11 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 	u.UpdateStatus(
 		updater.SetBundleInfo(info),
 		updater.EnsureBundleDigest(bundleImageDigest),
-		updater.SetPhase(olmv1alpha1.PhaseUnpacked),
+		updater.SetPhase(rukpakv1alpha1.PhaseUnpacked),
 		updater.EnsureCondition(metav1.Condition{
-			Type:   olmv1alpha1.TypeUnpacked,
+			Type:   rukpakv1alpha1.TypeUnpacked,
 			Status: metav1.ConditionTrue,
-			Reason: olmv1alpha1.ReasonUnpackSuccessful,
+			Reason: rukpakv1alpha1.ReasonUnpackSuccessful,
 		}),
 	)
 
@@ -378,7 +378,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&olmv1alpha1.Bundle{}, builder.WithPredicates(
+		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
 			bundleProvisionerFilter(plainBundleProvisionerID),
 		)).
 		Owns(&corev1.Secret{}).
@@ -389,7 +389,7 @@ func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func bundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		b := obj.(*olmv1alpha1.Bundle)
+		b := obj.(*rukpakv1alpha1.Bundle)
 		return b.Spec.ProvisionerClassName == provisionerClassName
 	})
 }

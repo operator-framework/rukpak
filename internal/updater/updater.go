@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
 func New(client client.Client) Updater {
@@ -40,13 +40,13 @@ type Updater struct {
 	updateStatusFuncs []UpdateStatusFunc
 }
 
-type UpdateStatusFunc func(bundle *olmv1alpha1.BundleStatus) bool
+type UpdateStatusFunc func(bundle *rukpakv1alpha1.BundleStatus) bool
 
 func (u *Updater) UpdateStatus(fs ...UpdateStatusFunc) {
 	u.updateStatusFuncs = append(u.updateStatusFuncs, fs...)
 }
 
-func (u *Updater) Apply(ctx context.Context, b *olmv1alpha1.Bundle) error {
+func (u *Updater) Apply(ctx context.Context, b *rukpakv1alpha1.Bundle) error {
 	backoff := retry.DefaultRetry
 
 	return retry.RetryOnConflict(backoff, func() error {
@@ -66,7 +66,7 @@ func (u *Updater) Apply(ctx context.Context, b *olmv1alpha1.Bundle) error {
 }
 
 func EnsureCondition(condition metav1.Condition) UpdateStatusFunc {
-	return func(status *olmv1alpha1.BundleStatus) bool {
+	return func(status *rukpakv1alpha1.BundleStatus) bool {
 		existing := meta.FindStatusCondition(status.Conditions, condition.Type)
 		if existing == nil || !conditionsSemanticallyEqual(*existing, condition) {
 			meta.SetStatusCondition(&status.Conditions, condition)
@@ -81,7 +81,7 @@ func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
 }
 
 func EnsureObservedGeneration(observedGeneration int64) UpdateStatusFunc {
-	return func(status *olmv1alpha1.BundleStatus) bool {
+	return func(status *rukpakv1alpha1.BundleStatus) bool {
 		if status.ObservedGeneration == observedGeneration {
 			return false
 		}
@@ -91,7 +91,7 @@ func EnsureObservedGeneration(observedGeneration int64) UpdateStatusFunc {
 }
 
 func EnsureBundleDigest(digest string) UpdateStatusFunc {
-	return func(status *olmv1alpha1.BundleStatus) bool {
+	return func(status *rukpakv1alpha1.BundleStatus) bool {
 		if status.Digest == digest {
 			return false
 		}
@@ -104,8 +104,8 @@ func UnsetBundleInfo() UpdateStatusFunc {
 	return SetBundleInfo(nil)
 }
 
-func SetBundleInfo(info *olmv1alpha1.BundleInfo) UpdateStatusFunc {
-	return func(status *olmv1alpha1.BundleStatus) bool {
+func SetBundleInfo(info *rukpakv1alpha1.BundleInfo) UpdateStatusFunc {
+	return func(status *rukpakv1alpha1.BundleStatus) bool {
 		if reflect.DeepEqual(status.Info, info) {
 			return false
 		}
@@ -115,7 +115,7 @@ func SetBundleInfo(info *olmv1alpha1.BundleInfo) UpdateStatusFunc {
 }
 
 func SetPhase(phase string) UpdateStatusFunc {
-	return func(status *olmv1alpha1.BundleStatus) bool {
+	return func(status *rukpakv1alpha1.BundleStatus) bool {
 		if status.Phase == phase {
 			return false
 		}

@@ -47,7 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/yaml"
 
-	olmv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -92,7 +92,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
 
-	bi := &olmv1alpha1.BundleInstance{}
+	bi := &rukpakv1alpha1.BundleInstance{}
 	if err := r.Get(ctx, req.NamespacedName, bi); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -104,7 +104,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}()
 
-	b := &olmv1alpha1.Bundle{}
+	b := &rukpakv1alpha1.Bundle{}
 	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
 		if apierrors.IsNotFound(err) {
 			bi.Status.InstalledBundleName = ""
@@ -123,7 +123,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		var bnuErr *errBundleNotUnpacked
 		if errors.As(err, &bnuErr) {
 			reason := fmt.Sprintf("BundleUnpack%s", b.Status.Phase)
-			if b.Status.Phase == olmv1alpha1.PhaseUnpacking {
+			if b.Status.Phase == rukpakv1alpha1.PhaseUnpacking {
 				reason = "BundleUnpackRunning"
 			}
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
@@ -318,12 +318,12 @@ func (err errBundleNotUnpacked) Error() string {
 	return fmt.Sprintf("%s, current phase=%s", baseError, err.currentPhase)
 }
 
-func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alpha1.BundleInstance) ([]client.Object, error) {
-	b := &olmv1alpha1.Bundle{}
+func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1alpha1.BundleInstance) ([]client.Object, error) {
+	b := &rukpakv1alpha1.Bundle{}
 	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
 		return nil, fmt.Errorf("get bundle %q: %w", bi.Spec.BundleName, err)
 	}
-	if b.Status.Phase != olmv1alpha1.PhaseUnpacked {
+	if b.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
 		return nil, &errBundleNotUnpacked{currentPhase: b.Status.Phase}
 	}
 
@@ -347,8 +347,8 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *olmv1alph
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&olmv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter(plainBundleProvisionerID))).
-		Watches(&source.Kind{Type: &olmv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(mapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
+		For(&rukpakv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter(plainBundleProvisionerID))).
+		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(mapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {
 		return err
@@ -360,15 +360,15 @@ func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func bundleInstanceProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		b := obj.(*olmv1alpha1.BundleInstance)
+		b := obj.(*rukpakv1alpha1.BundleInstance)
 		return b.Spec.ProvisionerClassName == provisionerClassName
 	})
 }
 
 func mapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler.MapFunc {
 	return func(object client.Object) []reconcile.Request {
-		b := object.(*olmv1alpha1.Bundle)
-		bundleInstances := &olmv1alpha1.BundleInstanceList{}
+		b := object.(*rukpakv1alpha1.Bundle)
+		bundleInstances := &rukpakv1alpha1.BundleInstanceList{}
 		var requests []reconcile.Request
 		if err := cl.List(context.Background(), bundleInstances); err != nil {
 			log.WithName("mapBundleToBundleInstanceHandler").Error(err, "list bundles")
