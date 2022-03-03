@@ -7,16 +7,23 @@ import (
 	"log"
 	"os"
 
+	"github.com/operator-framework/rukpak/internal/version"
+
 	"github.com/spf13/cobra"
 )
 
 func main() {
 	var bundleDir string
+	var rukpakVersion bool
 
 	cmd := &cobra.Command{
 		Use:  "unpack",
 		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if rukpakVersion {
+				fmt.Printf("Git commit: %s\n", version.String())
+				os.Exit(0)
+			}
 			bundleFS := os.DirFS(bundleDir)
 			bundleContents := map[string][]byte{}
 			if err := fs.WalkDir(bundleFS, ".", func(path string, d fs.DirEntry, err error) error {
@@ -44,6 +51,8 @@ func main() {
 		},
 	}
 	cmd.Flags().StringVar(&bundleDir, "bundle-dir", "", "directory in which the bundle can be found")
+	cmd.Flags().BoolVar(&rukpakVersion, "version", false, "displays rukpak version information")
+
 	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)
 	}

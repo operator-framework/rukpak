@@ -1,4 +1,31 @@
+###########################
+# Configuration Variables #
+###########################
+ORG := github.com/operator-framework
+PKG := $(ORG)/rukpak
+IMAGE_REPO=quay.io/operator-framework/plain-v0-provisioner
+IMAGE_TAG=latest
+IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
+KIND_CLUSTER_NAME ?= kind
+KIND := kind
+VERSION_PATH := $(PKG)/internal/version
+GIT_COMMIT ?= $(shell git rev-parse HEAD)
+PKGS = $(shell go list ./...)
 
+# kernel-style V=1 build verbosity
+ifeq ("$(origin V)", "command line")
+  BUILD_VERBOSE = $(V)
+endif
+
+ifeq ($(BUILD_VERBOSE),1)
+  Q =
+else
+  Q = @
+endif
+
+###############
+# Help Target #
+###############
 .PHONY: help
 help: ## Show this help screen
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
@@ -7,36 +34,36 @@ help: ## Show this help screen
 	@echo ''
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-# Container build options
-IMAGE_REPO=quay.io/operator-framework/plain-v0-provisioner
-IMAGE_TAG=latest
-IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
+###################
+# Code management #
+###################
+.PHONY: lint tidy clean generate verify
 
-KIND_CLUSTER_NAME ?= kind
-KIND := kind
+##@ code management:
 
-# Code management
-.PHONY: lint tidy clean generate
-
-PKGS = $(shell go list ./...)
-
-lint: golangci-lint
+lint: golangci-lint ## Run golangci linter
 	$(Q)$(GOLANGCI_LINT) run
 
 tidy: ## Update dependencies
 	$(Q)go mod tidy
+
+clean: ## Remove binaries and test artifacts
+	@rm -rf bin
 
 generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1 output:crd:dir=./manifests paths=./api/...
 	$(Q)$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests paths=./api/...
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 
+verify: tidy generate ## Verify the current code generation and lint
+	git diff --exit-code
 
-## --------------------------------------
-## Testing and Verification
-## --------------------------------------
-# Static tests.
-.PHONY: test test-unit verify
+###########
+# Testing #
+###########
+.PHONY: test test-unit test-e2e
+
+##@ testing:
 
 test: test-unit test-e2e ## Run the tests
 
@@ -48,12 +75,13 @@ test-unit: setup-envtest ## Run the unit tests
 test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -v -trace -progress test/e2e
 
-verify: tidy generate ## Verify the current code generation and lint
-	git diff --exit-code
+###################
+# Install and Run #
+###################
+.PHONY: install-apis install-plain-v0 install deploy run
 
-## --------------------------------------
-## Install and Run
-## --------------------------------------
+##@ install/run:
+
 install-apis: generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
 
@@ -67,20 +95,23 @@ deploy: install-apis ## Deploy the operator to the current cluster
 
 run: build-local-container kind-load deploy ## Build image and run operator in-cluster
 
-## --------------------------------------
-## Build and Load
-## --------------------------------------
-.PHONY: build bin/plain-v0 bin/unpack
+##################
+# Build and Load #
+##################
+.PHONY: build bin/plain-v0 bin/unpack build-local-container kind-load kind-cluster
+
+##@ build/load:
 
 # Binary builds
 GO_BUILD := $(Q)go build
+VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
 build: bin/plain-v0 bin/unpack
 
 bin/plain-v0:
-	CGO_ENABLED=0 go build -o $@$(BIN_SUFFIX) ./provisioner/plain-v0
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./provisioner/plain-v0
 
 bin/unpack:
-	CGO_ENABLED=0 go build -o $@$(BIN_SUFFIX) ./cmd/unpack/...
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd/unpack/...
 
 build-container: ## Builds provisioner container image locally
 	docker build -f Dockerfile -t $(IMAGE) .
@@ -100,9 +131,9 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
 e2e: build-container kind-cluster kind-load deploy test-e2e ## Run e2e tests against a kind cluster
 
-## --------------------------------------
-## Hack / Tools
-## --------------------------------------
+################
+# Hack / Tools #
+################
 BIN_DIR := bin
 TOOLS_DIR := hack/tools
 TOOLS_BIN_DIR := $(TOOLS_DIR)/bin

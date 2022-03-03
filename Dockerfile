@@ -13,6 +13,11 @@ COPY cmd cmd
 COPY api api
 COPY internal internal
 COPY provisioner provisioner
+# copy git-related information for binary version information
+COPY .git/HEAD .git/HEAD
+COPY .git/refs/heads/. .git/refs/heads
+RUN mkdir -p .git/objects
+
 RUN make build
 
 FROM gcr.io/distroless/static:debug

@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -36,6 +37,7 @@ import (
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/provisioner/plain-v0/controllers"
 )
 
@@ -57,6 +59,7 @@ func main() {
 	var probeAddr string
 	var systemNamespace string
 	var unpackImage string
+	var rukpakVersion bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources.")
@@ -64,13 +67,20 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	if rukpakVersion {
+		fmt.Printf("Git commit: %s\n", version.String())
+		os.Exit(0)
+	}
+
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	setupLog.Info("starting up the provisioner", "Git commit", version.String())
 
 	cfg := ctrl.GetConfigOrDie()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
