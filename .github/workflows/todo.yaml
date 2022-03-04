@@ -1,0 +1,10 @@
+name: todo
+on:
+- push
+jobs:
+  build:
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: "actions/checkout@master"
+      - name: "Create issues from TODO comments"
+        uses: "alstr/todo-to-issue-action@v4.6.2"
