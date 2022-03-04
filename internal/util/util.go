@@ -8,10 +8,13 @@ import (
 	"reflect"
 	"time"
 
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -39,6 +42,20 @@ func BundleLabels(bundleName string) map[string]string {
 
 func MetadataConfigMapName(bundleName string) string {
 	return fmt.Sprintf("bundle-metadata-%s", bundleName)
+}
+
+// NewBundleLabelSelector is responsible for constructing a label.Selector
+// for any underlying resources that are associated with the Bundle parameter.
+func NewBundleLabelSelector(bundle *rukpakv1alpha1.Bundle) labels.Selector {
+	bundleRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.Equals, []string{"Bundle"})
+	if err != nil {
+		return nil
+	}
+	bundleNameRequirement, err := labels.NewRequirement("core.rukpak.io/owner-name", selection.Equals, []string{bundle.GetName()})
+	if err != nil {
+		return nil
+	}
+	return labels.NewSelector().Add(*bundleRequirement, *bundleNameRequirement)
 }
 
 func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
