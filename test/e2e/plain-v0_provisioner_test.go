@@ -35,7 +35,7 @@ var _ = Describe("plain-v0 provisioner", func() {
 			By("creating the testing Bundle resource")
 			bundle = &v1alpha1.Bundle{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "olm-crds",
+					GenerateName: "olm-crds",
 				},
 				Spec: v1alpha1.BundleSpec{
 					ProvisionerClassName: "core.rukpak.io/plain-v0",
@@ -116,7 +116,7 @@ var _ = Describe("plain-v0 provisioner", func() {
 			originalUID := pod.GetUID()
 
 			By("deleting the underlying pod and waiting for it to be re-created")
-			err := client.IgnoreNotFound(c.Delete(context.Background(), pod))
+			err := c.Delete(context.Background(), pod)
 			Expect(err).To(BeNil())
 
 			By("verifying the pod's UID has changed")
@@ -135,7 +135,7 @@ var _ = Describe("plain-v0 provisioner", func() {
 			By("creating the testing Bundle resource")
 			bundle = &v1alpha1.Bundle{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "olm-crds",
+					GenerateName: "olm-crds",
 				},
 				Spec: v1alpha1.BundleSpec{
 					ProvisionerClassName: "core.rukpak.io/plain-v0",
