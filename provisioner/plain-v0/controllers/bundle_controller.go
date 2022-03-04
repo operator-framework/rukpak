@@ -48,7 +48,8 @@ import (
 )
 
 const (
-	bundleUnpackContainerName = "bundle"
+	bundleUnpackContainerName  = "bundle"
+	plainBundleProvisionerName = "plain-v0"
 )
 
 // BundleReconciler reconciles a Bundle object
@@ -197,7 +198,7 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
 	automountServiceAccountToken := false
-	pod.SetName(util.PodName("plain", bundle.Name))
+	pod.SetName(util.PodName(plainBundleProvisionerName, bundle.Name))
 	pod.SetNamespace(r.PodNamespace)
 
 	return util.CreateOrRecreate(ctx, r.Client, pod, func() error {
