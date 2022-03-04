@@ -205,7 +205,7 @@ var _ = Describe("plain-v0 provisioner bundle", func() {
 			Eventually(func() bool {
 				pod := &corev1.Pod{}
 				if err := c.Get(ctx, types.NamespacedName{
-					Name:      util.PodName("plain", bundle.GetName()),
+					Name:      util.PodName("plain-v0", bundle.GetName()),
 					Namespace: defaultSystemNamespace,
 				}, pod); err != nil {
 					return false
