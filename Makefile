@@ -97,7 +97,7 @@ ifeq (1, $(shell kind get clusters | grep ${KIND_CLUSTER_NAME} | wc -l))
 endif
 	${KIND} create cluster --name ${KIND_CLUSTER_NAME}
 
-e2e: build-local-container kind-cluster kind-load deploy test-e2e ## Run e2e tests against a kind cluster
+e2e: build-container kind-cluster kind-load deploy test-e2e ## Run e2e tests against a kind cluster
 
 ## --------------------------------------
 ## Hack / Tools
