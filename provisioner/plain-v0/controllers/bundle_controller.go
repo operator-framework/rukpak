@@ -39,7 +39,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/storage"
@@ -367,7 +366,8 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 			err := dec.Decode(&obj)
 			if errors.Is(err, io.EOF) {
 				break
-			} else if err != nil {
+			}
+			if err != nil {
 				return nil, err
 			}
 			objects = append(objects, &obj)
@@ -380,17 +380,10 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
-			bundleProvisionerFilter(plainBundleProvisionerID),
+			util.BundleProvisionerFilter(plainBundleProvisionerID),
 		)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Pod{}).
 		Owns(&corev1.ConfigMap{}).
 		Complete(r)
-}
-
-func bundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		b := obj.(*rukpakv1alpha1.Bundle)
-		return b.Spec.ProvisionerClassName == provisionerClassName
-	})
 }

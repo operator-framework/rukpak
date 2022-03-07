@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-logr/logr"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -42,8 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/yaml"
 
@@ -347,8 +344,8 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1a
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&rukpakv1alpha1.BundleInstance{}, builder.WithPredicates(bundleInstanceProvisionerFilter(plainBundleProvisionerID))).
-		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(mapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
+		For(&rukpakv1alpha1.BundleInstance{}, builder.WithPredicates(util.BundleInstanceProvisionerFilter(plainBundleProvisionerID))).
+		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(util.MapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {
 		return err
@@ -356,30 +353,4 @@ func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Controller = controller
 	r.dynamicWatchGVKs = map[schema.GroupVersionKind]struct{}{}
 	return nil
-}
-
-func bundleInstanceProvisionerFilter(provisionerClassName string) predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		b := obj.(*rukpakv1alpha1.BundleInstance)
-		return b.Spec.ProvisionerClassName == provisionerClassName
-	})
-}
-
-func mapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler.MapFunc {
-	return func(object client.Object) []reconcile.Request {
-		b := object.(*rukpakv1alpha1.Bundle)
-		bundleInstances := &rukpakv1alpha1.BundleInstanceList{}
-		var requests []reconcile.Request
-		if err := cl.List(context.Background(), bundleInstances); err != nil {
-			log.WithName("mapBundleToBundleInstanceHandler").Error(err, "list bundles")
-			return requests
-		}
-		for _, bi := range bundleInstances.Items {
-			bi := bi
-			if bi.Spec.BundleName == b.Name {
-				requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&bi)})
-			}
-		}
-		return requests
-	}
 }

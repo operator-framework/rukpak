@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/go-logr/logr"
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -18,7 +19,43 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+func BundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		b := obj.(*rukpakv1alpha1.Bundle)
+		return b.Spec.ProvisionerClassName == provisionerClassName
+	})
+}
+
+func BundleInstanceProvisionerFilter(provisionerClassName string) predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		b := obj.(*rukpakv1alpha1.BundleInstance)
+		return b.Spec.ProvisionerClassName == provisionerClassName
+	})
+}
+
+func MapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler.MapFunc {
+	return func(object client.Object) []reconcile.Request {
+		b := object.(*rukpakv1alpha1.Bundle)
+		bundleInstances := &rukpakv1alpha1.BundleInstanceList{}
+		var requests []reconcile.Request
+		if err := cl.List(context.Background(), bundleInstances); err != nil {
+			log.WithName("mapBundleToBundleInstanceHandler").Error(err, "list bundles")
+			return requests
+		}
+		for _, bi := range bundleInstances.Items {
+			bi := bi
+			if bi.Spec.BundleName == b.Name {
+				requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&bi)})
+			}
+		}
+		return requests
+	}
+}
 
 // GetPodNamespace checks whether the controller is running in a Pod vs.
 // being run locally by inspecting the namespace file that gets mounted
