@@ -84,6 +84,7 @@ bin/unpack:
 build-container: ## Builds provisioner container image locally
 	docker build -f Dockerfile -t $(IMAGE) .
 
+build-local-container: export GOOS=linux
 build-local-container: build ## Builds the provisioner container image using locally built binaries
 	docker build -f Dockerfile.local -t $(IMAGE) .
 
