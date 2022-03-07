@@ -4,9 +4,6 @@ metadata:
   name: plain-v0-provisioner-admin
   namespace: rukpak-system
 rules:
-- apiGroups: [""]
+- apiGroups: ["*"]
   resources: ["*"]
-  verbs: ["*"]
-- apiGroups: ["rbac.authorization.k8s.io"]
-  resources: ["roles"]
   verbs: ["*"]
