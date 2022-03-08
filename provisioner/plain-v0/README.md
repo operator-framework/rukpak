@@ -141,18 +141,18 @@ Create the bundle:
 apiVersion: core.rukpak.io/v1alpha1
 kind: Bundle
 metadata:
-  name: combo-0.0.1
+  name: combo-v0.0.1
 spec:
-  image: quay.io/tyslaton/combo-plain-bundle:v0.0.1
+  image: quay.io/tflannag/bundle:combo-operator-v0.0.1
   provisionerClassName: core.rukpak.io/plain-v0
 ```
 
 Check the Bundle status via `kubectl get bundle combo-0.0.1`. Eventually the Bundle should show up as Unpacked.
 
 ```bash
-$ kubectl get bundle combo-0.0.1
-NAME          IMAGE                                        PHASE      AGE
-combo-0.0.1   quay.io/tyslaton/combo-plain-bundle:v0.0.1   Unpacked   17h
+$ kubectl get bundle combo-v0.0.1
+NAME           IMAGE                                           PHASE      AGE
+combo-v0.0.1   quay.io/tflannag/bundle:combo-operator-v0.0.1   Unpacked   38m
 ```
 
 Create the combo `BundleInstance` referencing the combo `Bundle` available in the cluster.
@@ -169,7 +169,7 @@ metadata:
   name: combo
 spec:
   provisionerClassName: core.rukpak.io/plain-v0
-  bundleName: combo-0.0.1
+  bundleName: combo-v0.0.1
 ```
 
 Check the BundleInstance status to ensure that the installation was successful.
@@ -177,13 +177,17 @@ Check the BundleInstance status to ensure that the installation was successful.
 ```bash
 $ kubectl get bundleinstance combo
 NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-0.0.1      combo-0.0.1        InstallationSucceeded   16h
+combo   combo-v0.0.1     combo-v0.0.1       InstallationSucceeded   38m
 ```
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster.
 
 ```shell
-kubectl -n combo get deployments.apps combo-operator -o yaml
+$ kubectl -n combo get deployments.apps combo-operator
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+combo-operator   1/1     1            1           39m
+$ kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | xargs
+image: quay.io/tflannag/combo:v0.0.1
 ```
 
 The operator should be successfully installed.
