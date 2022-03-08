@@ -423,8 +423,118 @@ var _ = Describe("plain-v0 provisioner bundleinstance", func() {
 			}).Should(BeTrue())
 		})
 	})
+
+	When("a BundleInstance targets a valid bundle but the bundle contains resources that already exist", func() {
+		var (
+			bundle      *rukpakv1alpha1.Bundle
+			biOriginal  *rukpakv1alpha1.BundleInstance
+			biDuplicate *rukpakv1alpha1.BundleInstance
+			ctx         context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds-valid",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			biOriginal = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-apis-original",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           bundle.GetName(),
+				},
+			}
+
+			err = c.Create(ctx, biOriginal)
+			Expect(err).To(BeNil(), "failed to create original bundle instance")
+
+			biDuplicate = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-apis-duplicate",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           bundle.GetName(),
+				},
+			}
+
+			err = c.Create(ctx, biDuplicate)
+			Expect(err).To(BeNil(), "failed to create duplicate bundle instance")
+		})
+
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, bundle))
+			}).Should(Succeed())
+
+			By("deleting the testing original BundleInstance resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, biOriginal))
+			}).Should(Succeed())
+
+			By("deleting the testing duplicate BundleInstance resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, biDuplicate))
+			}).Should(Succeed())
+		})
+
+		It("should succeed installation for the original but fail for the duplicate BundleInstance", func() {
+			By("projecting a successful installation status for the original BundleInstance")
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(biOriginal), biOriginal); err != nil {
+					return false
+				}
+				if biOriginal.Status.InstalledBundleName != "" {
+					return false
+				}
+				existing := meta.FindStatusCondition(biOriginal.Status.Conditions, "Installed")
+				return existing != nil
+			})
+
+			By("projecting a failed installation status for the duplicate BundleInstance")
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(biDuplicate), biDuplicate); err != nil {
+					return false
+				}
+				if biDuplicate.Status.InstalledBundleName != "" {
+					return false
+				}
+				existing := meta.FindStatusCondition(biDuplicate.Status.Conditions, "Installed")
+				if existing == nil {
+					return false
+				}
+				// Create what the message should contain
+				looselyExpectedMessage := "rendered manifests contain a resource that already exists"
+				expected := metav1.Condition{
+					Type:    "Installed",
+					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
+					Reason:  "InstallFailed",
+					Message: looselyExpectedMessage,
+				}
+
+				return conditionsLooselyEqual(expected, *existing)
+			}).Should(BeTrue())
+		})
+	})
 })
 
 func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
 	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && a.Message == b.Message
+}
+
+func conditionsLooselyEqual(a, b metav1.Condition) bool {
+	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && strings.Contains(b.Message, a.Message)
 }
