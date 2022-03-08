@@ -70,7 +70,7 @@ metadata:
 spec:
   provisionerClassName: core.rukpak.io/plain-v0
   bundleName: my-bundle
-``` 
+```
 
 First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
 
@@ -119,6 +119,8 @@ resources referenced by the bundle are present on the cluster.
 
 ## Running locally
 
+### Setup
+
 To experiment with the `plain-v0` provisioner locally, first setup a local cluster, or simply
 have [kind](https://kind.sigs.k8s.io/) installed locally.
 
@@ -127,6 +129,8 @@ Once the cluster has been setup, take the following steps:
 * Clone the repository via `git clone https://github.com/operator-framework/rukpak`
 * Navigate to the repository via `cd rukpak`
 * Run `make run` to build and deploy the provisioner onto the local cluster.
+
+### Installing the Combo Operator
 
 From there, create some `Bundles` and `BundleInstance` types to see the provisioner in action. For an example bundle to
 use, the [combo operator](https://github.com/operator-framework/combo) is a good candidate.
@@ -145,7 +149,8 @@ spec:
 
 Check the Bundle status via `kubectl get bundle combo-0.0.1`. Eventually the Bundle should show up as Unpacked.
 
-```
+```bash
+$ kubectl get bundle combo-0.0.1
 NAME          IMAGE                                        PHASE      AGE
 combo-0.0.1   quay.io/tyslaton/combo-plain-bundle:v0.0.1   Unpacked   17h
 ```
@@ -169,7 +174,8 @@ spec:
 
 Check the BundleInstance status to ensure that the installation was successful.
 
-```
+```bash
+$ kubectl get bundleinstance combo
 NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
 combo   combo-0.0.1      combo-0.0.1        InstallationSucceeded   16h
 ```
@@ -177,18 +183,21 @@ combo   combo-0.0.1      combo-0.0.1        InstallationSucceeded   16h
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster.
 
 ```shell
-kubectl -n combo get deployments.apps combo-operator -o yaml 
+kubectl -n combo get deployments.apps combo-operator -o yaml
 ```
 
-The operator should be successfully installed. To test out how the `plain-v0` provisioner continually reconciles
-BundleInstance resources, try deleting the combo deployment.
+The operator should be successfully installed.
+
+Next, the `plain-v0` provisioner continually reconciles BundleInstance resources. Let's try deleting the combo deployment:
 
 ```shell
 kubectl -n combo delete deployments.apps combo-operator
 ```
 
-Checking for the deployment again, it will be back on the cluster. The provisioner ensures that all resources required
+Check for the deployment again, it will be back on the cluster. The provisioner ensures that all resources required
 for the BundleInstance to run are accounted for on-cluster.
+
+### Deleting the Combo Operator
 
 To cleanup from the installation, simply remove the BundleInstance from the cluster. This will remove all references
 resources including the deployment, RBAC, and the operator namespace. Then the Bundle can be removed as well, which
@@ -199,4 +208,4 @@ kubectl delete bundleinstances.core.rukpak.io combo
 kubectl delete bundle combo-0.0.1
 ```
 
-The cluster state is now the same as it was prior to installing the operator. 
+The cluster state is now the same as it was prior to installing the operator.
