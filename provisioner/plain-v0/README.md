@@ -152,7 +152,7 @@ Check the Bundle status via `kubectl get bundle combo-0.0.1`. Eventually the Bun
 ```bash
 $ kubectl get bundle combo-v0.0.1
 NAME           IMAGE                                           PHASE      AGE
-combo-v0.0.1   quay.io/tflannag/bundle:combo-operator-v0.0.1   Unpacked   38m
+combo-v0.0.1   quay.io/tflannag/bundle:combo-operator-v0.0.1   Unpacked   10s
 ```
 
 Create the combo `BundleInstance` referencing the combo `Bundle` available in the cluster.
@@ -177,7 +177,7 @@ Check the BundleInstance status to ensure that the installation was successful.
 ```bash
 $ kubectl get bundleinstance combo
 NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-v0.0.1     combo-v0.0.1       InstallationSucceeded   38m
+combo   combo-v0.0.1     combo-v0.0.1       InstallationSucceeded   10s
 ```
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster.
@@ -185,7 +185,7 @@ From there, check out the combo operator deployment and ensure that the operator
 ```shell
 $ kubectl -n combo get deployments.apps combo-operator
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
-combo-operator   1/1     1            1           39m
+combo-operator   1/1     1            1           10s
 $ kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | xargs
 image: quay.io/tflannag/combo:v0.0.1
 ```
@@ -200,6 +200,61 @@ kubectl -n combo delete deployments.apps combo-operator
 
 Check for the deployment again, it will be back on the cluster. The provisioner ensures that all resources required
 for the BundleInstance to run are accounted for on-cluster.
+
+### Upgrading the Combo Operator
+
+Let's say the combo operator released a new patch version, and we want to upgrade to that version.
+
+> Note: Currently upgrading a BundleInstance is a manual process that involves updating the spec.BundleName being referenced, and point to a new Bundle's metadata.Name. Automatically pivoting to a new Bundle is on the roadmap.
+
+First, create a new Bundle resource that points to this new plain+v0 bundle container image:
+
+```bash
+$ cat <<EOF | kubectl apply -f -
+apiVersion: core.rukpak.io/v1alpha1
+kind: Bundle
+metadata:
+  name: combo-v0.0.2
+spec:
+  image: quay.io/tflannag/bundle:combo-operator-v0.0.2
+  provisionerClassName: core.rukpak.io/plain-v0
+EOF
+```
+
+And wait until that Bundle is reporting an Unpacked status:
+
+```bash
+$ kubectl get bundles combo-v0.0.2
+NAME           IMAGE                                           PHASE      AGE
+combo-v0.0.2   quay.io/tflannag/bundle:combo-operator-v0.0.2   Unpacked   10s
+```
+
+Once the Bundle has been unpacked, update the existing `combo` BundleInstance resource to point to the new `combo-v0.0.2` Bundle:
+
+```bash
+$ kubectl patch bundleinstance combo --type='merge' -p '{"spec":{"bundleName": "combo-v0.0.2"}}'
+bundleinstance.core.rukpak.io/combo patched
+```
+
+And verify that the BundleInstance `combo` resource now points to the new Bundle version:
+
+```bash
+$ kubectl get bundleinstance combo
+NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
+combo   combo-v0.0.2     combo-v0.0.2       InstallationSucceeded   10s
+```
+
+And check that the combo-operator deployment in the combo namespace is healthy and contains a new container image:
+
+```bash
+$ kubectl -n combo get deployment
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+combo-operator   1/1     1            1           10s
+$ kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | xargs
+image: quay.io/tflannag/combo:v0.0.2
+```
+
+Notice that the container image has changed since we had first installed the combo operator.
 
 ### Deleting the Combo Operator
 
