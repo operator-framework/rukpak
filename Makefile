@@ -76,15 +76,16 @@ GO_BUILD := $(Q)go build
 build: bin/plain-v0 bin/unpack
 
 bin/plain-v0:
-	CGO_ENABLED=0 go build -o $@ ./provisioner/plain-v0
+	CGO_ENABLED=0 go build -o $@$(BIN_SUFFIX) ./provisioner/plain-v0
 
 bin/unpack:
-	CGO_ENABLED=0 go build -o $@ ./cmd/unpack/...
+	CGO_ENABLED=0 go build -o $@$(BIN_SUFFIX) ./cmd/unpack/...
 
 build-container: ## Builds provisioner container image locally
 	docker build -f Dockerfile -t $(IMAGE) .
 
 build-local-container: export GOOS=linux
+build-local-container: BIN_SUFFIX=-$(GOOS)
 build-local-container: build ## Builds the provisioner container image using locally built binaries
 	docker build -f Dockerfile.local -t $(IMAGE) .
 
