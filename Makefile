@@ -12,7 +12,7 @@ IMAGE_REPO=quay.io/operator-framework/plain-v0-provisioner
 IMAGE_TAG=latest
 IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
 
-KIND_CLUSTER_NAME := rukpak-e2e
+KIND_CLUSTER_NAME ?= kind
 KIND := kind
 
 # Code management
@@ -95,6 +95,7 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 	${KIND} delete cluster --name ${KIND_CLUSTER_NAME}
 	${KIND} create cluster --name ${KIND_CLUSTER_NAME}
 
+e2e: KIND_CLUSTER_NAME=rukpak-e2e
 e2e: build-container kind-cluster kind-load deploy test-e2e ## Run e2e tests against a kind cluster
 
 ## --------------------------------------
