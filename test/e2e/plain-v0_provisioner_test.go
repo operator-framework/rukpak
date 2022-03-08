@@ -345,6 +345,139 @@ var _ = Describe("plain-v0 provisioner bundleinstance", func() {
 		})
 	})
 
+	// TODO: try to create a BundleInstance that references a Bundle that contains
+	// existing resources.
+	When("a BundleInstance depends on another BundleInstance", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			bi     *rukpakv1alpha1.BundleInstance
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing OLM APIs Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-apis",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Image:                "quay.io/tflannag/olm-plain-bundle:olm-api-v0.20.0",
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			bi = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-apis",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           bundle.GetName(),
+				},
+			}
+			err = c.Create(ctx, bi)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, bundle))
+			}).Should(Succeed())
+
+			By("deleting the testing BundleInstance resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, bi))
+			}).Should(Succeed())
+		})
+
+		It("should project a failed installation state", func() {
+			By("projecting a failed installation state")
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return false
+				}
+				if bi.Status.InstalledBundleName != "" {
+					return false
+				}
+				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				if existing == nil {
+					return false
+				}
+				// TODO(tflannag): Add a custom error type for API-based Bundle installations that
+				// are missing the requisite CRDs to be able to deploy the unpacked Bundle successfully.
+				// TODO(tflannag): This kind of comparison feels brittle. Also: there may be cache
+				// invalidation issues for the GVKs we watch, or there's something non-deterministic
+				// happening under-the-hood when lifecycling through helm's implementation. To reproduce,
+				// run this check against an existing cluster, focus on this test, and continue testing
+				// until it results in a different message.
+				expectedMessage := `
+				error while running post render on files: [unable to recognize "": no
+				matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1",
+				unable to recognize "": no matches for kind "ClusterServiceVersion" in version
+				"operators.coreos.com/v1alpha1", unable to recognize "": no matches for kind
+				"OLMConfig" in version "operators.coreos.com/v1", unable to recognize "": no
+				matches for kind "OperatorGroup" in version "operators.coreos.com/v1"]
+				`
+				expected := metav1.Condition{
+					Type:    "Installed",
+					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
+					Reason:  "InstallFailed",
+					Message: strings.Join(strings.Fields(expectedMessage), " "),
+				}
+				return conditionsSemanticallyEqual(expected, *existing)
+			}).Should(BeTrue())
+
+			By("creating the dependent OLM CRDs Bundle resource")
+			bundleCRDs := &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+				},
+			}
+			err := c.Create(ctx, bundleCRDs)
+			Expect(err).To(BeNil())
+
+			biCRDS := &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           bundleCRDs.GetName(),
+				},
+			}
+			err = c.Create(ctx, biCRDS)
+			Expect(err).To(BeNil())
+
+			By("waiting until the BI status reaches a successful state")
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return false
+				}
+				if bi.Status.InstalledBundleName != bundle.GetName() {
+					return false
+				}
+				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				if existing == nil {
+					return false
+				}
+				expected := metav1.Condition{
+					Type:    "Installed",
+					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
+					Reason:  "InstallationSucceeded",
+					Message: "",
+				}
+				return conditionsSemanticallyEqual(expected, *existing)
+			}).Should(BeTrue())
+		})
+	})
+
 	When("a BundleInstance targets an invalid Bundle", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
