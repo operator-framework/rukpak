@@ -1,8 +1,8 @@
 FROM gcr.io/distroless/static:debug
 
 WORKDIR /
-COPY bin/plain-v0 .
-COPY bin/unpack .
+COPY bin/plain-v0-linux plain-v0
+COPY bin/unpack-linux unpack
 EXPOSE 8080
 
 ENTRYPOINT ["/plain-v0"]
