@@ -63,9 +63,9 @@ type BundleReconciler struct {
 	CopyBundleImage string
 }
 
-//+kubebuilder:rbac:groups=olm.operatorframework.io,resources=bundles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=olm.operatorframework.io,resources=bundles/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=olm.operatorframework.io,resources=bundles/finalizers,verbs=update
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps,verbs=get;list;watch;create;delete
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
 
