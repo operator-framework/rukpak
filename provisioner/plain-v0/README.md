@@ -3,7 +3,7 @@
 ## Summary
 
 The `plain-v0` provisioner is a core rukpak provisioner that knows how to interact with `plain+v0` format bundles.
-The `plain+v0` bundles, or plain bundles, are simply container images containing a set of static kubernetes YAML
+The `plain+v0` bundles, or plain bundles, are simply container images containing a set of static Kubernetes YAML
 manifests in a given directory. For example, below is an example Dockerfile that builds a plain `plain+v0` bundle from a
 directory containing static manifests.
 
@@ -12,7 +12,7 @@ FROM scratch
 COPY /manifests /manifests
 ```
 
-where the given `manifests` directory contains the kubernetes resources required to deploy an application, for example:
+where the given `manifests` directory contains the Kubernetes resources required to deploy an application, for example:
 
 ```
 manifests
@@ -137,7 +137,8 @@ use, the [combo operator](https://github.com/operator-framework/combo) is a good
 
 Create the bundle:
 
-```yaml
+```console
+$ kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
 kind: Bundle
 metadata:
@@ -145,11 +146,13 @@ metadata:
 spec:
   image: quay.io/tflannag/bundle:combo-operator-v0.0.1
   provisionerClassName: core.rukpak.io/plain-v0
+EOF
+bundle.core.rukpak.io/combo-v0.0.1 created
 ```
 
 Check the Bundle status via `kubectl get bundle combo-0.0.1`. Eventually the Bundle should show up as Unpacked.
 
-```bash
+```console
 $ kubectl get bundle combo-v0.0.1
 NAME           IMAGE                                           PHASE      AGE
 combo-v0.0.1   quay.io/tflannag/bundle:combo-operator-v0.0.1   Unpacked   10s
@@ -159,10 +162,10 @@ Create the combo `BundleInstance` referencing the combo `Bundle` available in th
 
 Note: it's perfectly valid to create a `Bundle` and `BundleInstance` referencing that `Bundle` at the same time. There
 is no specific ordering required, which is perfect for GitOps flows, and eventually both the `Bundle`
-and `BundleInstance`
-would succeed.
+and `BundleInstance` would succeed.
 
-```yaml
+```console
+$ kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
 kind: BundleInstance
 metadata:
@@ -170,11 +173,13 @@ metadata:
 spec:
   provisionerClassName: core.rukpak.io/plain-v0
   bundleName: combo-v0.0.1
+EOF
+bundleinstance.core.rukpak.io/combo created
 ```
 
 Check the BundleInstance status to ensure that the installation was successful.
 
-```bash
+```console
 $ kubectl get bundleinstance combo
 NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
 combo   combo-v0.0.1     combo-v0.0.1       InstallationSucceeded   10s
@@ -182,10 +187,11 @@ combo   combo-v0.0.1     combo-v0.0.1       InstallationSucceeded   10s
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster.
 
-```shell
+```console
 $ kubectl -n combo get deployments.apps combo-operator
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
 combo-operator   1/1     1            1           10s
+
 $ kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | xargs
 image: quay.io/tflannag/combo:v0.0.1
 ```
@@ -194,8 +200,9 @@ The operator should be successfully installed.
 
 Next, the `plain-v0` provisioner continually reconciles BundleInstance resources. Let's try deleting the combo deployment:
 
-```shell
-kubectl -n combo delete deployments.apps combo-operator
+```console
+$ kubectl -n combo delete deployments.apps combo-operator
+deployment.apps "combo-operator" deleted
 ```
 
 Check for the deployment again, it will be back on the cluster. The provisioner ensures that all resources required
@@ -209,8 +216,8 @@ Let's say the combo operator released a new patch version, and we want to upgrad
 
 First, create a new Bundle resource that points to this new plain+v0 bundle container image:
 
-```bash
-$ cat <<EOF | kubectl apply -f -
+```console
+$ kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
 kind: Bundle
 metadata:
@@ -223,7 +230,7 @@ EOF
 
 And wait until that Bundle is reporting an Unpacked status:
 
-```bash
+```console
 $ kubectl get bundles combo-v0.0.2
 NAME           IMAGE                                           PHASE      AGE
 combo-v0.0.2   quay.io/tflannag/bundle:combo-operator-v0.0.2   Unpacked   10s
@@ -231,14 +238,14 @@ combo-v0.0.2   quay.io/tflannag/bundle:combo-operator-v0.0.2   Unpacked   10s
 
 Once the Bundle has been unpacked, update the existing `combo` BundleInstance resource to point to the new `combo-v0.0.2` Bundle:
 
-```bash
+```console
 $ kubectl patch bundleinstance combo --type='merge' -p '{"spec":{"bundleName": "combo-v0.0.2"}}'
 bundleinstance.core.rukpak.io/combo patched
 ```
 
 And verify that the BundleInstance `combo` resource now points to the new Bundle version:
 
-```bash
+```console
 $ kubectl get bundleinstance combo
 NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
 combo   combo-v0.0.2     combo-v0.0.2       InstallationSucceeded   10s
@@ -246,10 +253,11 @@ combo   combo-v0.0.2     combo-v0.0.2       InstallationSucceeded   10s
 
 And check that the combo-operator deployment in the combo namespace is healthy and contains a new container image:
 
-```bash
+```console
 $ kubectl -n combo get deployment
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
 combo-operator   1/1     1            1           10s
+
 $ kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | xargs
 image: quay.io/tflannag/combo:v0.0.2
 ```
@@ -262,9 +270,15 @@ To cleanup from the installation, simply remove the BundleInstance from the clus
 resources including the deployment, RBAC, and the operator namespace. Then the Bundle can be removed as well, which
 removes any unpacked manifests from the cluster.
 
-```shell
-kubectl delete bundleinstances.core.rukpak.io combo
-kubectl delete bundle combo-0.0.1
+```console
+$ kubectl delete bundleinstances.core.rukpak.io combo
+bundleinstance.core.rukpak.io "combo" deleted
+
+$ kubectl delete bundle combo-v0.0.1
+bundle.core.rukpak.io "combo-v0.0.1" deleted
+
+$ kubectl delete bundle combo-v0.0.2
+bundle.core.rukpak.io "combo-v0.0.2" deleted
 ```
 
 The cluster state is now the same as it was prior to installing the operator.
