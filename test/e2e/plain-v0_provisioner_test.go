@@ -292,25 +292,15 @@ var _ = Describe("plain-v0 provisioner bundleinstance", func() {
 
 		It("should rollout the bundle contents successfully", func() {
 			By("eventually writing a successful installation state back to the bundleinstance status")
-			Eventually(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
-					return false
-				}
-				if bi.Status.InstalledBundleName != bundle.GetName() {
-					return false
-				}
-				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
-				if existing == nil {
-					return false
-				}
-				expected := metav1.Condition{
+			Eventually(validateExpectedBundleInstance(
+				ctx, bi, "", conditionsSemanticallyEqual,
+				metav1.Condition{
 					Type:    "Installed",
 					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
 					Reason:  "InstallationSucceeded",
 					Message: "",
-				}
-				return conditionsSemanticallyEqual(expected, *existing)
-			}).Should(BeTrue())
+				}),
+			).Should(BeTrue())
 
 			By("eventually reseting a bundle lookup failure when the targeted bundle has been deleted")
 			Eventually(func() error {
@@ -323,25 +313,15 @@ var _ = Describe("plain-v0 provisioner bundleinstance", func() {
 			// the BI places ownerreferences on these resources, but the condition we write
 			// to it's status can be confusing to the end user as it implies the installation
 			// failed and the resources aren't present on-cluster.
-			Eventually(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
-					return false
-				}
-				if bi.Status.InstalledBundleName != "" {
-					return false
-				}
-				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
-				if existing == nil {
-					return false
-				}
-				expected := metav1.Condition{
+			Eventually(validateExpectedBundleInstance(
+				ctx, bi, "", conditionsSemanticallyEqual,
+				metav1.Condition{
 					Type:    "Installed",
 					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
 					Reason:  "BundleLookupFailed",
 					Message: fmt.Sprintf(`Bundle.core.rukpak.io "%s" not found`, bundle.GetName()),
-				}
-				return conditionsSemanticallyEqual(expected, *existing)
-			}).Should(BeTrue())
+				}),
+			).Should(BeTrue())
 		})
 	})
 
@@ -392,35 +372,25 @@ var _ = Describe("plain-v0 provisioner bundleinstance", func() {
 		})
 
 		It("should project a failed installation state", func() {
-			Eventually(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
-					return false
-				}
-				if bi.Status.InstalledBundleName != "" {
-					return false
-				}
-				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
-				if existing == nil {
-					return false
-				}
-				// TODO(tflannag): Add a custom error type for API-based Bundle installations that
-				// are missing the requisite CRDs to be able to deploy the unpacked Bundle successfully.
-				expectedMessage := `
-				error while running post render on files: [unable to recognize "": no
-				matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1",
-				unable to recognize "": no matches for kind "ClusterServiceVersion" in version
-				"operators.coreos.com/v1alpha1", unable to recognize "": no matches for kind
-				"OLMConfig" in version "operators.coreos.com/v1", unable to recognize "": no
-				matches for kind "OperatorGroup" in version "operators.coreos.com/v1"]
-				`
-				expected := metav1.Condition{
+			// TODO(tflannag): Add a custom error type for API-based Bundle installations that
+			// are missing the requisite CRDs to be able to deploy the unpacked Bundle successfully.
+			expectedMessage := `
+			error while running post render on files: [unable to recognize "": no
+			matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1",
+			unable to recognize "": no matches for kind "ClusterServiceVersion" in version
+			"operators.coreos.com/v1alpha1", unable to recognize "": no matches for kind
+			"OLMConfig" in version "operators.coreos.com/v1", unable to recognize "": no
+			matches for kind "OperatorGroup" in version "operators.coreos.com/v1"]
+			`
+			Eventually(validateExpectedBundleInstance(
+				ctx, bi, "", conditionsSemanticallyEqual,
+				metav1.Condition{
 					Type:    "Installed",
 					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
 					Reason:  "InstallFailed",
 					Message: strings.Join(strings.Fields(expectedMessage), " "),
-				}
-				return conditionsSemanticallyEqual(expected, *existing)
-			}).Should(BeTrue())
+				}),
+			).Should(BeTrue())
 		})
 	})
 
@@ -505,31 +475,32 @@ var _ = Describe("plain-v0 provisioner bundleinstance", func() {
 			})
 
 			By("projecting a failed installation status for the duplicate BundleInstance")
-			Eventually(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(biDuplicate), biDuplicate); err != nil {
-					return false
-				}
-				if biDuplicate.Status.InstalledBundleName != "" {
-					return false
-				}
-				existing := meta.FindStatusCondition(biDuplicate.Status.Conditions, "Installed")
-				if existing == nil {
-					return false
-				}
-				// Create what the message should contain
-				looselyExpectedMessage := "rendered manifests contain a resource that already exists"
-				expected := metav1.Condition{
+			Eventually(validateExpectedBundleInstance(
+				ctx, biDuplicate, "", conditionsLooselyEqual,
+				metav1.Condition{
 					Type:    "Installed",
 					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
 					Reason:  "InstallFailed",
-					Message: looselyExpectedMessage,
-				}
-
-				return conditionsLooselyEqual(expected, *existing)
-			}).Should(BeTrue())
+					Message: "rendered manifests contain a resource that already exists",
+				}),
+			).Should(BeTrue())
 		})
 	})
 })
+
+func validateExpectedBundleInstance(ctx context.Context, bi *rukpakv1alpha1.BundleInstance, bundleName string, comparison func(a, b metav1.Condition) bool, expected metav1.Condition) bool {
+	if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+		return false
+	}
+	if bi.Status.InstalledBundleName != bundleName {
+		return false
+	}
+	existing := meta.FindStatusCondition(bi.Status.Conditions, expected.Type)
+	if existing == nil {
+		return false
+	}
+	return comparison(expected, *existing)
+}
 
 func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
 	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && a.Message == b.Message
