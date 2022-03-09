@@ -140,17 +140,19 @@ TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
 
 ##@ hack/tools:
 
-.PHONY: golangci-lint ginkgo controller-gen
+.PHONY: golangci-lint ginkgo controller-gen goreleaser
 
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/golangci-lint)
 GINKGO := $(abspath $(TOOLS_BIN_DIR)/ginkgo)
 CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
+GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
 
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
 ginkgo: $(GINKGO) ## Build a local copy of ginkgo
 golangci-lint: $(GOLANGCI_LINT) ## Build a local copy of golangci-lint
 setup-envtest: $(SETUP_ENVTEST) ## Build a local copy of envtest
+goreleaser: $(GORELEASER) ## Builds a local copy of goreleaser
 
 $(CONTROLLER_GEN): $(TOOLS_DIR)/go.mod # Build controller-gen from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen
@@ -158,5 +160,7 @@ $(GINKGO): $(TOOLS_DIR)/go.mod # Build ginkgo from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/ginkgo github.com/onsi/ginkgo/ginkgo
 $(GOLANGCI_LINT): $(TOOLS_DIR)/go.mod # Build golangci-lint from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
-$(SETUP_ENVTEST): $(TOOLS_DIR)/go.mod
+$(SETUP_ENVTEST): $(TOOLS_DIR)/go.mod # Build setup-envtest from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/setup-envtest sigs.k8s.io/controller-runtime/tools/setup-envtest
+$(GORELEASER): $(TOOLS_DIR)/go.mod # Build goreleaser from tools folder.
+	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/goreleaser github.com/goreleaser/goreleaser
