@@ -14,4 +14,4 @@
 # Dependency directories
 vendor/
 bin/
-
+dist/

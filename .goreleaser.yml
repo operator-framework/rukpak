@@ -1,0 +1,49 @@
+env:
+- GOPROXY=https://proxy.golang.org|direct
+- GO111MODULE=on
+- CGO_ENABLED=0
+- PKG=github.com/operator-framework/rukpak/internal/version
+- IMAGE_REPO=quay.io/operator-framework/plain-v0-provisioner
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+builds:
+  - id: unpack
+    main: ./cmd/unpack
+    binary: unpack
+    goos:
+    - linux
+    goarch:
+    - amd64
+    ldflags:
+    - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: plain-v0
+    main: ./provisioner/plain-v0
+    binary: plain-v0
+    goos:
+    - linux
+    goarch:
+    - amd64
+    ldflags:
+    - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+dockers:
+- image_templates:
+  - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"
+  dockerfile: Dockerfile.goreleaser
+  use: buildx
+  goos: linux
+  goarch: amd64
+  build_flag_templates:
+  - --platform=linux/amd64
+docker_manifests:
+- name_template: "{{ .Env.IMAGE_REPO }}:v{{ .Major }}.{{ .Minor }}"
+  image_templates:
+  - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"
+- name_template: "{{ .Env.IMAGE_REPO }}:{{ .Tag }}"
+  image_templates:
+  - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
