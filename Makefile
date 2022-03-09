@@ -148,6 +148,10 @@ CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
 GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
 
+release: GORELEASER_ARGS ?= --snapshot --rm-dist
+release: goreleaser
+	$(GORELEASER) $(GORELEASER_ARGS)
+
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
 ginkgo: $(GINKGO) ## Build a local copy of ginkgo
 golangci-lint: $(GOLANGCI_LINT) ## Build a local copy of golangci-lint
