@@ -1,0 +1,12 @@
+FROM --platform=$BUILDPLATFORM gcr.io/distroless/static:debug
+LABEL stage=rukpak
+WORKDIR /
+# bundle unpack Jobs require cp at /bin/cp
+RUN ["/busybox/ln", "-s", "/busybox/cp", "/bin/cp"]
+
+# copy goreleaser built binaries
+COPY plain-v0 plain-v0
+COPY unpack unpack
+
+EXPOSE 8080
+ENTRYPOINT ["/plain-v0"]
