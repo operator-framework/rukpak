@@ -96,6 +96,8 @@ NAME                 DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE          
 my-bundle-instance   my-bundle        my-bundle          InstallationSucceeded   11s
 ```
 
+> Note: Creation of more than one BundleInstance from the same Bundle will likely result in an error.
+
 ### Make bundle content available but do not install it
 
 There is a natural separation between sourcing of the content and application of that content via two separate RukPak
