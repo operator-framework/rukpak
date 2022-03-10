@@ -459,6 +459,9 @@ var _ = Describe("plain-v0 provisioner bundleinstance", func() {
 
 			err = c.Create(ctx, biOriginal)
 			Expect(err).To(BeNil(), "failed to create original bundle instance")
+			Eventually(func() error { // Guarantee that the original bundle instance is create prior to the duplicate
+				return c.Get(ctx, client.ObjectKeyFromObject(biOriginal), &rukpakv1alpha1.BundleInstance{})
+			}).Should(Succeed(), "failed to validate original bundle instance was created in time")
 
 			biDuplicate = &rukpakv1alpha1.BundleInstance{
 				ObjectMeta: metav1.ObjectMeta{
