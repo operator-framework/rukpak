@@ -3,7 +3,7 @@
 ###########################
 ORG := github.com/operator-framework
 PKG := $(ORG)/rukpak
-IMAGE_REPO=quay.io/operator-framework/plain-v0-provisioner
+IMAGE_REPO=quay.io/operator-framework/plain-provisioner
 IMAGE_TAG=latest
 IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= kind
@@ -78,37 +78,37 @@ test-e2e: ginkgo ## Run the e2e tests
 ###################
 # Install and Run #
 ###################
-.PHONY: install-apis install-plain-v0 install deploy run
+.PHONY: install-apis install-plain install deploy run
 
 ##@ install/run:
 
 install-apis: generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
 
-install-plain-v0: install-apis ## Install the rukpak CRDs and the plain-v0 provisioner
-	kubectl apply -f provisioner/plain-v0/manifests
+install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
+	kubectl apply -f internal/provisioner/plain/manifests
 
-install: install-plain-v0 ## Install all rukpak core CRDs and provisioners
+install: install-plain ## Install all rukpak core CRDs and provisioners
 
 deploy: install-apis ## Deploy the operator to the current cluster
-	kubectl apply -f provisioner/plain-v0/manifests
+	kubectl apply -f internal/provisioner/plain/manifests
 
 run: build-local-container kind-load deploy ## Build image and run operator in-cluster
 
 ##################
 # Build and Load #
 ##################
-.PHONY: build bin/plain-v0 bin/unpack build-local-container kind-load kind-cluster
+.PHONY: build bin/plain bin/unpack build-local-container kind-load kind-cluster
 
 ##@ build/load:
 
 # Binary builds
 GO_BUILD := $(Q)go build
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: bin/plain-v0 bin/unpack
+build: bin/plain bin/unpack
 
-bin/plain-v0:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./provisioner/plain-v0
+bin/plain:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./internal/provisioner/plain
 
 bin/unpack:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd/unpack/...

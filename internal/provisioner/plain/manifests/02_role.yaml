@@ -1,7 +1,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
-  name: plain-v0-provisioner-admin
+  name: plain-provisioner-admin
+  namespace: rukpak-system
 rules:
 - apiGroups: ["*"]
   resources: ["*"]

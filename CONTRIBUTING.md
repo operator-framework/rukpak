@@ -77,4 +77,4 @@ If the contribution changes the existing APIs or user interface it must include 
 new or updated features.
 
 The RukPak documentation is primarily housed at the root-level README, and there is also provisioner-specific
-documentation located in the [provisioner repository](./provisioner/README.md).
+documentation located in the [provisioner repository](./internal/provisioner/README.md).

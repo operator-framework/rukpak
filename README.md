@@ -53,7 +53,7 @@ They can be unpacked to any arbitrary storage medium such as a series of ConfigM
 associated `spec.provisionerClassName` field which indicates the `Provisioner` that should be watching and unpacking
 that particular bundle type.
 
-Example Bundle configured to work with the [plain-v0 provisioner](provisioner/plain-v0/README.md).
+Example Bundle configured to work with the [plain provisioner](internal/provisioner/plain/README.md).
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -62,7 +62,7 @@ metadata:
   name: my-bundle
 spec:
   image: my-bundle@sha256:xyz123
-  provisionerClassName: core.rukpak.io/plain-v0
+  provisionerClassName: core.rukpak.io/plain
 ```
 
 ### BundleInstance
@@ -76,7 +76,7 @@ Bundles. `BundleInstance` can be seen as a generalization of the Pod concept.
 The specifics of how an `BundleInstance` makes changes to a cluster based on a referenced `Bundle` is defined by the
 `Provisioner` that is configured to watch that `BundleInstance`.
 
-Example BundleInstance configured to work with the [plain-v0 provisioner](provisioner/plain-v0/README.md).
+Example BundleInstance configured to work with the [plain provisioner](internal/provisioner/plain/README.md).
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -85,7 +85,7 @@ metadata:
   name: my-bundle-instance
 spec:
   bundleName: my-bundle
-  provisionerClassName: core.rukpak.io/plain-v0
+  provisionerClassName: core.rukpak.io/plain
 ```
 
 ### Provisioner
@@ -94,6 +94,6 @@ A Provisioner is a controller that understands `BundleInstance` and `Bundle` API
 Each `Provisioner` is assigned a unique ID, and is responsible for reconciling a `Bundle` and `BundleInstance` with
 a `spec.provisionerClassName` that matches that particular ID.
 
-For example, in this repository the [plain-v0](provisioner/plain-v0/README.md) provisioner is implemented.
-The `plain-v0` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
+For example, in this repository the [plain](internal/provisioner/plain/README.md) provisioner is implemented.
+The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
 the content of the bundle available in the cluster.

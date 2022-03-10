@@ -23,5 +23,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: quay.io/operator-framework/plain-v0-provisioner:main
+          tags: quay.io/operator-framework/plain-provisioner:main
 

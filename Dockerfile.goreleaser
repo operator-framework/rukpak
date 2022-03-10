@@ -5,8 +5,8 @@ WORKDIR /
 RUN ["/busybox/ln", "-s", "/busybox/cp", "/bin/cp"]
 
 # copy goreleaser built binaries
-COPY plain-v0 plain-v0
+COPY plain plain
 COPY unpack unpack
 
 EXPOSE 8080
-ENTRYPOINT ["/plain-v0"]
+ENTRYPOINT ["/plain"]
