@@ -48,7 +48,7 @@ import (
 
 const (
 	bundleUnpackContainerName  = "bundle"
-	plainBundleProvisionerName = "plain-v0"
+	plainBundleProvisionerName = "plain"
 )
 
 // BundleReconciler reconciles a Bundle object

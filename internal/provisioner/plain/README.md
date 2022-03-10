@@ -1,9 +1,9 @@
-# Plain-v0 Provisioner
+# Plain Provisioner
 
 ## Summary
 
-The `plain-v0` provisioner is a core rukpak provisioner that knows how to interact with `plain+v0` format bundles.
-The `plain+v0` bundles, or plain bundles, are simply container images containing a set of static Kubernetes YAML
+The `plain` provisioner is a core rukpak provisioner that knows how to interact with bundles of a particular format.
+These `plain+v0` bundles, or plain bundles, are simply container images containing a set of static Kubernetes YAML
 manifests in a given directory. For example, below is an example Dockerfile that builds a plain `plain+v0` bundle from a
 directory containing static manifests.
 
@@ -25,13 +25,13 @@ manifests
 └── deployment.yaml
 ```
 
-Note: the static manifests must be located in the root-level /manifests directory for the bundle image to be a
+> Note: The static manifests must be located in the root-level /manifests directory for the bundle image to be a
 valid `plain+v0` bundle that the provisioner can unpack.
 
-The `plain-v0` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
+The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
 the content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleInstance` types that
-have the `spec.provisionerClassName` field set to `core.rukpak.io/plain-v0`. This field must be set to the correct
-provisioner name in order for the `plain-v0` provisioner to see and interact with the bundle.
+have the `spec.provisionerClassName` field set to `core.rukpak.io/plain`. This field must be set to the correct
+provisioner name in order for the `plain` provisioner to see and interact with the bundle.
 
 Below is an example of the provisioner reconciliation flow:
 
@@ -48,10 +48,10 @@ graph TD
 
 ### Install and apply a specific version of a bundle
 
-The `plain-v0` provisioner can install and make available a specific `plain+v0` bundle in the cluster.
+The `plain` provisioner can install and make available a specific `plain+v0` bundle in the cluster.
 
 Simply create a `Bundle` resource pointing to a specific version of your bundle, and a `BundleInstance` which references
-that bundle. The `plain-v0` provisioner will unpack the provided Bundle onto the cluster, and eventually make the
+that bundle. The `plain` provisioner will unpack the provided Bundle onto the cluster, and eventually make the
 content available on the cluster.
 
 ```yaml
@@ -61,14 +61,14 @@ metadata:
   name: my-bundle
 spec:
   image: my-bundle@sha256:xyz123
-  provisionerClassName: core.rukpak.io/plain-v0
+  provisionerClassName: core.rukpak.io/plain
 ---
 apiVersion: core.rukpak.io/v1alpha1
 kind: BundleInstance
 metadata:
   name: my-bundle-instance
 spec:
-  provisionerClassName: core.rukpak.io/plain-v0
+  provisionerClassName: core.rukpak.io/plain
   bundleName: my-bundle
 ```
 
@@ -102,10 +102,10 @@ my-bundle-instance   my-bundle        my-bundle          InstallationSucceeded  
 
 There is a natural separation between sourcing of the content and application of that content via two separate RukPak
 APIs, `Bundle` and `BundleInstance`. A user can specify a particular `Bundle` to be available in the cluster for
-inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, the plain-v0
+inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, the plain
 provisioner will pull down and unpack the bundle to a set of ConfigMaps.
 
-By default, `rukpak-system` is the configured namespace for deploying `plain-v0` provisioner-related system resources.
+By default, `rukpak-system` is the configured namespace for deploying `plain` provisioner-related system resources.
 
 Surfacing the content of a bundle in a more user-friendly way, via a plugin or additional API, is on the RukPak roadmap.
 
@@ -115,7 +115,7 @@ The `BundleInstance` API is meant to indicate the version of the bundle that sho
 two unpacked bundles in the cluster,
 `my-bundle-v0.0.1` and `my-bundle-v0.0.2`, the `spec.bundleName` field of the related `BundleInstance` can be updated to
 pivot to a different version. For example by pivoting from an older version, to the newer version, by updating
-the `spec.bundleName` field the `plain-v0` provisioner will create the new bundle content on-cluster and remove the old
+the `spec.bundleName` field the `plain` provisioner will create the new bundle content on-cluster and remove the old
 content. The provisioner also continually reconciles the created content via dynamic watches to ensure that all
 resources referenced by the bundle are present on the cluster.
 
@@ -123,7 +123,7 @@ resources referenced by the bundle are present on the cluster.
 
 ### Setup
 
-To experiment with the `plain-v0` provisioner locally, first setup a local cluster, or simply
+To experiment with the `plain` provisioner locally, first setup a local cluster, or simply
 have [kind](https://kind.sigs.k8s.io/) installed locally.
 
 Once the cluster has been setup, take the following steps:
@@ -147,7 +147,7 @@ metadata:
   name: combo-v0.0.1
 spec:
   image: quay.io/tflannag/bundle:combo-operator-v0.0.1
-  provisionerClassName: core.rukpak.io/plain-v0
+  provisionerClassName: core.rukpak.io/plain
 EOF
 bundle.core.rukpak.io/combo-v0.0.1 created
 ```
@@ -173,7 +173,7 @@ kind: BundleInstance
 metadata:
   name: combo
 spec:
-  provisionerClassName: core.rukpak.io/plain-v0
+  provisionerClassName: core.rukpak.io/plain
   bundleName: combo-v0.0.1
 EOF
 bundleinstance.core.rukpak.io/combo created
@@ -200,7 +200,7 @@ image: quay.io/tflannag/combo:v0.0.1
 
 The operator should be successfully installed.
 
-Next, the `plain-v0` provisioner continually reconciles BundleInstance resources. Let's try deleting the combo deployment:
+Next, the `plain` provisioner continually reconciles BundleInstance resources. Let's try deleting the combo deployment:
 
 ```console
 $ kubectl -n combo delete deployments.apps combo-operator
@@ -226,7 +226,7 @@ metadata:
   name: combo-v0.0.2
 spec:
   image: quay.io/tflannag/bundle:combo-operator-v0.0.2
-  provisionerClassName: core.rukpak.io/plain-v0
+  provisionerClassName: core.rukpak.io/plain
 EOF
 ```
 

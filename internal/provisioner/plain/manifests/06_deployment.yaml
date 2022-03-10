@@ -2,23 +2,23 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: rukpak-system
-  name: plain-v0-provisioner
+  name: plain-provisioner
   labels:
-    app: plain-v0-provisioner
+    app: plain-provisioner
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: plain-v0-provisioner
+      app: plain-provisioner
   template:
     metadata:
       labels:
-        app: plain-v0-provisioner
+        app: plain-provisioner
     spec:
-      serviceAccountName: plain-v0-provisioner-admin
+      serviceAccountName: plain-provisioner-admin
       containers:
-        - name: plain-v0-provisioner
-          image: quay.io/operator-framework/plain-v0-provisioner:latest
+        - name: plain-provisioner
+          image: quay.io/operator-framework/plain-provisioner:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

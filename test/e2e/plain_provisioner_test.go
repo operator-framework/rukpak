@@ -22,14 +22,14 @@ import (
 const (
 	// TODO: make this is a CLI flag?
 	defaultSystemNamespace = "rukpak-system"
-	plainProvisionerID     = "core.rukpak.io/plain-v0"
+	plainProvisionerID     = "core.rukpak.io/plain"
 )
 
 func Logf(f string, v ...interface{}) {
 	fmt.Fprintf(GinkgoWriter, f, v...)
 }
 
-var _ = Describe("plain-v0 provisioner bundle", func() {
+var _ = Describe("plain provisioner bundle", func() {
 	When("a valid Bundle referencing a remote container image is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
@@ -187,7 +187,7 @@ var _ = Describe("plain-v0 provisioner bundle", func() {
 					GenerateName: "olm-crds-invalid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: "core.rukpak.io/plain-v0",
+					ProvisionerClassName: "core.rukpak.io/plain",
 					Image:                "quay.io/tflannag/olm-plain-bundle:non-existent-tag",
 				},
 			}
@@ -205,7 +205,7 @@ var _ = Describe("plain-v0 provisioner bundle", func() {
 			Eventually(func() bool {
 				pod := &corev1.Pod{}
 				if err := c.Get(ctx, types.NamespacedName{
-					Name:      util.PodName("plain-v0", bundle.GetName()),
+					Name:      util.PodName("plain", bundle.GetName()),
 					Namespace: defaultSystemNamespace,
 				}, pod); err != nil {
 					return false
@@ -243,7 +243,7 @@ var _ = Describe("plain-v0 provisioner bundle", func() {
 	})
 })
 
-var _ = Describe("plain-v0 provisioner bundleinstance", func() {
+var _ = Describe("plain provisioner bundleinstance", func() {
 	When("a BundleInstance targets a valid Bundle", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle

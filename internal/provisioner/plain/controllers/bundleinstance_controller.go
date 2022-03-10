@@ -51,7 +51,7 @@ import (
 )
 
 const (
-	plainBundleProvisionerID = "core.rukpak.io/plain-v0"
+	plainBundleProvisionerID = "core.rukpak.io/plain"
 )
 
 // BundleInstanceReconciler reconciles a BundleInstance object

@@ -12,7 +12,6 @@ COPY Makefile Makefile
 COPY cmd cmd
 COPY api api
 COPY internal internal
-COPY provisioner provisioner
 # copy git-related information for binary version information
 COPY .git/HEAD .git/HEAD
 COPY .git/refs/heads/. .git/refs/heads
@@ -23,9 +22,9 @@ RUN make build
 FROM gcr.io/distroless/static:debug
 
 WORKDIR /
-COPY --from=builder /workspace/bin/plain-v0 .
+COPY --from=builder /workspace/bin/plain .
 COPY --from=builder /workspace/bin/unpack .
 EXPOSE 8080
 
-ENTRYPOINT ["/plain-v0"]
+ENTRYPOINT ["/plain"]
 CMD ["run"]

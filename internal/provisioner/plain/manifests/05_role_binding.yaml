@@ -1,14 +1,14 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: plain-v0-provisioner-admin
+  name: plain-provisioner-admin
   namespace: rukpak-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: plain-v0-provisioner-admin
+  name: plain-provisioner-admin
 subjects:
   - apiGroup: ""
     kind: ServiceAccount
-    name: plain-v0-provisioner-admin
-    namespace: plain-v0-provisioner
+    name: plain-provisioner-admin
+    namespace: plain-provisioner
