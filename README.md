@@ -16,6 +16,11 @@ At its core, RukPak is a small set of APIs, packaged as Kubernetes CustomResourc
 for those APIs. These APIs express what content is being installed on-cluster and how to create a running instance of
 the content.
 
+## Contributing
+
+The RukPak project is community driven and is part of the broader Kubernetes ecosystem. New contributors are welcome and
+highly encouraged. See the [contributing guidelines](CONTRIBUTING.md) to get started.
+
 ## Components
 
 RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleInstance](#bundleInstance), as well as the concept
