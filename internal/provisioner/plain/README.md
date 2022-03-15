@@ -4,34 +4,13 @@
 
 The `plain` provisioner is a core rukpak provisioner that knows how to interact with bundles of a particular format.
 These `plain+v0` bundles, or plain bundles, are simply container images containing a set of static Kubernetes YAML
-manifests in a given directory. For example, below is an example Dockerfile that builds a plain `plain+v0` bundle from a
-directory containing static manifests.
+manifests in a given directory. For more information on the `plain+v0` format, see 
+the [plain+v0 bundle spec](/docs/plain-bundle-spec.md).
 
-```dockerfile
-FROM scratch
-COPY /manifests /manifests
-```
-
-where the given `manifests` directory contains the Kubernetes resources required to deploy an application, for example:
-
-```
-manifests
-├── namespace.yaml
-├── cluster_role.yaml
-├── role.yaml
-├── serviceaccount.yaml
-├── cluster_role_binding.yaml
-├── role_binding.yaml
-└── deployment.yaml
-```
-
-> Note: The static manifests must be located in the root-level /manifests directory for the bundle image to be a
-valid `plain+v0` bundle that the provisioner can unpack.
-
-The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
-the content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleInstance` types that
-have the `spec.provisionerClassName` field set to `core.rukpak.io/plain`. This field must be set to the correct
-provisioner name in order for the `plain` provisioner to see and interact with the bundle.
+The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
+content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleInstance` types that have
+the `spec.provisionerClassName` field set to `core.rukpak.io/plain`. This field must be set to the correct provisioner
+name in order for the `plain` provisioner to see and interact with the bundle.
 
 Below is an example of the provisioner reconciliation flow:
 
@@ -51,8 +30,8 @@ graph TD
 The `plain` provisioner can install and make available a specific `plain+v0` bundle in the cluster.
 
 Simply create a `Bundle` resource pointing to a specific version of your bundle, and a `BundleInstance` which references
-that bundle. The `plain` provisioner will unpack the provided Bundle onto the cluster, and eventually make the
-content available on the cluster.
+that bundle. The `plain` provisioner will unpack the provided Bundle onto the cluster, and eventually make the content
+available on the cluster.
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -105,8 +84,8 @@ my-bundle-instance   my-bundle        my-bundle          InstallationSucceeded  
 
 There is a natural separation between sourcing of the content and application of that content via two separate RukPak
 APIs, `Bundle` and `BundleInstance`. A user can specify a particular `Bundle` to be available in the cluster for
-inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, the plain
-provisioner will pull down and unpack the bundle to a set of ConfigMaps.
+inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, the plain provisioner
+will pull down and unpack the bundle to a set of ConfigMaps.
 
 By default, `rukpak-system` is the configured namespace for deploying `plain` provisioner-related system resources.
 
@@ -213,8 +192,8 @@ $ kubectl -n combo delete deployments.apps combo-operator
 deployment.apps "combo-operator" deleted
 ```
 
-Check for the deployment again, it will be back on the cluster. The provisioner ensures that all resources required
-for the BundleInstance to run are accounted for on-cluster.
+Check for the deployment again, it will be back on the cluster. The provisioner ensures that all resources required for
+the BundleInstance to run are accounted for on-cluster.
 
 ### Upgrading the Combo Operator
 
@@ -247,7 +226,8 @@ NAME           IMAGE                                           PHASE      AGE
 combo-v0.0.2   quay.io/tflannag/bundle:combo-operator-v0.0.2   Unpacked   10s
 ```
 
-Once the Bundle has been unpacked, update the existing `combo` BundleInstance resource to point to the new `combo-v0.0.2` Bundle:
+Once the Bundle has been unpacked, update the existing `combo` BundleInstance resource to point to the
+new `combo-v0.0.2` Bundle:
 
 ```console
 $ kubectl patch bundleinstance combo --type='merge' -p '{"spec":{"bundleName": "combo-v0.0.2"}}'
