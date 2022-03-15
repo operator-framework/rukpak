@@ -9,17 +9,20 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	kscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	pkgclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/operator-framework/rukpak/internal/updater"
 )
 
+const (
+	provisionerClassName = "core.rukpak.io/plain"
+)
+
 var _ = Describe("Updater", func() {
 	var (
-		client client.Client
+		client pkgclient.Client
 		u      updater.Updater
 		obj    *rukpakv1alpha1.Bundle
 		status = &rukpakv1alpha1.BundleStatus{
@@ -64,7 +67,7 @@ var _ = Describe("Updater", func() {
 				Namespace: "testNamespace",
 			},
 			Spec: rukpakv1alpha1.BundleSpec{
-				ProvisionerClassName: "core.rukpak.io/plain",
+				ProvisionerClassName: provisionerClassName,
 				Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
 			},
 			Status: rukpakv1alpha1.BundleStatus{
@@ -92,14 +95,14 @@ var _ = Describe("Updater", func() {
 				},
 			},
 		}
-		Expect(client.Create(context.TODO(), obj)).To(Succeed())
+		Expect(client.Create(context.Background(), obj)).To(Succeed())
 	})
 
 	When("the object does not exist", func() {
 		It("should fail", func() {
-			Expect(client.Delete(context.TODO(), obj)).To(Succeed())
+			Expect(client.Delete(context.Background(), obj)).To(Succeed())
 			u.UpdateStatus(updater.EnsureCondition(status.Conditions[0]), updater.EnsureObservedGeneration(status.ObservedGeneration), updater.EnsureBundleDigest(status.Digest), updater.SetBundleInfo(status.Info), updater.SetPhase(status.Phase))
-			err := u.Apply(context.TODO(), obj)
+			err := u.Apply(context.Background(), obj)
 			Expect(err).NotTo(BeNil())
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
 		})
@@ -118,8 +121,8 @@ var _ = Describe("Updater", func() {
 			}))
 			resourceVersion := obj.GetResourceVersion()
 
-			Expect(u.Apply(context.TODO(), obj)).To(Succeed())
-			Expect(client.Get(context.TODO(), types.NamespacedName{Namespace: "testNamespace", Name: "testBundle"}, obj)).To(Succeed())
+			Expect(u.Apply(context.Background(), obj)).To(Succeed())
+			Expect(client.Get(context.Background(), pkgclient.ObjectKeyFromObject(obj), obj)).To(Succeed())
 			Expect(obj.Status.Conditions).To(HaveLen(2))
 			Expect(obj.GetResourceVersion()).NotTo(Equal(resourceVersion))
 		})
@@ -236,11 +239,11 @@ var _ = Describe("SetBundleInfo", func() {
 
 var _ = Describe("UnsetBundleInfo", func() {
 	var status *rukpakv1alpha1.BundleStatus
-	var info *rukpakv1alpha1.BundleInfo
+	var emptyInfo *rukpakv1alpha1.BundleInfo
 
 	BeforeEach(func() {
 		status = &rukpakv1alpha1.BundleStatus{}
-		info = &rukpakv1alpha1.BundleInfo{}
+		emptyInfo = &rukpakv1alpha1.BundleInfo{}
 	})
 
 	It("should set phase if not present", func() {
@@ -249,7 +252,7 @@ var _ = Describe("UnsetBundleInfo", func() {
 	})
 
 	It("should return false for no update", func() {
-		status.Info = info
+		status.Info = emptyInfo
 		Expect(updater.UnsetBundleInfo()(status)).To(BeTrue())
 		Expect(status.Info).To(Equal((*rukpakv1alpha1.BundleInfo)(nil)))
 	})
