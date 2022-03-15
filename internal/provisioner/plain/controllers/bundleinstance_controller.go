@@ -103,12 +103,13 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	b := &rukpakv1alpha1.Bundle{}
 	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
+		bundleStatus := metav1.ConditionUnknown
 		if apierrors.IsNotFound(err) {
-			bi.Status.InstalledBundleName = ""
+			bundleStatus = metav1.ConditionFalse
 		}
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "Installed",
-			Status:  metav1.ConditionFalse,
+			Type:    "HasValidBundle",
+			Status:  bundleStatus,
 			Reason:  "BundleLookupFailed",
 			Message: err.Error(),
 		})
@@ -131,9 +132,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, nil
 		}
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "Installed",
+			Type:    "HasValidBundle",
 			Status:  metav1.ConditionFalse,
-			Reason:  "BundleLookupFailed",
+			Reason:  "BundleLoadFailed",
 			Message: err.Error(),
 		})
 		return ctrl.Result{}, err
@@ -146,9 +147,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		jsonData, err := yaml.Marshal(obj)
 		if err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "Installed",
-				Status:  metav1.ConditionFalse,
-				Reason:  "BundleLookupFailed",
+				Type:    "InvalidBundleContent",
+				Status:  metav1.ConditionTrue,
+				Reason:  "ReadingContentFailed",
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
