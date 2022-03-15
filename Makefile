@@ -12,6 +12,7 @@ TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 PKGS = $(shell go list ./...)
+CERT_MGR_VERSION=v1.7.1
 
 CONTAINER_RUNTIME ?= docker
 
@@ -88,6 +89,7 @@ test-e2e: ginkgo ## Run the e2e tests
 
 install-apis: generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
+	kubectl apply -f manifests/bundle-webhook
 
 install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
 	kubectl apply -f internal/provisioner/plain/manifests
@@ -97,25 +99,32 @@ install: install-plain ## Install all rukpak core CRDs and provisioners
 deploy: install-apis ## Deploy the operator to the current cluster
 	kubectl apply -f internal/provisioner/plain/manifests
 
-run: build-local-container kind-load deploy ## Build image and run operator in-cluster
+run: build-local-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
+
+cert-mgr: ## Install the certification manager
+	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
+	kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
 
 ##################
 # Build and Load #
 ##################
-.PHONY: build bin/plain bin/unpack build-local-container kind-load kind-load-bundles kind-cluster
+.PHONY: build bin/plain bin/unpack bin/core build-local-container kind-load kind-load-bundles kind-cluster
 
 ##@ build/load:
 
 # Binary builds
 GO_BUILD := $(Q)go build
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: bin/plain bin/unpack
+build: bin/plain bin/unpack bin/core
 
 bin/plain:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./internal/provisioner/plain
 
 bin/unpack:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd/unpack/...
+
+bin/core:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd
 
 build-container: ## Builds provisioner container image locally
 	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) .
@@ -143,7 +152,7 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 	${KIND} create cluster --name ${KIND_CLUSTER_NAME}
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: build-container kind-cluster kind-load kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
+e2e: build-container kind-cluster kind-load cert-mgr kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
 
 ################
 # Hack / Tools #

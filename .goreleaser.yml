@@ -27,6 +27,15 @@ builds:
     - amd64
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: core
+    main: ./cmd
+    binary: core
+    goos:
+    - linux
+    goarch:
+    - amd64
+    ldflags:
+    - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
 dockers:
 - image_templates:
   - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"

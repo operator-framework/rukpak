@@ -24,6 +24,7 @@ FROM gcr.io/distroless/static:debug
 WORKDIR /
 COPY --from=builder /workspace/bin/plain .
 COPY --from=builder /workspace/bin/unpack .
+COPY --from=builder /workspace/bin/core .
 EXPOSE 8080
 
 ENTRYPOINT ["/plain"]
