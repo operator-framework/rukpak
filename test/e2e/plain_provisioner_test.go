@@ -317,30 +317,43 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				return c.Delete(ctx, bundle)
 			}).Should(Succeed())
 
-			// TODO(tflannag): Right now deleting an unpacked Bundle after the BI stamped
-			// out it's contents reset's the Bundle's lookup information from BI's status
-			// but the unpacked resources are still present on the cluster. This is because
-			// the BI places ownerreferences on these resources, but the condition we write
-			// to it's status can be confusing to the end user as it implies the installation
-			// failed and the resources aren't present on-cluster.
+			By("eventually having a status indicating that the bundle lookup failed but installation succeeded")
 			Eventually(func() bool {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
 					return false
 				}
-				if bi.Status.InstalledBundleName != "" {
+
+				// Should still have the original InstalledBundleName in the status
+				if bi.Status.InstalledBundleName == "" {
 					return false
 				}
-				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
-				if existing == nil {
+
+				// Find the installed condition
+				existingInstalledStatus := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				if existingInstalledStatus == nil {
 					return false
 				}
-				expected := metav1.Condition{
+				expectedInstalledStatus := metav1.Condition{
 					Type:    "Installed",
+					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
+					Reason:  "InstallationSucceeded",
+					Message: "",
+				}
+
+				// Find the HasValidBundle status
+				existingBundleStatus := meta.FindStatusCondition(bi.Status.Conditions, "HasValidBundle")
+				if existingBundleStatus == nil {
+					return false
+				}
+				expectedBundleStatus := metav1.Condition{
+					Type:    "HasValidBundle",
 					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
 					Reason:  "BundleLookupFailed",
 					Message: fmt.Sprintf(`Bundle.core.rukpak.io "%s" not found`, bundle.GetName()),
 				}
-				return conditionsSemanticallyEqual(expected, *existing)
+
+				return conditionsSemanticallyEqual(expectedInstalledStatus, *existingInstalledStatus) &&
+					conditionsSemanticallyEqual(expectedBundleStatus, *existingBundleStatus)
 			}).Should(BeTrue())
 		})
 	})
