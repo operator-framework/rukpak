@@ -56,6 +56,26 @@ spec:
                   required:
                     - type
                   properties:
+                    git:
+                      description: Git is the git repository that backs the content of this Bundle.
+                      type: object
+                      required:
+                        - ref
+                        - repository
+                      properties:
+                        directory:
+                          type: string
+                        ref:
+                          type: object
+                          properties:
+                            branch:
+                              type: string
+                            commit:
+                              type: string
+                            tag:
+                              type: string
+                        repository:
+                          type: string
                     image:
                       description: Image is the bundle image that backs the content of this bundle.
                       type: object
