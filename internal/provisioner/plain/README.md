@@ -60,7 +60,10 @@ kind: Bundle
 metadata:
   name: my-bundle
 spec:
-  image: my-bundle@sha256:xyz123
+  source:
+    type: image
+    image:
+      ref: my-bundle@sha256:xyz123
   provisionerClassName: core.rukpak.io/plain
 ---
 apiVersion: core.rukpak.io/v1alpha1
@@ -146,7 +149,10 @@ kind: Bundle
 metadata:
   name: combo-v0.0.1
 spec:
-  image: quay.io/tflannag/bundle:combo-operator-v0.0.1
+  source:
+    type: image
+    image:
+      ref: quay.io/tflannag/bundle:combo-operator-v0.0.1
   provisionerClassName: core.rukpak.io/plain
 EOF
 bundle.core.rukpak.io/combo-v0.0.1 created
@@ -225,7 +231,10 @@ kind: Bundle
 metadata:
   name: combo-v0.0.2
 spec:
-  image: quay.io/tflannag/bundle:combo-operator-v0.0.2
+  source:
+    type: image
+    image:
+      ref: quay.io/tflannag/bundle:combo-operator-v0.0.2
   provisionerClassName: core.rukpak.io/plain
 EOF
 ```

@@ -61,7 +61,10 @@ kind: Bundle
 metadata:
   name: my-bundle
 spec:
-  image: my-bundle@sha256:xyz123
+  source:
+    type: image
+    image:
+      ref: my-bundle@sha256:xyz123
   provisionerClassName: core.rukpak.io/plain
 ```
 
