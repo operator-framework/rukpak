@@ -51,11 +51,25 @@ type BundleSource struct {
 	Type string `json:"type"`
 	// Image is the bundle image that backs the content of this bundle.
 	Image *ImageSource `json:"image,omitempty"`
+	// Git is the git repository that backs the content of this Bundle.
+	Git *GitSource `json:"git,omitempty"`
 }
 
 type ImageSource struct {
 	// Ref contains the reference to a container image containing Bundle contents.
 	Ref string `json:"ref"`
+}
+
+type GitSource struct {
+	Repository string `json:"repository"`
+	Directory  string `json:"directory,omitempty"`
+	Ref        GitRef `json:"ref"`
+}
+
+type GitRef struct {
+	Branch string `json:"branch,omitempty"`
+	Tag    string `json:"tag,omitempty"`
+	Commit string `json:"commit,omitempty"`
 }
 
 type ProvisionerID string
