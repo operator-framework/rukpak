@@ -68,7 +68,12 @@ var _ = Describe("Updater", func() {
 			},
 			Spec: rukpakv1alpha1.BundleSpec{
 				ProvisionerClassName: provisionerClassName,
-				Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+				Source: rukpakv1alpha1.BundleSource{
+					Type: "image",
+					Image: &rukpakv1alpha1.ImageSource{
+						Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+					},
+				},
 			},
 			Status: rukpakv1alpha1.BundleStatus{
 				Info:               &rukpakv1alpha1.BundleInfo{},

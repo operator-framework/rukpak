@@ -45,7 +45,12 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plainProvisionerID,
-					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: "image",
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+						},
+					},
 				},
 			}
 			err := c.Create(ctx, bundle)
@@ -188,7 +193,12 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: "core.rukpak.io/plain",
-					Image:                "quay.io/tflannag/olm-plain-bundle:non-existent-tag",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: "image",
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "quay.io/tflannag/olm-plain-bundle:non-existent-tag",
+						},
+					},
 				},
 			}
 			err := c.Create(ctx, bundle)
@@ -234,7 +244,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				if unpackPending == nil {
 					return false
 				}
-				if unpackPending.Message != fmt.Sprintf(`Back-off pulling image "%s"`, bundle.Spec.Image) {
+				if unpackPending.Message != fmt.Sprintf(`Back-off pulling image "%s"`, bundle.Spec.Source.Image.Ref) {
 					return false
 				}
 				return true
@@ -260,7 +270,12 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plainProvisionerID,
-					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: "image",
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+						},
+					},
 				},
 			}
 			err := c.Create(ctx, bundle)
@@ -374,7 +389,12 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plainProvisionerID,
-					Image:                "quay.io/tflannag/olm-plain-bundle:olm-api-v0.20.0",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: "image",
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "quay.io/tflannag/olm-plain-bundle:olm-api-v0.20.0",
+						},
+					},
 				},
 			}
 			err := c.Create(ctx, bundle)
@@ -454,7 +474,12 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plainProvisionerID,
-					Image:                "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: "image",
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+						},
+					},
 				},
 			}
 			err := c.Create(ctx, bundle)
