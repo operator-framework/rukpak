@@ -18,16 +18,17 @@ package controllers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"path/filepath"
 	"strings"
-	"testing/fstest"
 
+	"github.com/nlepage/go-tarfs"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -47,7 +48,7 @@ import (
 )
 
 const (
-	bundleUnpackContainerName  = "bundle"
+	bundleContainerName        = "bundle"
 	plainBundleProvisionerName = "plain"
 )
 
@@ -57,6 +58,8 @@ type BundleReconciler struct {
 	KubeClient kubernetes.Interface
 	Scheme     *runtime.Scheme
 	Storage    storage.Storage
+
+	HTTPClient *http.Client
 
 	PodNamespace    string
 	UnpackImage     string
@@ -109,12 +112,9 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 		r.handlePendingPod(&u, pod)
 		return ctrl.Result{}, nil
 	case corev1.PodRunning:
-		r.handleRunningPod(&u)
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, r.handleRunningPod(ctx, &u, bundle, pod)
 	case corev1.PodFailed:
 		return ctrl.Result{}, r.handleFailedPod(ctx, &u, pod)
-	case corev1.PodSucceeded:
-		return ctrl.Result{}, r.handleCompletedPod(ctx, &u, bundle, pod)
 	default:
 		return ctrl.Result{}, r.handleUnexpectedPod(ctx, &u, pod)
 	}
@@ -145,19 +145,6 @@ func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod)
 			Status:  metav1.ConditionFalse,
 			Reason:  rukpakv1alpha1.ReasonUnpackPending,
 			Message: strings.Join(messages, "; "),
-		}),
-	)
-}
-
-func (r *BundleReconciler) handleRunningPod(u *updater.Updater) {
-	u.UpdateStatus(
-		updater.SetBundleInfo(nil),
-		updater.EnsureBundleDigest(""),
-		updater.SetPhase(rukpakv1alpha1.PhaseUnpacking),
-		updater.EnsureCondition(metav1.Condition{
-			Type:   rukpakv1alpha1.TypeUnpacked,
-			Status: metav1.ConditionFalse,
-			Reason: rukpakv1alpha1.ReasonUnpacking,
 		}),
 	)
 }
@@ -207,9 +194,6 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *rukpakv1
 		})
 		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
 		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
-		pod.Spec.Volumes = []corev1.Volume{
-			{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-		}
 		pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 		if len(pod.Spec.InitContainers) != 1 {
 			pod.Spec.InitContainers = make([]corev1.Container, 1)
@@ -223,11 +207,17 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *rukpakv1
 		if len(pod.Spec.Containers) != 1 {
 			pod.Spec.Containers = make([]corev1.Container, 1)
 		}
-		pod.Spec.Containers[0].Name = bundleUnpackContainerName
+		pod.Spec.Containers[0].Name = bundleContainerName
 		pod.Spec.Containers[0].Image = bundle.Spec.Image
 		pod.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-		pod.Spec.Containers[0].Command = []string{"/util/unpack", "--bundle-dir", "/manifests"}
+		pod.Spec.Containers[0].Command = []string{"/util/unpack", "--bundle-dir=/manifests", "--listen-addr=:8080"}
 		pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/util"}}
+
+		if len(pod.Spec.Volumes) != 1 {
+			pod.Spec.Volumes = make([]corev1.Volume, 1)
+		}
+
+		pod.Spec.Volumes[0] = corev1.Volume{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}
 		return nil
 	})
 }
@@ -258,7 +248,7 @@ func updateStatusUnpackFailing(u *updater.Updater, err error) error {
 	return err
 }
 
-func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Updater, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) error {
+func (r *BundleReconciler) handleRunningPod(ctx context.Context, u *updater.Updater, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) error {
 	bundleFS, err := r.getBundleContents(ctx, pod)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle contents: %w", err))
@@ -305,20 +295,24 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 }
 
 func (r *BundleReconciler) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
-	bundleContentsData, err := r.getPodLogs(ctx, pod)
+	url := fmt.Sprintf("http://%s:8080/content", pod.Status.PodIP)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %w", err)
+		return nil, fmt.Errorf("create get request for %q: %v", url, pod)
 	}
-	decoder := json.NewDecoder(bytes.NewReader(bundleContentsData))
-	bundleContents := map[string][]byte{}
-	if err := decoder.Decode(&bundleContents); err != nil {
-		return nil, err
+	resp, err := r.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http get %q: %w", url, err)
 	}
-	bundleFS := fstest.MapFS{}
-	for name, data := range bundleContents {
-		bundleFS[name] = &fstest.MapFile{Data: data}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("http get %q: unexpected response status: %s", url, resp.Status)
 	}
-	return bundleFS, nil
+	gzr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read gzip response from %q: %w", url, err)
+	}
+	return tarfs.New(gzr)
 }
 
 func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
@@ -336,7 +330,7 @@ func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]b
 
 func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error) {
 	for _, ps := range pod.Status.ContainerStatuses {
-		if ps.Name == bundleUnpackContainerName && ps.ImageID != "" {
+		if ps.Name == bundleContainerName && ps.ImageID != "" {
 			return ps.ImageID, nil
 		}
 	}
@@ -378,6 +372,10 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if r.HTTPClient == nil {
+		r.HTTPClient = http.DefaultClient
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
 			util.BundleProvisionerFilter(plainBundleProvisionerID),
