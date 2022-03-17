@@ -64,17 +64,23 @@ spec:
                         - repository
                       properties:
                         directory:
+                          description: Directory refers to the location of the bundle within the git repository. Directory is optional and if not set defaults to ./manifests.
                           type: string
                         ref:
+                          description: Ref configures the git source to clone a specific branch, tag, or commit from the specified repo. Ref is required, and exactly one field within Ref is required. Setting more than one field or zero fields will result in an error.
                           type: object
                           properties:
                             branch:
+                              description: Branch refers to the branch to checkout from the repository. The Branch should contain the bundle manifests in the specified directory.
                               type: string
                             commit:
+                              description: Commit refers to the commit to checkout from the repository. The Commit should contain the bundle manifests in the specified directory.
                               type: string
                             tag:
+                              description: Tag refers to the tag to checkout from the repository. The Tag should contain the bundle manifests in the specified directory.
                               type: string
                         repository:
+                          description: Repository is a URL link to the git repository containing the bundle. Repository is required and the URL should be parsable by a standard git tool.
                           type: string
                     image:
                       description: Image is the bundle image that backs the content of this bundle.
