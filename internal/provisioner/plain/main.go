@@ -60,6 +60,7 @@ func main() {
 	var systemNamespace string
 	var unpackImage string
 	var rukpakVersion bool
+	var gitClientImage string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources.")
@@ -68,6 +69,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
+	flag.StringVar(&gitClientImage, "git-client-image", "alpine/git:v2.32.0", "Configures which git container image to use to clone bundle git repos")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -124,12 +126,13 @@ func main() {
 	}
 
 	if err = (&controllers.BundleReconciler{
-		Client:       mgr.GetClient(),
-		KubeClient:   kubeClient,
-		Scheme:       mgr.GetScheme(),
-		PodNamespace: ns,
-		Storage:      bundleStorage,
-		UnpackImage:  unpackImage,
+		Client:         mgr.GetClient(),
+		KubeClient:     kubeClient,
+		Scheme:         mgr.GetScheme(),
+		PodNamespace:   ns,
+		Storage:        bundleStorage,
+		UnpackImage:    unpackImage,
+		GitClientImage: gitClientImage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Bundle")
 		os.Exit(1)

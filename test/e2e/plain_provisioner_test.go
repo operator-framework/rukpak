@@ -345,6 +345,120 @@ var _ = Describe("plain provisioner bundle", func() {
 			))
 		})
 	})
+
+	When("Bundles are backed by a git repository", func() {
+		var (
+			bundles []*rukpakv1alpha1.Bundle
+			ctx     context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the git based Bundles")
+			bundles = []*rukpakv1alpha1.Bundle{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "combo-git-commit",
+					},
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plainProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeGit,
+							Git: &rukpakv1alpha1.GitSource{
+								Repository: "https://github.com/exdx/combo-bundle",
+								Ref: rukpakv1alpha1.GitRef{
+									Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "combo-git-tag",
+					},
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plainProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeGit,
+							Git: &rukpakv1alpha1.GitSource{
+								Repository: "https://github.com/exdx/combo-bundle",
+								Ref: rukpakv1alpha1.GitRef{
+									Tag: "v0.0.1",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "combo-git-defaults",
+					},
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plainProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeGit,
+							Git: &rukpakv1alpha1.GitSource{
+								Repository: "https://github.com/exdx/combo-bundle.git",
+								Ref: rukpakv1alpha1.GitRef{
+									Branch: "main",
+								},
+							},
+						},
+					},
+				},
+			}
+
+			for _, bundle := range bundles {
+				err := c.Create(ctx, bundle)
+				Expect(err).To(BeNil())
+			}
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			for _, bundle := range bundles {
+				err := c.Delete(ctx, bundle)
+				Expect(err).To(BeNil())
+			}
+		})
+
+		It("should source the git content specified and unpack it to the cluster successfully", func() {
+			By("eventually reporting an Unpacked phase", func() {
+				for _, bundle := range bundles {
+					Eventually(func() bool {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return false
+						}
+						return bundle.Status.Phase == rukpakv1alpha1.PhaseUnpacked
+					}).Should(BeTrue())
+				}
+			})
+
+			By("eventually writing a non-empty list of unpacked objects to the status", func() {
+				for _, bundle := range bundles {
+					Eventually(func() bool {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return false
+						}
+						if bundle.Status.Info == nil {
+							return false
+						}
+						/*
+							manifests
+							├── 00_namespace.yaml
+							├── 01_cluster_role.yaml
+							├── 01_service_account.yaml
+							├── 02_deployment.yaml
+							├── 03_cluster_role_binding.yaml
+							├── combo.io_combinations.yaml
+							└── combo.io_templates.yaml
+						*/
+						return len(bundle.Status.Info.Objects) == 7
+					}).Should(BeTrue())
+				}
+			})
+		})
+	})
 })
 
 var _ = Describe("plain provisioner bundleinstance", func() {

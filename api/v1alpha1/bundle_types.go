@@ -24,6 +24,7 @@ type BundleConditionType string
 
 const (
 	SourceTypeImage = "image"
+	SourceTypeGit   = "git"
 
 	TypeUnpacked = "Unpacked"
 
@@ -61,14 +62,28 @@ type ImageSource struct {
 }
 
 type GitSource struct {
+	// Repository is a URL link to the git repository containing the bundle.
+	// Repository is required and the URL should be parsable by a standard git tool.
 	Repository string `json:"repository"`
-	Directory  string `json:"directory,omitempty"`
-	Ref        GitRef `json:"ref"`
+	// Directory refers to the location of the bundle within the git repository.
+	// Directory is optional and if not set defaults to ./manifests.
+	Directory string `json:"directory,omitempty"`
+	// Ref configures the git source to clone a specific branch, tag, or commit
+	// from the specified repo. Ref is required, and exactly one field within Ref
+	// is required. Setting more than one field or zero fields will result in an
+	// error.
+	Ref GitRef `json:"ref"`
 }
 
 type GitRef struct {
+	// Branch refers to the branch to checkout from the repository.
+	// The Branch should contain the bundle manifests in the specified directory.
 	Branch string `json:"branch,omitempty"`
-	Tag    string `json:"tag,omitempty"`
+	// Tag refers to the tag to checkout from the repository.
+	// The Tag should contain the bundle manifests in the specified directory.
+	Tag string `json:"tag,omitempty"`
+	// Commit refers to the commit to checkout from the repository.
+	// The Commit should contain the bundle manifests in the specified directory.
 	Commit string `json:"commit,omitempty"`
 }
 
