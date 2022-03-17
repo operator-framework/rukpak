@@ -108,9 +108,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			bundleStatus = metav1.ConditionFalse
 		}
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "HasValidBundle",
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
 			Status:  bundleStatus,
-			Reason:  "BundleLookupFailed",
+			Reason:  rukpakv1alpha1.ReasonBundleLookupFailed,
 			Message: err.Error(),
 		})
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -125,16 +125,16 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				reason = "BundleUnpackRunning"
 			}
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:   "Installed",
+				Type:   rukpakv1alpha1.TypeInstalled,
 				Status: metav1.ConditionFalse,
 				Reason: reason,
 			})
 			return ctrl.Result{}, nil
 		}
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "HasValidBundle",
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
 			Status:  metav1.ConditionFalse,
-			Reason:  "BundleLoadFailed",
+			Reason:  rukpakv1alpha1.ReasonBundleLoadFailed,
 			Message: err.Error(),
 		})
 		return ctrl.Result{}, err
@@ -147,9 +147,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		jsonData, err := yaml.Marshal(obj)
 		if err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "InvalidBundleContent",
+				Type:    rukpakv1alpha1.TypeInvalidBundleContent,
 				Status:  metav1.ConditionTrue,
-				Reason:  "ReadingContentFailed",
+				Reason:  rukpakv1alpha1.ReasonReadingContentFailed,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
@@ -166,9 +166,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	bi.SetNamespace("")
 	if err != nil {
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "Installed",
+			Type:    rukpakv1alpha1.TypeInstalled,
 			Status:  metav1.ConditionFalse,
-			Reason:  "ErrorGettingClient",
+			Reason:  rukpakv1alpha1.ReasonErrorGettingClient,
 			Message: err.Error(),
 		})
 		return ctrl.Result{}, err
@@ -177,9 +177,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	rel, state, err := r.getReleaseState(cl, bi, chrt)
 	if err != nil {
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-			Type:    "Installed",
+			Type:    rukpakv1alpha1.TypeInstalled,
 			Status:  metav1.ConditionFalse,
-			Reason:  "ErrorGettingReleaseState",
+			Reason:  rukpakv1alpha1.ReasonErrorGettingReleaseState,
 			Message: err.Error(),
 		})
 		return ctrl.Result{}, err
@@ -193,9 +193,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		})
 		if err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "Installed",
+				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
-				Reason:  "InstallFailed",
+				Reason:  rukpakv1alpha1.ReasonInstallFailed,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
@@ -204,9 +204,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		_, err = cl.Upgrade(bi.Name, r.ReleaseNamespace, chrt, nil)
 		if err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "Installed",
+				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
-				Reason:  "UpgradeFailed",
+				Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
@@ -214,9 +214,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	case stateUnchanged:
 		if err := cl.Reconcile(rel); err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "Installed",
+				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
-				Reason:  "ReconcileFailed",
+				Reason:  rukpakv1alpha1.ReasonReconcileFailed,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
@@ -229,9 +229,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "Installed",
+				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
-				Reason:  "CreateDynamicWatchFailed",
+				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
@@ -255,18 +255,18 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return nil
 		}(); err != nil {
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:    "Installed",
+				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
-				Reason:  "CreateDynamicWatchFailed",
+				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
 				Message: err.Error(),
 			})
 			return ctrl.Result{}, err
 		}
 	}
 	meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-		Type:   "Installed",
+		Type:   rukpakv1alpha1.TypeInstalled,
 		Status: metav1.ConditionTrue,
-		Reason: "InstallationSucceeded",
+		Reason: rukpakv1alpha1.ReasonInstallationSucceeded,
 	})
 	bi.Status.InstalledBundleName = bi.Spec.BundleName
 	return ctrl.Result{}, nil
