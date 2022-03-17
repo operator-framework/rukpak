@@ -23,6 +23,23 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+const (
+	TypeHasValidBundle       = "HasValidBundle"
+	TypeInvalidBundleContent = "InvalidBundleContent"
+	TypeInstalled            = "Installed"
+
+	ReasonBundleLookupFailed       = "BundleLookupFailed"
+	ReasonBundleLoadFailed         = "BundleLoadFailed"
+	ReasonReadingContentFailed     = "ReadingContentFailed"
+	ReasonErrorGettingClient       = "ErrorGettingClient"
+	ReasonErrorGettingReleaseState = "ErrorGettingReleaseState"
+	ReasonInstallFailed            = "InstallFailed"
+	ReasonUpgradeFailed            = "UpgradeFailed"
+	ReasonReconcileFailed          = "ReconcileFailed"
+	ReasonCreateDynamicWatchFailed = "CreateDynamicWatchFailed"
+	ReasonInstallationSucceeded    = "InstallationSucceeded"
+)
+
 // BundleInstanceSpec defines the desired state of BundleInstance
 type BundleInstanceSpec struct {
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
