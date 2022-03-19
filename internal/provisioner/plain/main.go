@@ -33,9 +33,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
+	"github.com/operator-framework/rukpak/internal/provisioner/plain/webhooks"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
@@ -147,6 +149,30 @@ func main() {
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
+
+	cmWebhook, err := webhooks.NewValidatingConfigMapWebhook(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ValidatingConfigMapWebhook")
+		os.Exit(1)
+	}
+	bundleWebhook, err := webhooks.NewValidatingBundleWebhook(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ValidatingBundleWebhook")
+		os.Exit(1)
+	}
+
+	// Create a webhook server.
+	hookServer := &webhook.Server{
+		Port: 9443,
+	}
+	if err := mgr.Add(hookServer); err != nil {
+		setupLog.Error(err, "unable to add webhook server to manager")
+		os.Exit(1)
+	}
+
+	// Register the webhooks in the server.
+	hookServer.Register("/validate-core-v1-configmap", cmWebhook)
+	hookServer.Register("/validate-core-rukpak-io-v1alpha1-bundle", bundleWebhook)
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

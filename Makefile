@@ -78,27 +78,28 @@ test-e2e: ginkgo ## Run the e2e tests
 ###################
 # Install and Run #
 ###################
-.PHONY: install-apis install-plain install deploy run
+.PHONY: install-certmanager install-apis install-plain install run
 
 ##@ install/run:
 
 install-apis: generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
 
-install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
+install-certmanager:
+	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
+	kubectl wait --timeout=60s --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook
+
+install-plain: install-apis install-certmanager ## Install the rukpak CRDs and the plain provisioner
 	kubectl apply -f internal/provisioner/plain/manifests
 
 install: install-plain ## Install all rukpak core CRDs and provisioners
 
-deploy: install-apis ## Deploy the operator to the current cluster
-	kubectl apply -f internal/provisioner/plain/manifests
-
-run: build-local-container kind-load deploy ## Build image and run operator in-cluster
+run: build-container kind-load install ## Build image and run operator in-cluster
 
 ##################
 # Build and Load #
 ##################
-.PHONY: build bin/plain bin/unpack build-local-container kind-load kind-cluster
+.PHONY: build bin/plain bin/unpack build-container kind-load kind-cluster
 
 ##@ build/load:
 
@@ -113,13 +114,10 @@ bin/plain:
 bin/unpack:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd/unpack/...
 
-build-container: ## Builds provisioner container image locally
+build-container: export GOOS=linux
+build-container: BIN_SUFFIX=-$(GOOS)
+build-container: build ## Builds provisioner container image locally
 	docker build -f Dockerfile -t $(IMAGE) .
-
-build-local-container: export GOOS=linux
-build-local-container: BIN_SUFFIX=-$(GOOS)
-build-local-container: build ## Builds the provisioner container image using locally built binaries
-	docker build -f Dockerfile.local -t $(IMAGE) .
 
 kind-load: ## Load-image loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
@@ -129,7 +127,7 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 	${KIND} create cluster --name ${KIND_CLUSTER_NAME}
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: build-container kind-cluster kind-load deploy test-e2e ## Run e2e tests against a kind cluster
+e2e: build-container kind-cluster kind-load install test-e2e ## Run e2e tests against a kind cluster
 
 ################
 # Hack / Tools #

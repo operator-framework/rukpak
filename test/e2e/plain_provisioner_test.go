@@ -4,19 +4,22 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/util"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 const (
@@ -93,47 +96,141 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 
-		It("should re-create the bundle configmaps", func() {
-			var (
-				cm *corev1.ConfigMap
-			)
+		It("should delete the completed unpack pod", func() {
+			By("eventually reporting an Unpacked phase", func() {
+				Eventually(func() bool {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return false
+					}
+					return bundle.Status.Phase == rukpakv1alpha1.PhaseUnpacked
+				}).Should(BeTrue())
+			})
+			By("eventually finding the unpack pod was deleted", func() {
+				key := types.NamespacedName{
+					Namespace: defaultSystemNamespace,
+					Name:      util.PodName("plain", bundle.Name),
+				}
+				Eventually(func() bool {
+					err := c.Get(ctx, key, &corev1.Pod{})
+					return apierrors.IsNotFound(err)
+				}).Should(BeTrue())
+			})
+		})
 
-			By("getting the metadata configmap for the bundle")
-			// TODO(tflannag): Create a constant for the "core.rukpak.io/configmap-type" label
+		It("should block configmap rukpak label removals and object deletion", func() {
+			// TODO(tflannag): Create a constant for the "core.rukpak.io/owner-kind" label
 			// and update the internal/controller packages.
-			configMapTypeRequirement, err := labels.NewRequirement("core.rukpak.io/configmap-type", selection.Equals, []string{"metadata"})
+			configMapTypeRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.Equals, []string{"Bundle"})
 			Expect(err).To(BeNil())
 
 			selector := util.NewBundleLabelSelector(bundle)
 			selector = selector.Add(*configMapTypeRequirement)
 
+			By("getting configmaps owned by the bundle")
+			cms := &corev1.ConfigMapList{}
 			Eventually(func() bool {
-				cms := &corev1.ConfigMapList{}
 				if err := c.List(ctx, cms, &client.ListOptions{
 					Namespace:     defaultSystemNamespace,
 					LabelSelector: selector,
 				}); err != nil {
 					return false
 				}
-				if len(cms.Items) != 1 {
-					return false
-				}
-				cm = &cms.Items[0]
-
-				return true
+				return len(cms.Items) == 9
 			}).Should(BeTrue())
 
-			By("deleting the metadata configmap and checking if it gets recreated")
-			originalUID := cm.GetUID()
+			for _, cm := range cms.Items {
+				cm := cm
+				By("attempting to remove core.rukpak.io labels", func() {
+					for k := range cm.GetLabels() {
+						if strings.HasPrefix(k, "core.rukpak.io/") {
+							delete(cm.Labels, k)
+						}
+					}
+					err := c.Update(ctx, &cm)
+					Expect(err).NotTo(BeNil())
+					Expect(err.Error()).To(ContainSubstring("cannot delete labels [core.rukpak.io/configmap-type core.rukpak.io/owner-kind core.rukpak.io/owner-name]"))
+				})
+				By("attempting to delete configmap owned by the bundle", func() {
+					err := c.Delete(ctx, &cm)
+					Expect(err).NotTo(BeNil())
+					Expect(err.Error()).To(ContainSubstring(
+						fmt.Sprintf("deletion denied when core.rukpak.io/v1alpha1, Kind=Bundle %q still exists", bundle.Name),
+					))
+				})
+			}
+		})
+		It("should block spec updates", func() {
+			By("consistently failing to change spec.image", func() {
+				Consistently(func() error {
+					return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return err
+						}
+						bundle.Spec.Image = "foobar"
+						return c.Update(ctx, bundle)
+					})
+				}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("bundle.spec is immutable")))
+			})
+			By("failing to change spec.provisionerClassName", func() {
+				Consistently(func() error {
+					return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return err
+						}
+						bundle.Spec.ProvisionerClassName = "foobar"
+						return c.Update(ctx, bundle)
+					})
+				}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("bundle.spec is immutable")))
+			})
+		})
+		It("should block status updates after unpacking completes", func() {
+			By("eventually reporting an Unpacked phase", func() {
+				Eventually(func() bool {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return false
+					}
+					return bundle.Status.Phase == rukpakv1alpha1.PhaseUnpacked
+				}).Should(BeTrue())
+			})
+			By("failing to update bundle status", func() {
+				Consistently(func() error {
+					return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return err
+						}
+						bundle.Status.Digest = "foobar"
+						return c.Status().Update(ctx, bundle)
+					})
+				}).Should(MatchError(ContainSubstring("bundle.status is immutable when bundle.status.phase==Unpacked")))
+			})
+		})
+	})
 
-			Eventually(func() error {
-				return c.Delete(ctx, cm)
-			}).Should(Succeed())
+	When("an invalid Bundle referencing a remote container image is created", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
 
-			Eventually(func() (types.UID, error) {
-				err := c.Get(ctx, client.ObjectKeyFromObject(cm), cm)
-				return cm.GetUID(), err
-			}).ShouldNot(Equal(originalUID))
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds-invalid",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: "core.rukpak.io/plain",
+					Image:                "quay.io/tflannag/olm-plain-bundle:non-existent-tag",
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
 		})
 
 		It("should re-create underlying system resources", func() {
@@ -170,34 +267,6 @@ var _ = Describe("plain provisioner bundle", func() {
 				err := c.Get(ctx, client.ObjectKeyFromObject(pod), pod)
 				return pod.GetUID(), err
 			}).ShouldNot(Equal(originalUID))
-		})
-	})
-
-	When("an invalid Bundle referencing a remote container image is created", func() {
-		var (
-			bundle *rukpakv1alpha1.Bundle
-			ctx    context.Context
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-
-			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "olm-crds-invalid",
-				},
-				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: "core.rukpak.io/plain",
-					Image:                "quay.io/tflannag/olm-plain-bundle:non-existent-tag",
-				},
-			}
-			err := c.Create(ctx, bundle)
-			Expect(err).To(BeNil())
-		})
-		AfterEach(func() {
-			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
-			Expect(err).To(BeNil())
 		})
 
 		It("checks the bundle's phase is stuck in pending", func() {

@@ -29,6 +29,7 @@ import (
 	"testing/fstest"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -94,6 +95,25 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 		}
 	}()
 	u.UpdateStatus(updater.EnsureObservedGeneration(bundle.Generation))
+
+	_, err := r.Storage.Load(ctx, bundle)
+	if err == nil {
+		return ctrl.Result{}, nil
+	}
+	if !apierrors.IsNotFound(err) {
+		u.UpdateStatus(
+			updater.UnsetBundleInfo(),
+			updater.SetPhase(rukpakv1alpha1.PhaseFailing),
+			updater.EnsureBundleDigest(""),
+			updater.EnsureCondition(metav1.Condition{
+				Type:    rukpakv1alpha1.TypeUnpacked,
+				Status:  metav1.ConditionUnknown,
+				Reason:  rukpakv1alpha1.ReasonLoadFailed,
+				Message: err.Error(),
+			}),
+		)
+		return ctrl.Result{}, err
+	}
 
 	pod := &corev1.Pod{}
 	if op, err := r.ensureUnpackPod(ctx, bundle, pod); err != nil {
@@ -301,6 +321,7 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 		}),
 	)
 
+	_ = r.Delete(ctx, pod)
 	return nil
 }
 

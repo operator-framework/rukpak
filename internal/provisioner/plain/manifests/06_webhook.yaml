@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rukpak-webhook
+  namespace: rukpak-system
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 9443
+  selector:
+    app: plain-provisioner
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: rukpak-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: rukpak-system/rukpak-webhook-certificate
+webhooks:
+  - name: bundles.core.rukpak.io
+    admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: rukpak-webhook
+        namespace: rukpak-system
+        path: /validate-core-rukpak-io-v1alpha1-bundle
+        port: 443
+    failurePolicy: Fail
+    rules:
+      - apiGroups:
+          - core.rukpak.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - UPDATE
+        resources:
+          - bundles
+          - bundles/status
+    sideEffects: None
+  - name: configmaps.plain.core.rukpak.io
+    admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: rukpak-webhook
+        namespace: rukpak-system
+        path: /validate-core-v1-configmap
+        port: 443
+    failurePolicy: Fail
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - UPDATE
+          - DELETE
+        resources:
+          - configmaps
+    sideEffects: None
+    objectSelector:
+      matchLabels:
+        core.rukpak.io/owner-kind: Bundle
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: rukpak-system
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rukpak-webhook-certificate
+  namespace: rukpak-system
+spec:
+  secretName: rukpak-webhook-certificate
+  dnsNames:
+    - rukpak-webhook.rukpak-system.svc
+  issuerRef:
+    name: selfsigned
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: rukpak-system
+spec:
+  selfSigned: {}

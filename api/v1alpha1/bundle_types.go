@@ -29,6 +29,7 @@ const (
 	ReasonUnpacking        = "Unpacking"
 	ReasonUnpackSuccessful = "UnpackSuccessful"
 	ReasonUnpackFailed     = "UnpackFailed"
+	ReasonLoadFailed       = "LoadFailed"
 
 	PhasePending   = "Pending"
 	PhaseUnpacking = "Unpacking"
