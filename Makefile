@@ -102,9 +102,12 @@ install-apis: cert-mgr generate kustomize ## Install the core rukpak CRDs
 install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
 	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
 
+install-crdvalidator: cert-mgr kustomize ## Install the crdvalidator webhook manifests to the current cluster.
+	$(KUSTOMIZE) build manifests/crdvalidator | kubectl apply -f -
+
 install: install-plain ## Install all rukpak core CRDs and provisioners
 
-deploy: install-apis ## Deploy the operator to the current cluster
+deploy: install-apis install-crdvalidator ## Deploy the operator to the current cluster
 	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
 
 run: build-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
@@ -122,7 +125,7 @@ cert-mgr: ## Install the certification manager
 
 # Binary builds
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: plain unpack core
+build: plain unpack core crdvalidator
 
 plain:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/plain
@@ -132,6 +135,9 @@ unpack:
 
 core:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/core/...
+
+crdvalidator: 
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/crdvalidator
 
 build-container: export GOOS=linux
 build-container: BIN_DIR:=$(BIN_DIR)/$(GOOS)
@@ -156,7 +162,7 @@ kind-load-bundles: ## Load the e2e testdata container images into a kind cluster
 	${KIND} load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:subdir --name $(KIND_CLUSTER_NAME)
 
-kind-load: ## Load-image loads the currently constructed image onto the cluster
+kind-load: ## Loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
 ################

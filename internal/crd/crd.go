@@ -1,4 +1,17 @@
-package util
+/*
+Copyright 2022 The Kubernetes Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package crd
 
 import (
 	"context"
@@ -6,70 +19,62 @@ import (
 	"reflect"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/validation"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-func CreateOrUpdateCRD(ctx context.Context, cl client.Client, crd *apiextensionsv1.CustomResourceDefinition) (controllerutil.OperationResult, error) {
-	createCRD := crd.DeepCopy()
-	createErr := cl.Create(ctx, createCRD)
-	if createErr == nil {
-		return controllerutil.OperationResultCreated, nil
-	}
-	if !apierrors.IsAlreadyExists(createErr) {
-		return controllerutil.OperationResultNone, createErr
-	}
-	if updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentCRD := &apiextensionsv1.CustomResourceDefinition{}
-		if err := cl.Get(ctx, client.ObjectKeyFromObject(crd), currentCRD); err != nil {
-			return err
-		}
-		crd.SetResourceVersion(currentCRD.GetResourceVersion())
+// Validate is a wrapper for doing four things:
+// 	1. Retrieving the existing version of the specified CRD where it exists.
+// 	2. Calling validateCRDCompatibility() on the newCrd.
+// 	3. Calling safeStorageVersionUpgrade() on the newCrd.
+// 	4. Reporting any errors that it encounters along the way.
+func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.CustomResourceDefinition) error {
+	oldCRD := &apiextensionsv1.CustomResourceDefinition{}
 
-		if err := validateCRDCompatibility(ctx, cl, currentCRD, crd); err != nil {
-			return fmt.Errorf("error validating existing CRs against new CRD's schema for %q: %w", crd.Name, err)
-		}
-
-		// check to see if stored versions changed and whether the upgrade could cause potential data loss
-		safe, err := safeStorageVersionUpgrade(currentCRD, crd)
-		if !safe {
-			return fmt.Errorf("risk of data loss updating %q: %w", crd.Name, err)
-		}
-		if err != nil {
-			return fmt.Errorf("checking CRD for potential data loss updating %q: %w", crd.Name, err)
-		}
-
-		// Update CRD to new version
-		if err := cl.Update(ctx, crd); err != nil {
-			return fmt.Errorf("error updating CRD %q: %w", crd.Name, err)
-		}
+	err := client.IgnoreNotFound(cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD))
+	if apierrors.IsNotFound(err) {
+		// Return early if the CRD has not been created yet
+		// as we know it is valid.
 		return nil
-	}); updateErr != nil {
-		return controllerutil.OperationResultNone, updateErr
 	}
-	return controllerutil.OperationResultUpdated, nil
+	if err != nil {
+		return err
+	}
+
+	if err := validateCRDCompatibility(ctx, cl, oldCRD, newCrd); err != nil {
+		return fmt.Errorf("error validating existing CRs against new CRD's schema for %q: %w", newCrd.Name, err)
+	}
+
+	// check to see if stored versions changed and whether the upgrade could cause potential data loss
+	safe, err := safeStorageVersionUpgrade(oldCRD, newCrd)
+	if !safe {
+		return fmt.Errorf("risk of data loss updating %q: %w", newCrd.Name, err)
+	}
+	if err != nil {
+		return fmt.Errorf("checking CRD for potential data loss updating %q: %w", newCrd.Name, err)
+	}
+
+	return nil
 }
 
 func keys(m map[string]apiextensionsv1.CustomResourceDefinitionVersion) sets.String {
 	return sets.StringKeySet(m)
 }
 
+// validateCRDCompatibility runs through the following cases to test:
+//   1. New CRD removes version that Old CRD had => Must ensure nothing is stored at removed version
+//   2. New CRD changes a version that Old CRD has => Must validate existing CRs with new schema
+//   3. New CRD adds a version that Old CRD does not have =>
+//      - If conversion strategy is None, ensure existing CRs validate with new schema.
+//      - If conversion strategy is Webhook, allow update (assume webhook handles conversion correctly)
 func validateCRDCompatibility(ctx context.Context, cl client.Client, oldCRD *apiextensionsv1.CustomResourceDefinition, newCRD *apiextensionsv1.CustomResourceDefinition) error {
-	// Cases to test:
-	//   New CRD removes version that Old CRD had => Must ensure nothing is stored at removed version
-	//   New CRD changes a version that Old CRD has => Must validate existing CRs with new schema
-	//   New CRD adds a version that Old CRD does not have =>
-	//      - If conversion strategy is None, ensure existing CRs validate with new schema.
-	//      - If conversion strategy is Webhook, allow update (assume webhook handles conversion correctly)
-
 	oldVersions := map[string]apiextensionsv1.CustomResourceDefinitionVersion{}
 	newVersions := map[string]apiextensionsv1.CustomResourceDefinitionVersion{}
 
