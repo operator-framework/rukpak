@@ -23,6 +23,8 @@ import (
 type BundleConditionType string
 
 const (
+	SourceTypeImage = "image"
+
 	TypeUnpacked = "Unpacked"
 
 	ReasonUnpackPending    = "UnpackPending"
