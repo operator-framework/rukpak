@@ -222,7 +222,6 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *rukpakv1
 		if bundle.Spec.Source.Image != nil {
 			pod.Spec.Containers[0].Name = bundleUnpackContainerName
 			pod.Spec.Containers[0].Image = bundle.Spec.Source.Image.Ref
-			pod.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 			pod.Spec.Containers[0].Command = []string{"/util/unpack", "--bundle-dir", "/manifests"}
 			pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/util"}}
 		}
