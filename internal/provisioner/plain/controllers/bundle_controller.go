@@ -273,6 +273,10 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get objects from bundle manifests: %w", err))
 	}
+	if len(objects) == 0 {
+		return updateStatusUnpackFailing(u, errors.New("invalid bundle: found zero objects: "+
+			"plain+v0 bundles are required to contain at least one object"))
+	}
 
 	if err := r.Storage.Store(ctx, bundle, objects); err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %w", err))
