@@ -71,7 +71,7 @@ type BundleInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BundleInstanceSpec   `json:"spec,omitempty"`
+	Spec   BundleInstanceSpec   `json:"spec"`
 	Status BundleInstanceStatus `json:"status,omitempty"`
 }
 
