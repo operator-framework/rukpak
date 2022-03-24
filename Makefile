@@ -12,6 +12,8 @@ VERSION_PATH := $(PKG)/internal/version
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 PKGS = $(shell go list ./...)
 
+CONTAINER_RUNTIME ?= docker
+
 # kernel-style V=1 build verbosity
 ifeq ("$(origin V)", "command line")
   BUILD_VERBOSE = $(V)
@@ -114,12 +116,12 @@ bin/unpack:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd/unpack/...
 
 build-container: ## Builds provisioner container image locally
-	docker build -f Dockerfile -t $(IMAGE) .
+	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) .
 
 build-local-container: export GOOS=linux
 build-local-container: BIN_SUFFIX=-$(GOOS)
 build-local-container: build ## Builds the provisioner container image using locally built binaries
-	docker build -f Dockerfile.local -t $(IMAGE) .
+	$(CONTAINER_RUNTIME) build -f Dockerfile.local -t $(IMAGE) .
 
 kind-load: ## Load-image loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
