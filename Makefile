@@ -141,12 +141,14 @@ kind-load-bundles:
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/empty -t testdata/bundles/plain-v0:empty
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/no-manifests -t testdata/bundles/plain-v0:no-manifests
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-crds-and-crs -t testdata/bundles/plain-v0:invalid-crds-and-crs
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/unsupported/unsupported -t testdata/bundles/unsupported:unsupported
 	${KIND} load docker-image testdata/bundles/plain-v0:valid --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:dependent --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:provides --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:empty --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:no-manifests --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
+	${KIND} load docker-image testdata/bundles/unsupported:unsupported --name $(KIND_CLUSTER_NAME)
 
 kind-load: ## Load-image loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)

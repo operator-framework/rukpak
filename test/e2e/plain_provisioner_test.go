@@ -341,7 +341,56 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`found zero objects: plain+v0 bundles are required to contain at least one object`)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`found zero objects: bundles of type "bundles.rukpak.io/v0, Kind=Plain" must have at least one object`)),
+			))
+		})
+	})
+
+	When("a bundle that contains an unsupported format is created", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds-unsupported",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: "core.rukpak.io/plain",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/unsupported:unsupported",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		It("reports an unpack error due to an unsupported bundle format", func() {
+			By("waiting for the bundle to report back that state")
+			Eventually(func() (*metav1.Condition, error) {
+				err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
+				if err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`detected unsupported bundle format "bundles.rukpak.io/v0, Kind=Unsupported"`)),
 			))
 		})
 	})
