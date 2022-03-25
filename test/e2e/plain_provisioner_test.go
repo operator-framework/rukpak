@@ -7,9 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 const (
@@ -64,12 +64,12 @@ var _ = Describe("plain provisioner bundle", func() {
 
 		It("should eventually report a successful state", func() {
 			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() bool {
+				Eventually(func() (string, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return false
+						return "", err
 					}
-					return bundle.Status.Phase == rukpakv1alpha1.PhaseUnpacked
-				}).Should(BeTrue())
+					return bundle.Status.Phase, nil
+				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
 			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
@@ -82,15 +82,15 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			By("eventually writing a non-empty list of unpacked objects to the status", func() {
-				Eventually(func() bool {
+				Eventually(func() (int, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return false
+						return -1, err
 					}
 					if bundle.Status.Info == nil {
-						return false
+						return -1, fmt.Errorf("bundle.Status.Info is nil")
 					}
-					return len(bundle.Status.Info.Objects) == 8
-				}).Should(BeTrue())
+					return len(bundle.Status.Info.Objects), nil
+				}).Should(Equal(8))
 			})
 		})
 
@@ -421,35 +421,28 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 
 		It("should project a failed installation state", func() {
-			Eventually(func() bool {
+			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
-					return false
+					return nil, err
 				}
 				if bi.Status.InstalledBundleName != "" {
-					return false
+					return nil, fmt.Errorf("bi.Status.InstalledBundleName is non-empty (%q)", bi.Status.InstalledBundleName)
 				}
-				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
-				if existing == nil {
-					return false
-				}
-				// TODO(tflannag): Add a custom error type for API-based Bundle installations that
-				// are missing the requisite CRDs to be able to deploy the unpacked Bundle successfully.
-				expectedMessage := `
-				error while running post render on files: [unable to recognize "": no
-				matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1",
-				unable to recognize "": no matches for kind "ClusterServiceVersion" in version
-				"operators.coreos.com/v1alpha1", unable to recognize "": no matches for kind
-				"OLMConfig" in version "operators.coreos.com/v1", unable to recognize "": no
-				matches for kind "OperatorGroup" in version "operators.coreos.com/v1"]
-				`
-				expected := metav1.Condition{
-					Type:    "Installed",
-					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
-					Reason:  "InstallFailed",
-					Message: strings.Join(strings.Fields(expectedMessage), " "),
-				}
-				return conditionsSemanticallyEqual(expected, *existing)
-			}).Should(BeTrue())
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, And(
+					// TODO(tflannag): Add a custom error type for API-based Bundle installations that
+					// are missing the requisite CRDs to be able to deploy the unpacked Bundle successfully.
+					ContainSubstring(`no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"`),
+					ContainSubstring(`no matches for kind "ClusterServiceVersion" in version "operators.coreos.com/v1alpha1"`),
+					ContainSubstring(`no matches for kind "OLMConfig" in version "operators.coreos.com/v1"`),
+					ContainSubstring(`no matches for kind "OperatorGroup" in version "operators.coreos.com/v1"`),
+				)),
+			))
 		})
 	})
 
