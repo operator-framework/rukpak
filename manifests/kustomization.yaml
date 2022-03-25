@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - core.rukpak.io_bundles.yaml
+
+patches:
+  - patch: |- 
+      - op: add 
+        path: /metadata/annotations/kustomize 
+        value: true
+
+    target:
+      name: bundles.core.rukpak.io
+
+
+# path: /spec/versions/schema/openAPIV3Schema/spec/properties/source/type
