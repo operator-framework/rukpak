@@ -247,6 +247,60 @@ var _ = Describe("plain provisioner bundle", func() {
 			}).Should(BeTrue())
 		})
 	})
+
+	When("a bundle containing no manifests is created", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds-unsupported",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: "core.rukpak.io/plain",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:empty",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		// TODO: update the unpacker to correctly handle empty directories.
+		//   Right now it only outputs a map of filenames with their contents,
+		//   so empty directories don't show up in the FS read by the provisioner.
+		//   Once we make the unpacker support empty dirs, add another test to
+		//   handle that case.
+		It("reports an unpack error when the manifests directory is missing", func() {
+			By("waiting for the bundle to report back that state")
+			Eventually(func() (*metav1.Condition, error) {
+				err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
+				if err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`open manifests: file does not exist`)),
+			))
+		})
+	})
 })
 
 var _ = Describe("plain provisioner bundleinstance", func() {

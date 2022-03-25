@@ -126,8 +126,10 @@ build-local-container: build ## Builds the provisioner container image using loc
 
 kind-load-bundles:
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/empty -t testdata/bundles/plain-v0:empty
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-crds-and-crs -t testdata/bundles/plain-v0:invalid-crds-and-crs
 	${KIND} load docker-image testdata/bundles/plain-v0:valid --name $(KIND_CLUSTER_NAME)
+	${KIND} load docker-image testdata/bundles/plain-v0:empty --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
 
 kind-load: ## Load-image loads the currently constructed image onto the cluster
