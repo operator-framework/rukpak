@@ -222,8 +222,8 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *rukpakv1
 		if bundle.Spec.Source.Image != nil {
 			pod.Spec.Containers[0].Name = bundleUnpackContainerName
 			pod.Spec.Containers[0].Image = bundle.Spec.Source.Image.Ref
-			pod.Spec.Containers[0].Command = []string{"/util/unpack", "--bundle-dir", "/manifests"}
-			pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/util"}}
+			pod.Spec.Containers[0].Command = []string{"/bin/unpack", "--bundle-dir", "/"}
+			pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}}
 		}
 		return nil
 	})
@@ -346,7 +346,7 @@ func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error)
 
 func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 	var objects []client.Object
-	const manifestsDir = "."
+	const manifestsDir = "manifests"
 
 	entries, err := fs.ReadDir(bundleFS, manifestsDir)
 	if err != nil {
