@@ -48,7 +48,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+							Ref: "testdata/bundles/plain-v0:valid",
 						},
 					},
 				},
@@ -73,16 +73,12 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
-				Eventually(func() bool {
+				Eventually(func() (string, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return false
+						return "", err
 					}
-					// Note(tflannag): This may make the test fairly brittle over time. Let's re-evaluate
-					// whether we want to test this kind of comparison if there's the potential for moving
-					// tags for Bundle container images.
-					expectedDigest := "quay.io/tflannag/olm-plain-bundle@sha256:2a72e4a7bc6c7598d1ecdb2f082c865a91dda35ab8e4a8e8bc128cf49a2a619b"
-					return bundle.Status.Digest == expectedDigest
-				}).Should(BeTrue())
+					return bundle.Status.Digest, nil
+				}).Should(Not(Equal("")))
 			})
 
 			By("eventually writing a non-empty list of unpacked objects to the status", func() {
@@ -196,7 +192,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "quay.io/tflannag/olm-plain-bundle:non-existent-tag",
+							Ref: "testdata/bundles/plain-v0:non-existent-tag",
 						},
 					},
 				},
@@ -273,7 +269,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+							Ref: "testdata/bundles/plain-v0:valid",
 						},
 					},
 				},
@@ -392,7 +388,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "quay.io/tflannag/olm-plain-bundle:olm-api-v0.20.0",
+							Ref: "testdata/bundles/plain-v0:invalid-crds-and-crs",
 						},
 					},
 				},
@@ -477,7 +473,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+							Ref: "testdata/bundles/plain-v0:valid",
 						},
 					},
 				},

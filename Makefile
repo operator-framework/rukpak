@@ -8,6 +8,7 @@ IMAGE_TAG=latest
 IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= kind
 KIND := kind
+TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 PKGS = $(shell go list ./...)
@@ -100,7 +101,7 @@ run: build-local-container kind-load deploy ## Build image and run operator in-c
 ##################
 # Build and Load #
 ##################
-.PHONY: build bin/plain bin/unpack build-local-container kind-load kind-cluster
+.PHONY: build bin/plain bin/unpack build-local-container kind-load kind-load-bundles kind-cluster
 
 ##@ build/load:
 
@@ -123,6 +124,12 @@ build-local-container: BIN_SUFFIX=-$(GOOS)
 build-local-container: build ## Builds the provisioner container image using locally built binaries
 	$(CONTAINER_RUNTIME) build -f Dockerfile.local -t $(IMAGE) .
 
+kind-load-bundles:
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-crds-and-crs -t testdata/bundles/plain-v0:invalid-crds-and-crs
+	${KIND} load docker-image testdata/bundles/plain-v0:valid --name $(KIND_CLUSTER_NAME)
+	${KIND} load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
+
 kind-load: ## Load-image loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
@@ -131,7 +138,7 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 	${KIND} create cluster --name ${KIND_CLUSTER_NAME}
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: build-container kind-cluster kind-load deploy test-e2e ## Run e2e tests against a kind cluster
+e2e: build-container kind-cluster kind-load kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
 
 ################
 # Hack / Tools #
