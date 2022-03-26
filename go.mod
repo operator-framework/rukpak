@@ -5,12 +5,13 @@ go 1.17
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-logr/logr v1.2.0
+	github.com/nlepage/go-tarfs v1.1.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
 	github.com/operator-framework/api v0.13.0
 	github.com/operator-framework/helm-operator-plugins v0.0.9
 	github.com/spf13/cobra v1.3.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	helm.sh/helm/v3 v3.8.0
 	k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver v0.23.1

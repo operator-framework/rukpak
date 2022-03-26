@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,8 +27,8 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
-	"testing/fstest"
 
+	"github.com/nlepage/go-tarfs"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -306,20 +307,23 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 }
 
 func (r *BundleReconciler) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
-	bundleContentsData, err := r.getPodLogs(ctx, pod)
+	bundleData, err := r.getPodLogs(ctx, pod)
 	if err != nil {
 		return nil, fmt.Errorf("get bundle contents: %w", err)
 	}
-	decoder := json.NewDecoder(bytes.NewReader(bundleContentsData))
-	bundleContents := map[string][]byte{}
-	if err := decoder.Decode(&bundleContents); err != nil {
-		return nil, err
+	bd := struct {
+		Content []byte `json:"content"`
+	}{}
+
+	if err := json.Unmarshal(bundleData, &bd); err != nil {
+		return nil, fmt.Errorf("parse bundle data: %w", err)
 	}
-	bundleFS := fstest.MapFS{}
-	for name, data := range bundleContents {
-		bundleFS[name] = &fstest.MapFile{Data: data}
+
+	gzr, err := gzip.NewReader(bytes.NewReader(bd.Content))
+	if err != nil {
+		return nil, fmt.Errorf("read bundle content gzip: %w", err)
 	}
-	return bundleFS, nil
+	return tarfs.New(gzr)
 }
 
 func (r *BundleReconciler) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
@@ -350,7 +354,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 
 	entries, err := fs.ReadDir(bundleFS, manifestsDir)
 	if err != nil {
-		return nil, fmt.Errorf("read manifests: %w", err)
+		return nil, err
 	}
 	for _, e := range entries {
 		if e.IsDir() {
@@ -369,7 +373,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 				break
 			}
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("read %q: %w", e.Name(), err)
 			}
 			objects = append(objects, &obj)
 		}

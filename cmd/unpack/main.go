@@ -1,8 +1,12 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -42,10 +46,16 @@ func main() {
 			}
 
 			bundleFS := os.DirFS(bundleDir)
-			bundleContents := map[string][]byte{}
+			buf := &bytes.Buffer{}
+			gzw := gzip.NewWriter(buf)
+			tw := tar.NewWriter(gzw)
 			if err := fs.WalkDir(bundleFS, ".", func(path string, d fs.DirEntry, err error) error {
 				if err != nil {
 					return err
+				}
+
+				if d.Type()&os.ModeSymlink != 0 {
+					return nil
 				}
 				if bundleDir == "/" {
 					// If bundleDir is the filesystem root, skip some known unrelated directories
@@ -54,22 +64,51 @@ func main() {
 						return filepath.SkipDir
 					}
 				}
+				info, err := d.Info()
+				if err != nil {
+					return fmt.Errorf("get file info for %q: %w", path, err)
+				}
+
+				h, err := tar.FileInfoHeader(info, "")
+				if err != nil {
+					return fmt.Errorf("build tar file info header for %q: %w", path, err)
+				}
+				h.Uid = 0
+				h.Gid = 0
+				h.Uname = ""
+				h.Gname = ""
+				h.Name = path
+
+				if err := tw.WriteHeader(h); err != nil {
+					return fmt.Errorf("write tar header for %q: %w", path, err)
+				}
 				if d.IsDir() {
 					return nil
 				}
-				data, err := fs.ReadFile(bundleFS, path)
+				f, err := bundleFS.Open(path)
 				if err != nil {
-					return fmt.Errorf("read file %q: %w", path, err)
+					return fmt.Errorf("open file %q: %w", path, err)
 				}
-				bundleContents[path] = data
+				if _, err := io.Copy(tw, f); err != nil {
+					return fmt.Errorf("write tar data for %q: %w", path, err)
+				}
 				return nil
 			}); err != nil {
-				log.Fatalf("walk bundle dir %q: %v", bundleDir, err)
+				log.Fatalf("generate tar.gz for bundle dir %q: %v", bundleDir, err)
+			}
+			if err := tw.Close(); err != nil {
+				log.Fatal(err)
+			}
+			if err := gzw.Close(); err != nil {
+				log.Fatal(err)
 			}
 
-			encoder := json.NewEncoder(os.Stdout)
-			if err := encoder.Encode(bundleContents); err != nil {
-				log.Fatal(err)
+			bundleMap := map[string]interface{}{
+				"content": buf.Bytes(),
+			}
+			enc := json.NewEncoder(os.Stdout)
+			if err := enc.Encode(bundleMap); err != nil {
+				log.Fatalf("encode bundle map as JSON: %v", err)
 			}
 			return nil
 		},
