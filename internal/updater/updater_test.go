@@ -3,7 +3,7 @@ package updater_test
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
