@@ -78,6 +78,8 @@ test-unit: setup-envtest ## Run the unit tests
 test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -v -trace -progress test/e2e
 
+test-e2e-local: kind-cluster run kind-load-bundles test-e2e ## Deploys rukpak onto a new local cluster and runs e2e tests
+
 ###################
 # Install and Run #
 ###################
