@@ -4,24 +4,32 @@ on:
   push:
     branches:
     - main
+  pull_request:
+    branches: [ main ]
 
 jobs: 
   main:
     runs-on: ubuntu-latest
+    env:
+      IMAGE: quay.io/operator-framework/plain-provisioner:main
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '~1.17'
+
+      - name: Build container
+        run: make build-container
 
       - name: Login to quay.io
         uses: docker/login-action@v1
+        if: ${{ (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_PASSWORD }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
-        with:
-          context: .
-          push: true
-          tags: quay.io/operator-framework/plain-provisioner:main
+      - name: Push Docker image
+        if: ${{ (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
+        run: docker push ${{ env.IMAGE }}
 
