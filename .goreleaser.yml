@@ -39,7 +39,7 @@ builds:
 dockers:
 - image_templates:
   - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"
-  dockerfile: Dockerfile.goreleaser
+  dockerfile: Dockerfile
   use: buildx
   goos: linux
   goarch: amd64

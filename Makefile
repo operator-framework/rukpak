@@ -8,6 +8,7 @@ IMAGE_TAG=latest
 IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= kind
 KIND := kind
+BIN_DIR := bin
 TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
@@ -99,7 +100,7 @@ install: install-plain ## Install all rukpak core CRDs and provisioners
 deploy: install-apis ## Deploy the operator to the current cluster
 	kubectl apply -f internal/provisioner/plain/manifests
 
-run: build-local-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
+run: build-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
 
 cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
@@ -108,31 +109,27 @@ cert-mgr: ## Install the certification manager
 ##################
 # Build and Load #
 ##################
-.PHONY: build bin/plain bin/unpack bin/core build-local-container kind-load kind-load-bundles kind-cluster
+.PHONY: build plain unpack core build-container kind-load kind-load-bundles kind-cluster
 
 ##@ build/load:
 
 # Binary builds
-GO_BUILD := $(Q)go build
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: bin/plain bin/unpack bin/core
+build: plain unpack core
 
-bin/plain:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./internal/provisioner/plain
+plain:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/plain
 
-bin/unpack:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd/unpack/...
+unpack:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/unpack/...
 
-bin/core:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $@$(BIN_SUFFIX) ./cmd
+core:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd
 
-build-container: ## Builds provisioner container image locally
-	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) .
-
-build-local-container: export GOOS=linux
-build-local-container: BIN_SUFFIX=-$(GOOS)
-build-local-container: build ## Builds the provisioner container image using locally built binaries
-	$(CONTAINER_RUNTIME) build -f Dockerfile.local -t $(IMAGE) .
+build-container: export GOOS=linux
+build-container: BIN_DIR:=$(BIN_DIR)/$(GOOS)
+build-container: build ## Builds provisioner container image locally
+	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) $(BIN_DIR)
 
 kind-load-bundles:
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
@@ -157,7 +154,6 @@ e2e: build-container kind-cluster kind-load cert-mgr kind-load-bundles deploy te
 ################
 # Hack / Tools #
 ################
-BIN_DIR := bin
 TOOLS_DIR := hack/tools
 TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
 
