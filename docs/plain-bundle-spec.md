@@ -47,7 +47,7 @@ COPY /manifests /manifests
 
 where the given `manifests` directory contains the Kubernetes resources required to deploy an application, for example:
 
-```
+```tree
 manifests
 ├── namespace.yaml
 ├── cluster_role.yaml
@@ -88,7 +88,7 @@ image by taking the following steps:
 1. First let's pull down the combo repository.
 
 ```bash
-$ git clone https://github.com/operator-framework/combo
+git clone https://github.com/operator-framework/combo
 ```
 
 2. Let's take a look at the combo manifests directory to make sure it is a valid bundle.
@@ -111,13 +111,13 @@ sourced and unpacked by the plain provisioner. Let's package it up as a plain bu
 3. Create a new Dockerfile at the root of the RukPak repository named Dockerfile.example
 
 ```bash
-$ touch Dockerfile.example
+touch Dockerfile.example
 ```
 
 4. Edit the Dockerfile to include the following:
 
 ```bash
-$ cat <<EOF > Dockerfile.example
+cat <<EOF > Dockerfile.example
 FROM scratch
 COPY combo/manifests /manifests
 EOF
@@ -127,25 +127,25 @@ EOF
    have push access to. For example,
 
 ```bash
-$ docker build -f Dockerfile.example -t quay.io/operator-framework/plain-provisioner:example .
+docker build -f Dockerfile.example -t quay.io/operator-framework/plain-provisioner:example .
 ```
 
 6. Push the image to the remote registry
 
 ```bash
-$ docker push quay.io/operator-framework/plain-provisioner:example
+docker push quay.io/operator-framework/plain-provisioner:example
 ```
 
 7. Make sure rukpak is installed locally on a running cluster.
 
 ```bash
-$ make run
+make run
 ```
 
 8. Now that the plain bundle image has been built, it can be referenced in a Bundle and applied to the cluster.
 
 ```bash
-$ kubectl apply -f -<<EOF
+kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
 kind: Bundle
 metadata:
