@@ -544,6 +544,135 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 	})
 
+	When("a BundleInstance is dependent on another BundleInstance", func() {
+		var (
+			ctx             context.Context
+			dependentBundle *rukpakv1alpha1.Bundle
+			dependentBI     *rukpakv1alpha1.BundleInstance
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing dependent Bundle resource")
+			dependentBundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-bundle-dependent-",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:dependent",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, dependentBundle)
+			Expect(err).To(BeNil())
+
+			By("creating the testing dependent BundleInstance resource")
+			dependentBI = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-bi-dependent-",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           dependentBundle.GetName(),
+				},
+			}
+			err = c.Create(ctx, dependentBI)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing dependent Bundle resource")
+			Expect(client.IgnoreNotFound(c.Delete(ctx, dependentBundle))).To(BeNil())
+
+			By("deleting the testing dependent BundleInstance resource")
+			Expect(client.IgnoreNotFound(c.Delete(ctx, dependentBI))).To(BeNil())
+
+		})
+		When("the providing BundleInstance does not exist", func() {
+			It("should eventually project a failed installation for the dependent BundleInstance", func() {
+				Eventually(func() (*metav1.Condition, error) {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBI), dependentBI); err != nil {
+						return nil, err
+					}
+					return meta.FindStatusCondition(dependentBI.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallFailed)),
+					WithTransform(func(c *metav1.Condition) string { return c.Message },
+						ContainSubstring(`unable to recognize "": no matches for kind "OperatorGroup" in version "operators.coreos.com/v1"`)),
+				))
+			})
+		})
+		When("the providing BundleInstance is created", func() {
+			var (
+				providesBundle *rukpakv1alpha1.Bundle
+				providesBI     *rukpakv1alpha1.BundleInstance
+			)
+			BeforeEach(func() {
+				ctx = context.Background()
+
+				By("creating the testing providing Bundle resource")
+				providesBundle = &rukpakv1alpha1.Bundle{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "e2e-bundle-providing-",
+					},
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plainProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeImage,
+							Image: &rukpakv1alpha1.ImageSource{
+								Ref: "testdata/bundles/plain-v0:provides",
+							},
+						},
+					},
+				}
+				err := c.Create(ctx, providesBundle)
+				Expect(err).To(BeNil())
+
+				By("creating the testing providing BI resource")
+				providesBI = &rukpakv1alpha1.BundleInstance{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "e2e-bi-providing-",
+					},
+					Spec: rukpakv1alpha1.BundleInstanceSpec{
+						ProvisionerClassName: plainProvisionerID,
+						BundleName:           providesBundle.GetName(),
+					},
+				}
+				err = c.Create(ctx, providesBI)
+				Expect(err).To(BeNil())
+			})
+			AfterEach(func() {
+				By("deleting the testing providing Bundle resource")
+				Expect(client.IgnoreNotFound(c.Delete(ctx, providesBundle))).To(BeNil())
+
+				By("deleting the testing providing BundleInstance resource")
+				Expect(client.IgnoreNotFound(c.Delete(ctx, providesBI))).To(BeNil())
+
+			})
+			It("should eventually project a successful installation for the dependent BundleInstance", func() {
+				Eventually(func() (*metav1.Condition, error) {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBI), dependentBI); err != nil {
+						return nil, err
+					}
+					return meta.FindStatusCondition(dependentBI.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+					WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal("")),
+				))
+			})
+		})
+	})
+
 	When("a BundleInstance targets a valid bundle but the bundle contains resources that already exist", func() {
 		var (
 			bundle      *rukpakv1alpha1.Bundle
