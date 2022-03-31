@@ -359,7 +359,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 	}
 	for _, e := range entries {
 		if e.IsDir() {
-			continue
+			return nil, fmt.Errorf("subdirectories are not allowed within the %q directory of the bundle image filesystem: found %q", manifestsDir, filepath.Join(manifestsDir, e.Name()))
 		}
 		fileData, err := fs.ReadFile(bundleFS, filepath.Join(manifestsDir, e.Name()))
 		if err != nil {
