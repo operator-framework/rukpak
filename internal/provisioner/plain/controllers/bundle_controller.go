@@ -21,19 +21,15 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
 	"strings"
 
 	"github.com/nlepage/go-tarfs"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -42,6 +38,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/bundle"
+	v0 "github.com/operator-framework/rukpak/internal/bundle/plain/v0"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/updater"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -256,7 +254,7 @@ func updateStatusUnpackFailing(u *updater.Updater, err error) error {
 	return err
 }
 
-func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Updater, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) error {
+func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Updater, b *rukpakv1alpha1.Bundle, pod *corev1.Pod) error {
 	bundleFS, err := r.getBundleContents(ctx, pod)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle contents: %w", err))
@@ -267,16 +265,24 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle image digest: %w", err))
 	}
 
-	objects, err := getObjects(bundleFS)
+	bundleMetadata, err := bundle.MetadataFromFS(bundleFS)
 	if err != nil {
-		return updateStatusUnpackFailing(u, fmt.Errorf("get objects from bundle manifests: %w", err))
-	}
-	if len(objects) == 0 {
-		return updateStatusUnpackFailing(u, errors.New("invalid bundle: found zero objects: "+
-			"plain+v0 bundles are required to contain at least one object"))
+		return updateStatusUnpackFailing(u, fmt.Errorf("read bundle metadata from filesystem: %w", err))
 	}
 
-	if err := r.Storage.Store(ctx, bundle, objects); err != nil {
+	var objects []client.Object
+	switch gvk := bundleMetadata.GroupVersionKind(); gvk {
+	case v0.GVK:
+		b, err := v0.LoadFS(bundleFS)
+		if err != nil {
+			return updateStatusUnpackFailing(u, fmt.Errorf("load %q bundle from filesystem: %w", gvk, err))
+		}
+		objects = b.Objects
+	default:
+		return updateStatusUnpackFailing(u, fmt.Errorf(`load bundle from filesystem: detected unsupported bundle format %q`, gvk))
+	}
+
+	if err := r.Storage.Store(ctx, b, objects); err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %w", err))
 	}
 
@@ -346,39 +352,6 @@ func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error)
 		}
 	}
 	return "", fmt.Errorf("bundle image digest not found")
-}
-
-func getObjects(bundleFS fs.FS) ([]client.Object, error) {
-	var objects []client.Object
-	const manifestsDir = "manifests"
-
-	entries, err := fs.ReadDir(bundleFS, manifestsDir)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		fileData, err := fs.ReadFile(bundleFS, filepath.Join(manifestsDir, e.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		dec := apimachyaml.NewYAMLOrJSONDecoder(bytes.NewReader(fileData), 1024)
-		for {
-			obj := unstructured.Unstructured{}
-			err := dec.Decode(&obj)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				return nil, fmt.Errorf("read %q: %w", e.Name(), err)
-			}
-			objects = append(objects, &obj)
-		}
-	}
-	return objects, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
