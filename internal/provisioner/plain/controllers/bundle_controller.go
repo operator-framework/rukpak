@@ -50,6 +50,7 @@ import (
 const (
 	bundleUnpackContainerName  = "bundle"
 	plainBundleProvisionerName = "plain"
+	manifestsDir               = "manifests"
 )
 
 // BundleReconciler reconciles a Bundle object
@@ -267,7 +268,7 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle image digest: %w", err))
 	}
 
-	objects, err := getObjects(bundleFS)
+	objects, err := getObjects(manifestsDir, bundleFS)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get objects from bundle manifests: %w", err))
 	}
@@ -348,19 +349,23 @@ func (r *BundleReconciler) getBundleImageDigest(pod *corev1.Pod) (string, error)
 	return "", fmt.Errorf("bundle image digest not found")
 }
 
-func getObjects(bundleFS fs.FS) ([]client.Object, error) {
+func getObjects(path string, bundleFS fs.FS) ([]client.Object, error) {
 	var objects []client.Object
-	const manifestsDir = "manifests"
 
-	entries, err := fs.ReadDir(bundleFS, manifestsDir)
+	entries, err := fs.ReadDir(bundleFS, path)
 	if err != nil {
 		return nil, err
 	}
 	for _, e := range entries {
 		if e.IsDir() {
+			subObjects, err := getObjects(filepath.Join(path, e.Name()), bundleFS)
+			if err != nil {
+				return nil, err
+			}
+			objects = append(objects, subObjects...)
 			continue
 		}
-		fileData, err := fs.ReadFile(bundleFS, filepath.Join(manifestsDir, e.Name()))
+		fileData, err := fs.ReadFile(bundleFS, filepath.Join(path, e.Name()))
 		if err != nil {
 			return nil, err
 		}

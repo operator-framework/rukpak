@@ -135,6 +135,7 @@ build-local-container: build ## Builds the provisioner container image using loc
 	$(CONTAINER_RUNTIME) build -f Dockerfile.local -t $(IMAGE) .
 
 kind-load-bundles:
+	@mkdir $(TESTDATA_DIR)/bundles/plain-v0/valid/manifests/emptydir
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/dependent -t testdata/bundles/plain-v0:dependent
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/provides -t testdata/bundles/plain-v0:provides
