@@ -80,6 +80,13 @@ FOCUS := $(if $(TEST),-focus "$(TEST)")
 test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -v -trace -progress $(FOCUS) test/e2e
 
+e2e: KIND_CLUSTER_NAME=rukpak-e2e
+e2e: build-container kind-cluster kind-load cert-mgr kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
+
+kind-cluster: ## Standup a kind cluster for e2e testing usage
+	${KIND} delete cluster --name ${KIND_CLUSTER_NAME}
+	${KIND} create cluster --name ${KIND_CLUSTER_NAME}
+
 ###################
 # Install and Run #
 ###################
@@ -134,7 +141,7 @@ build-local-container: BIN_SUFFIX=-$(GOOS)
 build-local-container: build ## Builds the provisioner container image using locally built binaries
 	$(CONTAINER_RUNTIME) build -f Dockerfile.local -t $(IMAGE) .
 
-kind-load-bundles:
+kind-load-bundles: ## Load the e2e testdata container images into a kind cluster
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/dependent -t testdata/bundles/plain-v0:dependent
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/provides -t testdata/bundles/plain-v0:provides
@@ -150,13 +157,6 @@ kind-load-bundles:
 
 kind-load: ## Load-image loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
-
-kind-cluster: ## Standup a kind cluster for e2e testing usage
-	${KIND} delete cluster --name ${KIND_CLUSTER_NAME}
-	${KIND} create cluster --name ${KIND_CLUSTER_NAME}
-
-e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: build-container kind-cluster kind-load cert-mgr kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
 
 ################
 # Hack / Tools #
