@@ -28,6 +28,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,6 +46,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/crd"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -154,6 +156,32 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			})
 			return ctrl.Result{}, err
 		}
+
+		/*
+			Check if the current object is a CRD. If it is, validate it to ensure safe and
+			non-destructive upgrades.
+
+			TODO (tylerslaton): Convert crd validation into an AdmissionWebhook
+
+			Eventually we want to convert this code segment into an webhook that validates
+			this logic agnostic of any one provisioner. There was some contention around.
+			Eventually it was settled on implenting this interface but should not be the end
+			product for this behavior.
+		*/
+		var unmarshalledCRD apiextensionsv1.CustomResourceDefinition
+		err = yaml.Unmarshal(jsonData, &unmarshalledCRD)
+		if err == nil && unmarshalledCRD.GroupVersionKind() == apiextensionsv1.SchemeGroupVersion.WithKind("CustomResourceDefinition") {
+			if err := crd.Validate(ctx, r.Client, &unmarshalledCRD); err != nil {
+				meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
+					Type:    rukpakv1alpha1.TypeInstalled,
+					Status:  metav1.ConditionFalse,
+					Reason:  rukpakv1alpha1.ReasonUnsafeCRDUpgrade,
+					Message: err.Error(),
+				})
+				return ctrl.Result{}, err
+			}
+		}
+
 		hash := sha256.Sum256(jsonData)
 		chrt.Templates = append(chrt.Templates, &chart.File{
 			Name: fmt.Sprintf("object-%x.yaml", hash[0:8]),

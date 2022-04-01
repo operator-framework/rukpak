@@ -1,4 +1,4 @@
-package util
+package crd
 
 import (
 	"context"
@@ -13,49 +13,29 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func CreateOrUpdateCRD(ctx context.Context, cl client.Client, crd *apiextensionsv1.CustomResourceDefinition) (controllerutil.OperationResult, error) {
-	createCRD := crd.DeepCopy()
-	createErr := cl.Create(ctx, createCRD)
-	if createErr == nil {
-		return controllerutil.OperationResultCreated, nil
+func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.CustomResourceDefinition) error {
+	oldCRD := &apiextensionsv1.CustomResourceDefinition{}
+	if err := cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
-	if !apierrors.IsAlreadyExists(createErr) {
-		return controllerutil.OperationResultNone, createErr
+
+	if err := validateCRDCompatibility(ctx, cl, oldCRD, newCrd); err != nil {
+		return fmt.Errorf("error validating existing CRs against new CRD's schema for %q: %w", newCrd.Name, err)
 	}
-	if updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentCRD := &apiextensionsv1.CustomResourceDefinition{}
-		if err := cl.Get(ctx, client.ObjectKeyFromObject(crd), currentCRD); err != nil {
-			return err
-		}
-		crd.SetResourceVersion(currentCRD.GetResourceVersion())
 
-		if err := validateCRDCompatibility(ctx, cl, currentCRD, crd); err != nil {
-			return fmt.Errorf("error validating existing CRs against new CRD's schema for %q: %w", crd.Name, err)
-		}
-
-		// check to see if stored versions changed and whether the upgrade could cause potential data loss
-		safe, err := safeStorageVersionUpgrade(currentCRD, crd)
-		if !safe {
-			return fmt.Errorf("risk of data loss updating %q: %w", crd.Name, err)
-		}
-		if err != nil {
-			return fmt.Errorf("checking CRD for potential data loss updating %q: %w", crd.Name, err)
-		}
-
-		// Update CRD to new version
-		if err := cl.Update(ctx, crd); err != nil {
-			return fmt.Errorf("error updating CRD %q: %w", crd.Name, err)
-		}
-		return nil
-	}); updateErr != nil {
-		return controllerutil.OperationResultNone, updateErr
+	// check to see if stored versions changed and whether the upgrade could cause potential data loss
+	safe, err := safeStorageVersionUpgrade(oldCRD, newCrd)
+	if !safe {
+		return fmt.Errorf("risk of data loss updating %q: %w", newCrd.Name, err)
 	}
-	return controllerutil.OperationResultUpdated, nil
+	if err != nil {
+		return fmt.Errorf("checking CRD for potential data loss updating %q: %w", newCrd.Name, err)
+	}
+
+	return nil
 }
 
 func keys(m map[string]apiextensionsv1.CustomResourceDefinitionVersion) sets.String {
