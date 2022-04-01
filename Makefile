@@ -87,7 +87,7 @@ test-e2e: ginkgo ## Run the e2e tests
 
 ##@ install/run:
 
-install-apis: generate ## Install the core rukpak CRDs
+install-apis: cert-mgr generate ## Install the core rukpak CRDs
 	kubectl apply -f manifests
 	kubectl apply -f manifests/bundle-webhook
 
