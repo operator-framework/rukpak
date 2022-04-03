@@ -206,10 +206,6 @@ func (r *BundleReconciler) ensureUnpackPod(ctx context.Context, bundle *rukpakv1
 		})
 		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
 		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
-		pod.Spec.Volumes = []corev1.Volume{
-			{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-			{Name: "manifests", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-		}
 		pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 
 		switch bundle.Spec.Source.Type {
@@ -410,6 +406,9 @@ func bundleImagePod(pod *corev1.Pod, source rukpakv1alpha1.ImageSource, unpackIm
 	pod.Spec.Containers[0].Command = []string{"/bin/unpack", "--bundle-dir", "/"}
 	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}}
 
+	pod.Spec.Volumes = []corev1.Volume{
+		{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+	}
 	return pod
 }
 
@@ -433,19 +432,23 @@ func bundleGitRepoPod(pod *corev1.Pod, source rukpakv1alpha1.GitSource, unpackIm
 		return nil, err
 	}
 	pod.Spec.InitContainers[1].Command = []string{"/bin/sh", "-c", cmd}
-	pod.Spec.InitContainers[1].VolumeMounts = []corev1.VolumeMount{{Name: "manifests", MountPath: "/manifests"}}
+	pod.Spec.InitContainers[1].VolumeMounts = []corev1.VolumeMount{{Name: "bundle", MountPath: "/bundle"}}
 
 	if len(pod.Spec.Containers) != 1 {
 		pod.Spec.Containers = make([]corev1.Container, 1)
 	}
 
 	pod.Spec.Containers[0].Name = bundleUnpackContainerName
-	// Note: the image for this pod is not relevant, as it exists only to run the unpacker against the manifests directory.
+	// Note: the image for this pod is not relevant, as it exists only to run the unpacker against the bundle directory.
 	pod.Spec.Containers[0].Image = unpackImage
 	pod.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
-	pod.Spec.Containers[0].Command = []string{"/bin/unpack", "--bundle-dir", "/"}
-	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}, {Name: "manifests", MountPath: "/manifests"}}
+	pod.Spec.Containers[0].Command = []string{"/bin/unpack", "--bundle-dir", "/bundle"}
+	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}, {Name: "bundle", MountPath: "/bundle"}}
 
+	pod.Spec.Volumes = []corev1.Volume{
+		{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+		{Name: "bundle", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+	}
 	return pod, nil
 }
 
