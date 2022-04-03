@@ -21,9 +21,9 @@ func TestCheckoutCommand(t *testing.T) {
 					Commit: "4567031e158b42263e70a7c63e29f8981a4a6135",
 				},
 			},
-			expected: fmt.Sprintf("git clone %s %s && cd %s && git checkout %s && cp -r %s/* /manifests",
+			expected: fmt.Sprintf("git clone %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s /bundle",
 				"https://github.com/operator-framework/combo", repositoryName, repositoryName, "4567031e158b42263e70a7c63e29f8981a4a6135",
-				"./manifests"),
+				"./"),
 		},
 		{
 			source: rukpakv1alpha1.GitSource{
@@ -32,8 +32,8 @@ func TestCheckoutCommand(t *testing.T) {
 					Tag: "v0.0.1",
 				},
 			},
-			expected: fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout tags/%s && cp -r %s/* /manifests",
-				"v0.0.1", "https://github.com/operator-framework/combo", repositoryName, repositoryName, "v0.0.1", "./manifests"),
+			expected: fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout tags/%s && rm -r .git && cp -r %s /bundle",
+				"v0.0.1", "https://github.com/operator-framework/combo", repositoryName, repositoryName, "v0.0.1", "./"),
 		},
 		{
 			source: rukpakv1alpha1.GitSource{
@@ -43,7 +43,7 @@ func TestCheckoutCommand(t *testing.T) {
 					Branch: "dev",
 				},
 			},
-			expected: fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout %s && cp -r %s/* /manifests",
+			expected: fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s /bundle",
 				"dev", "https://github.com/operator-framework/combo", repositoryName, repositoryName, "dev", "./deploy"),
 		},
 		{
