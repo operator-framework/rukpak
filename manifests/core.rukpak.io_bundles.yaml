@@ -18,6 +18,9 @@ spec:
         - jsonPath: .spec.source.image.ref
           name: Image
           type: string
+        - jsonPath: .spec.source.type
+          name: Type
+          type: string
         - jsonPath: .status.phase
           name: Phase
           type: string

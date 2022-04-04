@@ -117,6 +117,7 @@ type BundleObject struct {
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name=Image,type=string,JSONPath=`.spec.source.image.ref`
+//+kubebuilder:printcolumn:name=Type,type=string,JSONPath=`.spec.source.type`
 //+kubebuilder:printcolumn:name=Phase,type=string,JSONPath=`.status.phase`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 
