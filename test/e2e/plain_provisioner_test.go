@@ -842,6 +842,71 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 	})
 
+	When("a BundleInstance targets a Bundle that contains CRDs and instances of those CRDs", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			bi     *rukpakv1alpha1.BundleInstance
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-bundle-crds-and-crs",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:invalid-crds-and-crs",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			By("creating the testing BI resource")
+			bi = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-bi-crds-and-crs",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           bundle.GetName(),
+				},
+			}
+			err = c.Create(ctx, bi)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			By("deleting the testing BI resource")
+			err = c.Delete(ctx, bi)
+			Expect(err).To(BeNil())
+		})
+		It("eventually reports a failed installation state due to missing APIs on the cluster", func() {
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"`)),
+			))
+		})
+	})
+
 	When("a BundleInstance targets a valid bundle but the bundle contains resources that already exist", func() {
 		var (
 			bundle      *rukpakv1alpha1.Bundle
