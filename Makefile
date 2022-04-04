@@ -95,8 +95,8 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 
 ##@ install/run:
 
-install-apis: cert-mgr generate ## Install the core rukpak CRDs
-	kubectl apply -f manifests
+install-apis: cert-mgr generate kustomize ## Install the core rukpak CRDs
+	$(KUSTOMIZE) build manifests | kubectl apply -f -
 	kubectl apply -f manifests/bundle-webhook
 
 install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
@@ -167,13 +167,14 @@ TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
 
 ##@ hack/tools:
 
-.PHONY: golangci-lint ginkgo controller-gen goreleaser
+.PHONY: golangci-lint ginkgo controller-gen goreleaser kustomize
 
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/golangci-lint)
 GINKGO := $(abspath $(TOOLS_BIN_DIR)/ginkgo)
 CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
 GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
+KUSTOMIZE := $(abspath $(TOOLS_BIN_DIR)/kustomize)
 
 release: GORELEASER_ARGS ?= --snapshot --rm-dist
 release: goreleaser
@@ -184,6 +185,7 @@ ginkgo: $(GINKGO) ## Build a local copy of ginkgo
 golangci-lint: $(GOLANGCI_LINT) ## Build a local copy of golangci-lint
 setup-envtest: $(SETUP_ENVTEST) ## Build a local copy of envtest
 goreleaser: $(GORELEASER) ## Builds a local copy of goreleaser
+kustomize: $(KUSTOMIZE) ## Builds a local copy of kustomize
 
 $(CONTROLLER_GEN): $(TOOLS_DIR)/go.mod # Build controller-gen from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen
@@ -195,3 +197,5 @@ $(SETUP_ENVTEST): $(TOOLS_DIR)/go.mod # Build setup-envtest from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/setup-envtest sigs.k8s.io/controller-runtime/tools/setup-envtest
 $(GORELEASER): $(TOOLS_DIR)/go.mod # Build goreleaser from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/goreleaser github.com/goreleaser/goreleaser
+$(KUSTOMIZE): $(TOOLS_DIR)/go.mod # Build kustomize from tools folder.
+	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/kustomize sigs.k8s.io/kustomize/kustomize/v4

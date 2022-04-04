@@ -1,0 +1,10 @@
+resources:
+- core.rukpak.io_bundles.yaml
+- core.rukpak.io_bundleinstances.yaml
+patches:
+- path: crdvalidation.yaml
+  target:
+    group: apiextensions.k8s.io
+    version: v1
+    kind: CustomResourceDefinition
+    name: bundles.core.rukpak.io
