@@ -25,9 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-// Maximum length of bundle name
-const maxNameLength = 40
-
 // log is for logging in this package.
 var bundlelog = logf.Log.WithName("bundle-resource")
 
@@ -45,14 +42,14 @@ var _ webhook.Validator = &Bundle{}
 func (r *Bundle) ValidateCreate() error {
 	bundlelog.V(1).Info("validate create", "name", r.Name)
 
-	return checkNameLength(r)
+	return checkBundleSource(r)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Bundle) ValidateUpdate(old runtime.Object) error {
 	bundlelog.V(1).Info("validate update", "name", r.Name)
 
-	return checkNameLength(r)
+	return checkBundleSource(r)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -62,9 +59,16 @@ func (r *Bundle) ValidateDelete() error {
 	return nil
 }
 
-func checkNameLength(r *Bundle) error {
-	if len(r.Name) > maxNameLength {
-		return fmt.Errorf("bundle name %s is too long: maximum allowed name length is %d", r.GetName(), maxNameLength)
+func checkBundleSource(r *Bundle) error {
+	switch typ := r.Spec.Source.Type; typ {
+	case SourceTypeImage:
+		if r.Spec.Source.Image == nil {
+			return fmt.Errorf("bundle.spec.source.image must be set for source type \"image\"")
+		}
+	case SourceTypeGit:
+		if r.Spec.Source.Git == nil {
+			return fmt.Errorf("bundle.spec.source.git must be set for source type \"git\"")
+		}
 	}
 	return nil
 }
