@@ -882,9 +882,27 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 			err = c.Create(ctx, biOriginal)
 			Expect(err).To(BeNil(), "failed to create original bundle instance")
-			Eventually(func() error { // Guarantee that the original bundle instance is create prior to the duplicate
-				return c.Get(ctx, client.ObjectKeyFromObject(biOriginal), &rukpakv1alpha1.BundleInstance{})
-			}).Should(Succeed(), "failed to validate original bundle instance was created in time")
+
+			// ensure the original BI owns the underlying bundle before creating the duplicate
+			By("projecting a successful installation status for the original BundleInstance")
+			Eventually(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(biOriginal), biOriginal); err != nil {
+					return false
+				}
+				if biOriginal.Status.InstalledBundleName != bundle.GetName() {
+					return false
+				}
+				existing := meta.FindStatusCondition(biOriginal.Status.Conditions, rukpakv1alpha1.TypeInstalled)
+				if existing == nil {
+					return false
+				}
+				expected := metav1.Condition{
+					Type:   rukpakv1alpha1.TypeInstalled,
+					Status: metav1.ConditionStatus(corev1.ConditionTrue),
+					Reason: rukpakv1alpha1.ReasonInstallationSucceeded,
+				}
+				return conditionsSemanticallyEqual(*existing, expected)
+			}).Should(BeTrue())
 
 			biDuplicate = &rukpakv1alpha1.BundleInstance{
 				ObjectMeta: metav1.ObjectMeta{
@@ -901,9 +919,9 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 
 		AfterEach(func() {
-			By("deleting the testing Bundle resource")
+			By("deleting the testing duplicate BundleInstance resource")
 			Eventually(func() error {
-				return client.IgnoreNotFound(c.Delete(ctx, bundle))
+				return client.IgnoreNotFound(c.Delete(ctx, biDuplicate))
 			}).Should(Succeed())
 
 			By("deleting the testing original BundleInstance resource")
@@ -911,25 +929,14 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				return client.IgnoreNotFound(c.Delete(ctx, biOriginal))
 			}).Should(Succeed())
 
-			By("deleting the testing duplicate BundleInstance resource")
+			By("deleting the testing Bundle resource")
 			Eventually(func() error {
-				return client.IgnoreNotFound(c.Delete(ctx, biDuplicate))
+				return client.IgnoreNotFound(c.Delete(ctx, bundle))
 			}).Should(Succeed())
+
 		})
 
-		It("should succeed installation for the original but fail for the duplicate BundleInstance", func() {
-			By("projecting a successful installation status for the original BundleInstance")
-			Eventually(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(biOriginal), biOriginal); err != nil {
-					return false
-				}
-				if biOriginal.Status.InstalledBundleName != "" {
-					return false
-				}
-				existing := meta.FindStatusCondition(biOriginal.Status.Conditions, "Installed")
-				return existing != nil
-			})
-
+		It("should fail for the duplicate BundleInstance", func() {
 			By("projecting a failed installation status for the duplicate BundleInstance")
 			Eventually(func() bool {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(biDuplicate), biDuplicate); err != nil {
@@ -938,16 +945,16 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				if biDuplicate.Status.InstalledBundleName != "" {
 					return false
 				}
-				existing := meta.FindStatusCondition(biDuplicate.Status.Conditions, "Installed")
+				existing := meta.FindStatusCondition(biDuplicate.Status.Conditions, rukpakv1alpha1.TypeInstalled)
 				if existing == nil {
 					return false
 				}
 				// Create what the message should contain
 				looselyExpectedMessage := "rendered manifests contain a resource that already exists"
 				expected := metav1.Condition{
-					Type:    "Installed",
+					Type:    rukpakv1alpha1.TypeInstalled,
 					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
-					Reason:  "InstallFailed",
+					Reason:  rukpakv1alpha1.ReasonInstallFailed,
 					Message: looselyExpectedMessage,
 				}
 
