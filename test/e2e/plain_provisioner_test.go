@@ -655,7 +655,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:invalid-crds-and-crs",
+							Ref: "testdata/bundles/plain-v0:invalid-missing-crds",
 						},
 					},
 				},
