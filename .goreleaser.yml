@@ -28,7 +28,7 @@ builds:
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: core
-    main: ./cmd
+    main: ./cmd/core
     binary: core
     goos:
     - linux

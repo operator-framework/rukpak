@@ -131,7 +131,7 @@ unpack:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/unpack/...
 
 core:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/core/...
 
 build-container: export GOOS=linux
 build-container: BIN_DIR:=$(BIN_DIR)/$(GOOS)
