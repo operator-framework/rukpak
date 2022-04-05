@@ -81,18 +81,28 @@ func MetadataConfigMapName(bundleName string) string {
 	return fmt.Sprintf("bundle-metadata-%s", bundleName)
 }
 
+func newLabelSelector(name, kind string) labels.Selector {
+	kindRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.Equals, []string{kind})
+	if err != nil {
+		return nil
+	}
+	nameRequirement, err := labels.NewRequirement("core.rukpak.io/owner-name", selection.Equals, []string{name})
+	if err != nil {
+		return nil
+	}
+	return labels.NewSelector().Add(*kindRequirement, *nameRequirement)
+}
+
 // NewBundleLabelSelector is responsible for constructing a label.Selector
 // for any underlying resources that are associated with the Bundle parameter.
 func NewBundleLabelSelector(bundle *rukpakv1alpha1.Bundle) labels.Selector {
-	bundleRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.Equals, []string{"Bundle"})
-	if err != nil {
-		return nil
-	}
-	bundleNameRequirement, err := labels.NewRequirement("core.rukpak.io/owner-name", selection.Equals, []string{bundle.GetName()})
-	if err != nil {
-		return nil
-	}
-	return labels.NewSelector().Add(*bundleRequirement, *bundleNameRequirement)
+	return newLabelSelector(bundle.GetName(), "Bundle")
+}
+
+// NewBundleInstanceLabelSelector is responsible for constructing a label.Selector
+// for any underlying resources that are associated with the BundleInstance parameter.
+func NewBundleInstanceLabelSelector(bi *rukpakv1alpha1.BundleInstance) labels.Selector {
+	return newLabelSelector(bi.GetName(), "BundleInstance")
 }
 
 func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
