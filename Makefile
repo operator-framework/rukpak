@@ -77,9 +77,9 @@ UNIT_TEST_DIRS=$(shell go list ./... | grep -v /test/)
 test-unit: setup-envtest ## Run the unit tests
 	eval $$($(SETUP_ENVTEST) use -p env $(ENVTEST_VERSION)) && go test -count=1 -short $(UNIT_TEST_DIRS)
 
-FOCUS := $(if $(TEST),-focus "$(TEST)")
+FOCUS := $(if $(TEST),-v -focus "$(TEST)")
 test-e2e: ginkgo ## Run the e2e tests
-	$(GINKGO) -v -trace -progress $(FOCUS) test/e2e
+	$(GINKGO) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
 e2e: build-container kind-cluster kind-load cert-mgr kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
