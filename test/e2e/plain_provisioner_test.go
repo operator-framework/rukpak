@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -1066,7 +1067,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			Expect(client.IgnoreNotFound(c.Delete(ctx, b))).To(BeNil())
+			Expect(c.Get(ctx, client.ObjectKeyFromObject(b), &rukpakv1alpha1.Bundle{})).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should result in the underlying bundle unpack pod being deleted", func() {
 			By("deleting the test Bundle resource")
@@ -1161,7 +1162,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			Expect(c.Delete(ctx, b)).To(BeNil())
 
 			By("deleting the testing BI resource")
-			Expect(client.IgnoreNotFound(c.Delete(ctx, bi))).To(BeNil())
+			Expect(c.Get(ctx, client.ObjectKeyFromObject(bi), &rukpakv1alpha1.BundleInstance{})).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should eventually result in the installed CRDs being deleted", func() {
 			By("deleting the testing BI resource")
