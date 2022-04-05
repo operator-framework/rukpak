@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -1027,6 +1028,142 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 				return conditionsLooselyEqual(expected, *existing)
 			}).Should(BeTrue())
+		})
+	})
+
+	When("a BundleInstance is pivoted between Bundles that share a CRD", func() {
+		var (
+			ctx            context.Context
+			originalBundle *rukpakv1alpha1.Bundle
+			pivotedBundle  *rukpakv1alpha1.Bundle
+			bi             *rukpakv1alpha1.BundleInstance
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the original testing Bundle resource")
+			originalBundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-original-bundle-crd-pivoting",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:valid",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, originalBundle)
+			Expect(err).To(BeNil())
+
+			By("creating the pivoted testing Bundle resource")
+			pivotedBundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-pivoted-bundle-crd-pivoting",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:valid",
+						},
+					},
+				},
+			}
+			err = c.Create(ctx, pivotedBundle)
+			Expect(err).To(BeNil())
+
+			By("creating the testing BI resource")
+			bi = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-bi-crd-pivoting",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           originalBundle.GetName(),
+				},
+			}
+			err = c.Create(ctx, bi)
+			Expect(err).To(BeNil())
+
+			By("waiting for the BI to eventually report a successful install status")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal("")),
+			))
+		})
+		AfterEach(func() {
+			By("deleting the original testing Bundle resource")
+			err := c.Delete(ctx, originalBundle)
+			Expect(err).To(BeNil())
+
+			By("deleting the pivoted testing Bundle resource")
+			err = c.Delete(ctx, pivotedBundle)
+			Expect(err).To(BeNil())
+
+			By("deleting the testing BI resource")
+			err = c.Delete(ctx, bi)
+			Expect(err).To(BeNil())
+		})
+		When("a custom resource is instantiated", func() {
+			var (
+				og *operatorsv1.OperatorGroup
+				ns *corev1.Namespace
+			)
+			BeforeEach(func() {
+				By("creating the testing Namespace resource")
+				ns = &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "e2e-crd-pivoting",
+					},
+				}
+				Expect(c.Create(ctx, ns)).To(BeNil())
+
+				By("creating the testing OperatorGroup custom resource")
+				og = &operatorsv1.OperatorGroup{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "e2e-catsrc-crd-pivoting",
+						Namespace:    ns.GetName(),
+					},
+					Spec: operatorsv1.OperatorGroupSpec{},
+				}
+				Expect(c.Create(ctx, og)).To(BeNil())
+			})
+			AfterEach(func() {
+				By("deleting the testing OperatorGroup resource")
+				Expect(c.Delete(ctx, og)).To(BeNil())
+
+				By("deleting the testing Namespace resource")
+				Expect(c.Delete(ctx, ns)).To(BeNil())
+			})
+			It("should gracefully transfer ownership to the pivoted bundle", func() {
+				By("pivoting the testing BI resource from the original Bundle to the new Bundle")
+				Eventually(func() error {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+						return err
+					}
+					bi.Spec.BundleName = pivotedBundle.GetName()
+
+					return c.Update(ctx, bi)
+				}).Should(Succeed())
+
+				By("ensuring that the OperatorGroup custom resource consistently exists after transferring ownership")
+				Consistently(func() error {
+					return c.Get(ctx, client.ObjectKeyFromObject(og), og)
+				}).Should(Succeed())
+			})
 		})
 	})
 })
