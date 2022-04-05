@@ -6,8 +6,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,10 +29,13 @@ var _ = BeforeSuite(func() {
 	config := ctrl.GetConfigOrDie()
 
 	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
+	err := rukpakv1alpha1.AddToScheme(scheme)
 	Expect(err).To(BeNil())
 
 	err = corev1.AddToScheme(scheme)
+	Expect(err).To(BeNil())
+
+	err = apiextensionsv1.AddToScheme(scheme)
 	Expect(err).To(BeNil())
 
 	c, err = client.New(config, client.Options{Scheme: scheme})

@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -1024,6 +1025,158 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				}
 
 				return conditionsLooselyEqual(expected, *existing)
+			}).Should(BeTrue())
+		})
+	})
+})
+
+var _ = Describe("plain provisioner garbage collection", func() {
+	When("a Bundle has been deleted", func() {
+		var (
+			ctx context.Context
+			b   *rukpakv1alpha1.Bundle
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			b = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-ownerref-bundle-valid",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:valid",
+						},
+					},
+				},
+			}
+			Expect(c.Create(ctx, b)).To(BeNil())
+
+			By("eventually reporting an Unpacked phase")
+			Eventually(func() (string, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(b), b); err != nil {
+					return "", err
+				}
+				return b.Status.Phase, nil
+			}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			Expect(client.IgnoreNotFound(c.Delete(ctx, b))).To(BeNil())
+		})
+		It("should result in the underlying bundle unpack pod being deleted", func() {
+			By("deleting the test Bundle resource")
+			Expect(c.Delete(ctx, b)).To(BeNil())
+
+			By("waiting until all the configmaps have been deleted")
+			selector := util.NewBundleLabelSelector(b)
+			Eventually(func() bool {
+				pods := &corev1.PodList{}
+				if err := c.List(ctx, pods, &client.ListOptions{
+					Namespace:     defaultSystemNamespace,
+					LabelSelector: selector,
+				}); err != nil {
+					return false
+				}
+				return len(pods.Items) == 0
+			}).Should(BeTrue())
+		})
+		It("should result in the underlying metadata/object configmaps being deleted", func() {
+			By("deleting the test Bundle resource")
+			Expect(c.Delete(ctx, b)).To(BeNil())
+
+			By("waiting until all the configmaps have been deleted")
+			selector := util.NewBundleLabelSelector(b)
+			Eventually(func() bool {
+				cms := &corev1.ConfigMapList{}
+				if err := c.List(ctx, cms, &client.ListOptions{
+					Namespace:     defaultSystemNamespace,
+					LabelSelector: selector,
+				}); err != nil {
+					return false
+				}
+				return len(cms.Items) == 0
+			}).Should(BeTrue())
+		})
+	})
+
+	When("a BundleInstance has been deleted", func() {
+		var (
+			ctx context.Context
+			b   *rukpakv1alpha1.Bundle
+			bi  *rukpakv1alpha1.BundleInstance
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			b = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-ownerref-bundle-valid",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plainProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:valid",
+						},
+					},
+				},
+			}
+			Expect(c.Create(ctx, b)).To(BeNil())
+
+			By("creating the testing BI resource")
+			bi = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "e2e-ownerref-bi-valid",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plainProvisionerID,
+					BundleName:           b.GetName(),
+				},
+			}
+			Expect(c.Create(ctx, bi)).To(BeNil())
+
+			By("waiting for the BI to eventually report a successful install status")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal("")),
+			))
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			Expect(c.Delete(ctx, b)).To(BeNil())
+
+			By("deleting the testing BI resource")
+			Expect(client.IgnoreNotFound(c.Delete(ctx, bi))).To(BeNil())
+		})
+		It("should eventually result in the installed CRDs being deleted", func() {
+			By("deleting the testing BI resource")
+			Expect(c.Delete(ctx, bi)).To(BeNil())
+
+			By("waiting until all the installed CRDs have been deleted")
+			selector := util.NewBundleInstanceLabelSelector(bi)
+			Eventually(func() bool {
+				crds := &apiextensionsv1.CustomResourceDefinitionList{}
+				if err := c.List(ctx, crds, &client.ListOptions{
+					LabelSelector: selector,
+				}); err != nil {
+					return false
+				}
+				return len(crds.Items) == 0
 			}).Should(BeTrue())
 		})
 	})
