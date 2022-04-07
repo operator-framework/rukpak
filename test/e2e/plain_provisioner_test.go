@@ -30,6 +30,9 @@ const (
 )
 
 func Logf(f string, v ...interface{}) {
+	if !strings.HasSuffix(f, "\n") {
+		f += "\n"
+	}
 	fmt.Fprintf(GinkgoWriter, f, v...)
 }
 
