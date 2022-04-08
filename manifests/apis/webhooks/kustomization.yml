@@ -1,0 +1,9 @@
+resources:
+  - 00_namespace.yaml
+  - 01_cluster_role.yaml
+  - 02_role.yaml
+  - 03_serviceaccount.yaml
+  - 04_cluster_role_binding.yaml
+  - 05_role_binding.yaml
+  - 06_deployment.yaml
+  - 07_webhook.yaml
