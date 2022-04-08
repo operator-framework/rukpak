@@ -56,8 +56,8 @@ clean: ## Remove binaries and test artifacts
 	@rm -rf bin
 
 generate: controller-gen ## Generate code and manifests
-	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1 output:crd:dir=./manifests paths=./api/...
-	$(Q)$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests paths=./api/...
+	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1 output:crd:dir=./manifests/api/base paths=./api/...
+	$(Q)$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests/api/base paths=./api/...
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 
 verify: tidy generate ## Verify the current code generation and lint
@@ -96,7 +96,7 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 ##@ install/run:
 
 install-apis: cert-mgr generate kustomize ## Install the core rukpak CRDs
-	$(KUSTOMIZE) build manifests | kubectl apply -f -
+	$(KUSTOMIZE) build manifests/api/patch | kubectl apply -f -
 	kubectl apply -f manifests/bundle-webhook
 
 install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
