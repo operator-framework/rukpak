@@ -59,7 +59,8 @@ manifests
 ```
 
 For a bundle git repo, any directory that contains only static Kubernetes manifests checked into a git repository
-accessible via a remote URL can be considered a plain bundle and sourced by the plain provisioner.
+accessible via a remote URL can be considered a plain bundle and sourced by the plain provisioner. For more information
+on bundles backed by git repositories, see the [git based bundles doc](git-bundles.md).
 
 > Note: there must be at least one resource in the manifests directory in order for the bundle to be a valid
 > plain+v0 bundle.
