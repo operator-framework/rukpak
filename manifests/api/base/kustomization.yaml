@@ -1,0 +1,3 @@
+resources:
+- core.rukpak.io_bundles.yaml
+- core.rukpak.io_bundleinstances.yaml
