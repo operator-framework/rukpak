@@ -101,6 +101,10 @@ the `spec.bundleName` field the `plain` provisioner will create the new bundle c
 content. The provisioner also continually reconciles the created content via dynamic watches to ensure that all
 resources referenced by the bundle are present on the cluster.
 
+
+## Running a specific released version of the plain provisioner
+
+See the latest [releases on github](https://github.com/operator-framework/rukpak/releases) for release-specific install instructions.
 ## Running locally
 
 ### Setup
@@ -112,7 +116,7 @@ Once the cluster has been setup, take the following steps:
 
 * Clone the repository via `git clone https://github.com/operator-framework/rukpak`
 * Navigate to the repository via `cd rukpak`
-* Run `make run` to build and deploy the provisioner onto the local cluster.
+* Run `make run-local` to build and deploy the provisioner onto the local cluster.
 
 ### Installing the Combo Operator
 

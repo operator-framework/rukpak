@@ -4,8 +4,8 @@
 ORG := github.com/operator-framework
 PKG := $(ORG)/rukpak
 IMAGE_REPO=quay.io/operator-framework/plain-provisioner
-IMAGE_TAG=latest
-IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
+IMAGE_TAG=local
+IMAGE=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= kind
 KIND := kind
 BIN_DIR := bin
@@ -82,7 +82,7 @@ test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: build-container kind-cluster kind-load cert-mgr kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
+e2e: kind-cluster run-local kind-load-bundles test-e2e ## Run e2e tests against a kind cluster 
 
 kind-cluster: ## Standup a kind cluster for e2e testing usage
 	${KIND} delete cluster --name ${KIND_CLUSTER_NAME}
@@ -91,23 +91,18 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 ###################
 # Install and Run #
 ###################
-.PHONY: install-apis install-plain install deploy run
+.PHONY: install-apis install-plain run-local cert-mgr
 
-##@ install/run:
+##@ run:
 
 install-apis: cert-mgr generate kustomize ## Install the core rukpak CRDs
 	$(KUSTOMIZE) build manifests/apis | kubectl apply -f -
 
 install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
 	kubectl apply -f internal/provisioner/plain/manifests
-
-install: install-plain ## Install all rukpak core CRDs and provisioners
-
-deploy: install-apis ## Deploy the operator to the current cluster
-	kubectl apply -f internal/provisioner/plain/manifests
-
-run: build-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
-
+	
+run-local: build-container kind-load install-plain ## Build image and run operator in-cluster
+	
 cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
 	kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s

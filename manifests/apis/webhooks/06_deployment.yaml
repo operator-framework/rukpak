@@ -20,7 +20,7 @@ spec:
         - name: core-webhook
           command: ["/core"]
           args: ["run"]
-          image: quay.io/operator-framework/plain-provisioner:latest
+          image: quay.io/operator-framework/plain-provisioner:local
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

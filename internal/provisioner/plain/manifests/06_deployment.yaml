@@ -18,7 +18,7 @@ spec:
       serviceAccountName: plain-provisioner-admin
       containers:
         - name: plain-provisioner
-          image: quay.io/operator-framework/plain-provisioner:latest
+          image: quay.io/operator-framework/plain-provisioner:local
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
