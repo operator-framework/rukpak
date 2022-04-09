@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: rukpak-system
+  namespace: system
   name: core-webhook
   labels:
     app: core-webhook
@@ -15,7 +15,7 @@ spec:
       labels:
         app: core-webhook
     spec:
-      serviceAccountName: rukpak-core-admin
+      serviceAccountName: core-admin
       containers:
         - name: core-webhook
           command: ["/core"]

@@ -3,19 +3,20 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: selfsigned
-  namespace: rukpak-system
+  namespace: system
 spec:
   selfSigned: {}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: rukpak-webhook-certificate
-  namespace: rukpak-system
+  name: webhook-certificate
+  namespace: system
 spec:
   secretName: rukpak-webhook-certificate
   dnsNames:
-  - rukpak-webhook.rukpak-system.svc
+  - $(SERVICE_NAME).$(SERVICE_NAMESPACE).svc
+  - $(SERVICE_NAME).$(SERVICE_NAMESPACE).svc.cluster.local
   issuerRef:
     kind: Issuer
     name: selfsigned
