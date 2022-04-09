@@ -66,10 +66,10 @@ type BundleReconciler struct {
 	GitClientImage  string
 }
 
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=list;watch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=pods;secrets;configmaps,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups=core,resources=pods;configmaps,verbs=list;watch;create;delete
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

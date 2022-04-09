@@ -68,11 +68,10 @@ type BundleInstanceReconciler struct {
 	dynamicWatchGVKs  map[schema.GroupVersionKind]struct{}
 }
 
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances,verbs=list;watch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch
-//+kubebuilder:rbac:groups=operators.coreos.com,resources=operatorgroups,verbs=get;list;watch
+//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=list;watch
 //+kubebuilder:rbac:groups=*,resources=*,verbs=*
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

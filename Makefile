@@ -60,6 +60,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests/apis/crds/base paths=./api/...
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... output:stdout > ./manifests/apis/webhooks/resources/webhook.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./internal/provisioner/plain/manifests/01_cluster_role.yaml
 
 verify: tidy generate ## Verify the current code generation and lint
 	git diff --exit-code
