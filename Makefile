@@ -56,10 +56,10 @@ clean: ## Remove binaries and test artifacts
 	@rm -rf bin
 
 generate: controller-gen ## Generate code and manifests
-	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1 output:crd:dir=./manifests/apis/crds/base paths=./api/...
+	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1 output:crd:dir=./manifests/bases/apis/crds/base paths=./api/...
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
-	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... output:stdout > ./manifests/apis/webhooks/resources/webhook.yaml
-	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./manifests/provisioners/plain/resources/cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... output:stdout > ./manifests/bases/apis/webhooks/resources/webhook.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./manifests/bases/provisioners/plain/resources/cluster_role.yaml
 
 verify: tidy generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -92,26 +92,18 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 ###################
 # Install and Run #
 ###################
-.PHONY: install-apis install-plain install deploy run
+.PHONY: cert-mgr deploy run
 
 ##@ install/run:
-
-install-apis: cert-mgr generate kustomize ## Install the core rukpak CRDs
-	$(KUSTOMIZE) build manifests/apis | kubectl apply -f -
-
-install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
-	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
-
-install: install-plain ## Install all rukpak core CRDs and provisioners
-
-deploy: install-apis ## Deploy the operator to the current cluster
-	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
-
-run: build-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
 
 cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
 	kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
+
+deploy: generate kustomize cert-mgr ## Install the rukpak CRDs and the built-in provisioners
+	$(KUSTOMIZE) build manifests | kubectl apply -f -
+
+run: build-container kind-load deploy ## Build image and run operator in-cluster
 
 ##################
 # Build and Load #

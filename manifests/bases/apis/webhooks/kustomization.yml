@@ -1,8 +1,4 @@
-namespace: rukpak-system
-namePrefix: rukpak-
-
 resources:
-  - resources/namespace.yaml
   - resources/serviceaccount.yaml
   - resources/service.yaml
   - resources/certificate.yaml

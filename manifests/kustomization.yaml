@@ -1,0 +1,10 @@
+namespace: rukpak-system
+namePrefix: rukpak-
+
+bases:
+  - ./bases/apis
+  - ./bases/provisioners/plain
+
+resources:
+  - ./namespace.yaml
+

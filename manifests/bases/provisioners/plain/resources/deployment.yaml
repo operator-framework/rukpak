@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: rukpak-system
+  namespace: system
   name: plain-provisioner
   labels:
     app: plain-provisioner
