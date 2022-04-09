@@ -60,7 +60,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) schemapatch:manifests=./manifests output:dir=./manifests/apis/crds/base paths=./api/...
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... output:stdout > ./manifests/apis/webhooks/resources/webhook.yaml
-	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./internal/provisioner/plain/manifests/01_cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./manifests/provisioners/plain/resources/cluster_role.yaml
 
 verify: tidy generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -101,12 +101,12 @@ install-apis: cert-mgr generate kustomize ## Install the core rukpak CRDs
 	$(KUSTOMIZE) build manifests/apis | kubectl apply -f -
 
 install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
-	kubectl apply -f internal/provisioner/plain/manifests
+	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
 
 install: install-plain ## Install all rukpak core CRDs and provisioners
 
 deploy: install-apis ## Deploy the operator to the current cluster
-	kubectl apply -f internal/provisioner/plain/manifests
+	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
 
 run: build-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
 
