@@ -532,9 +532,67 @@ var _ = Describe("plain provisioner bundle", func() {
 				}).Should(BeTrue())
 			})
 		})
+
+		When("the bundle has a custom manifests directory", func() {
+			var (
+				bundle *rukpakv1alpha1.Bundle
+			)
+			BeforeEach(func() {
+				bundle = &rukpakv1alpha1.Bundle{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "combo-git-custom-dir",
+					},
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plainProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeGit,
+							Git: &rukpakv1alpha1.GitSource{
+								Repository: "https://github.com/exdx/combo-bundle",
+								Directory:  "./dev/deploy/manifests",
+								Ref: rukpakv1alpha1.GitRef{
+									Branch: "main",
+								},
+							},
+						},
+					},
+				}
+				err := c.Create(ctx, bundle)
+				Expect(err).To(BeNil())
+			})
+
+			AfterEach(func() {
+				err := c.Delete(ctx, bundle)
+				Expect(err).To(BeNil())
+			})
+
+			It("Can create and unpack the bundle successfully", func() {
+				Eventually(func() bool {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return false
+					}
+					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+						return false
+					}
+					if bundle.Status.Info == nil {
+						return false
+					}
+					/*
+						manifests
+						├── 00_namespace.yaml
+						├── 01_cluster_role.yaml
+						├── 01_service_account.yaml
+						├── 02_deployment.yaml
+						├── 03_cluster_role_binding.yaml
+						├── combo.io_combinations.yaml
+						└── combo.io_templates.yaml
+					*/
+					return len(bundle.Status.Info.Objects) == 7
+				}).Should(BeTrue())
+			})
+		})
 	})
 
-	When("a bundle containing nested directry is created", func() {
+	When("a bundle containing nested directory is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
