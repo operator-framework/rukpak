@@ -8,8 +8,12 @@ make it available within the cluster.
 
 The git repository backing the bundle, or "bundle git repo", must have a certain structure in order to produce a valid
 plain Bundle. It should have a directory where the Kubernetes manifests are stored -- this directory is used when
-copying manifests onto the cluster. By default, this directory is assumed to be `/manifests` at the top level. For an
-example of a bundle git repo that conforms to the specifications, see
+copying manifests onto the cluster. By default, this directory is assumed to be `/manifests` at the root level, but can
+be specified via `spec.source.git.directory`.
+
+> Note: There must be a `manifests` directory in the provided directory in order to have a valid bundle git repo.
+
+For an example of a bundle git repo that conforms to the specifications, see
 the [combo repository](https://github.com/operator-framework/combo/).
 
 When creating a Bundle from a git source, a reference to a particular commit, tag, or branch must be provided for the

@@ -70,8 +70,10 @@ on bundles backed by git repositories, see the [git based bundles doc](git-bundl
 * The static manifests must be located in the root-level /manifests directory in a bundle image for the bundle to be a
   valid `plain+v0` bundle that the provisioner can unpack. A plain bundle image without a /manifests directory is
   invalid and will not be successfully unpacked onto the cluster.
-* For a bundle git repo, this limitation does not exist, and the manifests can be in any directory in the repository.
-  The manifest directory is assumed to be ./manifests in a bundle git repo but can be provided at runtime.
+* For a bundle git repo, the manifests directory can be anywhere in the repository, not just at the root-level. The
+  location can be specified via `spec.source.git.directory`. There must be a `manifests` directory at the provided
+  location in order to have a valid bundle git repo. If a specific directory is not provided, it is assumed to be
+  ./manifests in a bundle git repo.
 * The manifests directory should be flat: all manifests should be at the top-level with no subdirectories.
 * The plain bundle image can be built from any base image, but `scratch` is recommended as it keeps the resulting bundle
   image a minimal size.
