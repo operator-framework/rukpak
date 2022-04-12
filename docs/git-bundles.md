@@ -2,18 +2,19 @@
 
 ## Summary
 
-A plain Bundle can reference content in a remote git repository instead of a remote container image by using the
+A Bundle can reference content in a remote git repository instead of a remote container image by using the
 `git` source type in the Bundle manifest. This enables one to easily source content from a git provider like GitHub and
 make it available within the cluster.
 
-The git repository backing the bundle, or "bundle git repo", must have a certain structure in order to produce a valid
-plain Bundle. It should have a directory where the Kubernetes manifests are stored -- this directory is used when
-copying manifests onto the cluster. By default, this directory is assumed to be `/manifests` at the root level, but can
-be specified via `spec.source.git.directory`.
+For example, for a plain+v0 bundle, the git repository backing the bundle, or "bundle git repo", must have a certain
+structure in order to produce a valid Bundle that works with the plain provisioner. It should have a manifests directory
+where the Kubernetes manifests are stored -- this directory is used when copying manifests onto the cluster. By default,
+the `manifests` directory is assumed to be at the root level, but a different bundle root can be specified
+via `spec.source.git.directory`.
 
-> Note: There must be a `manifests` directory in the provided directory in order to have a valid bundle git repo.
+> Note: There must be a `manifests` directory rooted in the provided directory in order to have a valid bundle git repo.
 
-For an example of a bundle git repo that conforms to the specifications, see
+For an example of a plain+v0 bundle git repo that conforms to the specifications, see
 the [combo repository](https://github.com/operator-framework/combo/).
 
 When creating a Bundle from a git source, a reference to a particular commit, tag, or branch must be provided for the
@@ -25,7 +26,7 @@ private git repositories as Bundle sources is on the roadmap.
 
 ## Examples
 
-Bundle the references a git repository by a commit:
+plain+v0 Bundle the references a git repository by a commit:
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -42,7 +43,7 @@ spec:
   provisionerClassName: core.rukpak.io/plain
 ```
 
-Bundle that references a git repository by a tag:
+plain+v0 Bundle that references a git repository by a tag:
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -59,7 +60,7 @@ spec:
   provisionerClassName: core.rukpak.io/plain
 ```
 
-Bundle that references a git repository by a branch:
+plain+v0 Bundle that references a git repository by a branch:
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -76,7 +77,7 @@ spec:
   provisionerClassName: core.rukpak.io/plain
 ```
 
-Bundle that has a different manifest directory than the default:
+plain+v0 Bundle that has a different manifest directory than the default:
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
