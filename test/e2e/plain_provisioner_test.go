@@ -548,7 +548,7 @@ var _ = Describe("plain provisioner bundle", func() {
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
 								Repository: "https://github.com/exdx/combo-bundle",
-								Directory:  "./dev/deploy/manifests",
+								Directory:  "./dev/deploy",
 								Ref: rukpakv1alpha1.GitRef{
 									Branch: "main",
 								},

@@ -38,18 +38,18 @@ func (c *checkoutCmd) String() string {
 	}
 
 	if commit != "" {
-		checkoutCommand = fmt.Sprintf("git clone %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s /bundle",
+		checkoutCommand = fmt.Sprintf("git clone %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s/. /bundle",
 			repository, repositoryName, repositoryName, commit, directory)
 		return checkoutCommand
 	}
 
 	if tag != "" {
-		checkoutCommand = fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout tags/%s && rm -r .git && cp -r %s /bundle",
+		checkoutCommand = fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout tags/%s && rm -r .git && cp -r %s/. /bundle",
 			tag, repository, repositoryName, repositoryName, tag, directory)
 		return checkoutCommand
 	}
 
-	checkoutCommand = fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s /bundle",
+	checkoutCommand = fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s/. /bundle",
 		branch, repository, repositoryName, repositoryName, branch, directory)
 	return checkoutCommand
 }
