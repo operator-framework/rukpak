@@ -3,7 +3,6 @@ env:
 - GO111MODULE=on
 - CGO_ENABLED=0
 - PKG=github.com/operator-framework/rukpak/internal/version
-- IMAGE_REPO=quay.io/operator-framework/plain-provisioner
 before:
   hooks:
     - go mod tidy
