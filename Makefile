@@ -83,7 +83,7 @@ test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: build-container kind-cluster kind-load cert-mgr kind-load-bundles deploy test-e2e ## Run e2e tests against a kind cluster
+e2e: build-container kind-cluster kind-load kind-load-bundles run test-e2e ## Run e2e tests against a kind cluster
 
 kind-cluster: ## Standup a kind cluster for e2e testing usage
 	${KIND} delete cluster --name ${KIND_CLUSTER_NAME}
@@ -92,25 +92,25 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 ###################
 # Install and Run #
 ###################
-.PHONY: install-apis install-plain install deploy run
+.PHONY: install-apis install-plain install-crdvalidator-webhook install-core-webhook install-webhooks run cert-mgr
 
 ##@ install/run:
 
-install-apis: cert-mgr generate kustomize ## Install the core rukpak CRDs
-	$(KUSTOMIZE) build manifests/apis | kubectl apply -f -
+install-apis: generate kustomize ## Install the core rukpak CRDs
+	$(KUSTOMIZE) build manifests/apis/crds | kubectl apply -f -
 
-install-plain: install-apis ## Install the rukpak CRDs and the plain provisioner
+install-plain: kustomize ## Install the plain provisioner
 	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
 
-install-crdvalidator: cert-mgr kustomize ## Install the crdvalidator webhook manifests to the current cluster.
+install-crdvalidator-webhook: kustomize ## Install the crdvalidator webhook to the current cluster.
 	$(KUSTOMIZE) build manifests/crdvalidator | kubectl apply -f -
 
-install: install-plain ## Install all rukpak core CRDs and provisioners
+install-core-webhook: kustomize ## Install the core bundle webhook to the current cluster.
+	$(KUSTOMIZE) build manifests/apis/webhooks | kubectl apply -f -
 
-deploy: install-apis install-crdvalidator ## Deploy the operator to the current cluster
-	$(KUSTOMIZE) build manifests/provisioners/plain | kubectl apply -f -
+install-webhooks: cert-mgr install-crdvalidator-webhook install-core-webhook ## Install all webhooks to the current cluster
 
-run: build-container kind-load cert-mgr deploy ## Build image and run operator in-cluster
+run: build-container kind-load install-apis install-webhooks install-plain ## Build image and run operator in-cluster
 
 cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
