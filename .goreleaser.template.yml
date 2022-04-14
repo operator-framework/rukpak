@@ -66,3 +66,6 @@ snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
   use: github-native
+  skip: $DISABLE_RELEASE_PIPELINE
+release:
+  disable: $DISABLE_RELEASE_PIPELINE

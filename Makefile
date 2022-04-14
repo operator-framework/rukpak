@@ -136,7 +136,7 @@ unpack:
 core:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/core/...
 
-crdvalidator: 
+crdvalidator:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/crdvalidator
 
 build-container: export GOOS=linux
@@ -182,8 +182,12 @@ SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
 GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
 KUSTOMIZE := $(abspath $(TOOLS_BIN_DIR)/kustomize)
 
+export DISABLE_RELEASE_PIPELINE ?= true
+substitute:
+	envsubst < .goreleaser.template.yml > .goreleaser.yml
+
 release: GORELEASER_ARGS ?= --snapshot --rm-dist
-release: goreleaser
+release: goreleaser substitute
 	$(GORELEASER) $(GORELEASER_ARGS)
 
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
