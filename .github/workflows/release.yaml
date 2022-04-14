@@ -37,6 +37,7 @@ jobs:
       run: |
         if [[ $GITHUB_REF == refs/tags/* ]]; then
           export GORELEASER_ARGS="--rm-dist"
+          export DISABLE_RELEASE_PIPELINE=true
         fi
         make release
       env:
