@@ -46,7 +46,7 @@ builds:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
 dockers:
 - image_templates:
-  - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"
+  - "{{ .Env.IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}-amd64"
   dockerfile: Dockerfile
   use: buildx
   goos: linux
@@ -54,12 +54,9 @@ dockers:
   build_flag_templates:
   - --platform=linux/amd64
 docker_manifests:
-- name_template: "{{ .Env.IMAGE_REPO }}:v{{ .Major }}.{{ .Minor }}"
+- name_template: "{{ .Env.IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}"
   image_templates:
-  - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"
-- name_template: "{{ .Env.IMAGE_REPO }}:{{ .Tag }}"
-  image_templates:
-  - "{{ .Env.IMAGE_REPO }}:{{ .Tag }}-amd64"
+  - "{{ .Env.IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}-amd64"
 checksum:
   name_template: 'checksums.txt'
 snapshot:
