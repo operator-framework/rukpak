@@ -116,6 +116,33 @@ cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
 	kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
 
+uninstall: ## Uninstall all rukpak-related content from the cluster
+	kubectl delete ns rukpak-system
+	kubectl delete ns crdvalidator-system
+	kubectl delete ns cert-manager
+
+	kubectl delete crd bundles.core.rukpak.io
+	kubectl delete crd bundleinstances.core.rukpak.io
+	kubectl delete crd certificaterequests.cert-manager.io
+	kubectl delete crd certificates.cert-manager.io
+	kubectl delete crd challenges.acme.cert-manager.io
+	kubectl delete crd clusterissuers.cert-manager.io
+	kubectl delete crd issuers.cert-manager.io
+	kubectl delete crd orders.acme.cert-manager.io
+
+	kubectl delete validatingwebhookconfiguration cert-manager-webhook
+	kubectl delete validatingwebhookconfiguration crd-validation-webhook
+	kubectl delete validatingwebhookconfiguration rukpak-webhook
+
+	kubectl delete clusterrolebinding rukpak-core-admin
+	kubectl delete clusterrolebinding crd-validation-webhook
+
+	kubectl delete -l app.kubernetes.io/instance=cert-manager clusterroles
+	kubectl delete -l app.kubernetes.io/instance=cert-manager clusterrolebindings
+
+
+
+
 ##################
 # Build and Load #
 ##################
