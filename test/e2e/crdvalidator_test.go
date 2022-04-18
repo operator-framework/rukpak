@@ -2,14 +2,11 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/operator-framework/rukpak/internal/util"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,19 +27,20 @@ var _ = Describe("crd validation webhook", func() {
 			var crd *apiextensionsv1.CustomResourceDefinition
 
 			BeforeEach(func() {
-				crd = newTestingCRD(
-					util.GenName(defaultTestingCrdName),
-					[]apiextensionsv1.CustomResourceDefinitionVersion{{
-						Name:    "v1alpha1",
-						Served:  true,
-						Storage: true,
-						Schema: &apiextensionsv1.CustomResourceValidation{
-							OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
-								Type:        "object",
-								Description: "my crd schema",
+				crd = util.NewTestingCRD(defaultTestingCrdName, defaultTestingCrdGroup, true,
+					[]apiextensionsv1.CustomResourceDefinitionVersion{
+						{
+							Name:    "v1alpha1",
+							Served:  true,
+							Storage: true,
+							Schema: &apiextensionsv1.CustomResourceValidation{
+								OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+									Type:        "object",
+									Description: "my crd schema",
+								},
 							},
 						},
-					}},
+					},
 				)
 
 				Eventually(func() error {
@@ -93,8 +91,7 @@ var _ = Describe("crd validation webhook", func() {
 			var crd *apiextensionsv1.CustomResourceDefinition
 
 			BeforeEach(func() {
-				crd = newTestingCRD(
-					util.GenName(defaultTestingCrdName),
+				crd = util.NewTestingCRD(defaultTestingCrdName, defaultTestingCrdGroup, true,
 					[]apiextensionsv1.CustomResourceDefinitionVersion{
 						{
 							Name:    "v1alpha1",
@@ -137,8 +134,7 @@ var _ = Describe("crd validation webhook", func() {
 						return err.Error()
 					}
 
-					newCRD := newTestingCRD(
-						crd.Spec.Names.Singular,
+					newCRD := util.NewTestingCRD(crd.Spec.Names.Singular, defaultTestingCrdGroup, false,
 						[]apiextensionsv1.CustomResourceDefinitionVersion{
 							{
 								Name:    "v1alpha2",
@@ -181,22 +177,20 @@ var _ = Describe("crd validation webhook", func() {
 			var crd *apiextensionsv1.CustomResourceDefinition
 
 			BeforeEach(func() {
-				crd = newTestingCRD(
-					util.GenName(defaultTestingCrdName),
-					[]apiextensionsv1.CustomResourceDefinitionVersion{{
-						Name:    "v1alpha1",
-						Served:  true,
-						Storage: true,
-						Schema: &apiextensionsv1.CustomResourceValidation{
-							OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
-								Type:        "object",
-								Description: "my crd schema",
-								Properties: map[string]apiextensionsv1.JSONSchemaProps{
-									"sampleProperty": {Type: "string"},
-								},
+				crd = util.NewTestingCRD(defaultTestingCrdName, defaultTestingCrdGroup, true, []apiextensionsv1.CustomResourceDefinitionVersion{{
+					Name:    "v1alpha1",
+					Served:  true,
+					Storage: true,
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Type:        "object",
+							Description: "my crd schema",
+							Properties: map[string]apiextensionsv1.JSONSchemaProps{
+								"sampleProperty": {Type: "string"},
 							},
 						},
-					}},
+					},
+				}},
 				)
 
 				Eventually(func() error {
@@ -204,10 +198,7 @@ var _ = Describe("crd validation webhook", func() {
 				}).Should(Succeed(), "should be able to create a safe crd but was not")
 
 				// Build up a CR to create out of unstructured.Unstructured
-				sampleCR := &unstructured.Unstructured{}
-				sampleCR.SetKind(crd.Spec.Names.Singular)
-				sampleCR.SetAPIVersion(defaultTestingCrdGroup + "/" + "v1alpha1")
-				sampleCR.SetGenerateName(defaultTestingCrName)
+				sampleCR := util.NewTestingCR(defaultTestingCrName, crd.Spec.Names.Singular, defaultTestingCrdGroup, "v1alpha1")
 				Eventually(func() error {
 					return c.Create(ctx, sampleCR)
 				}).Should(Succeed(), "should be able to create a cr for the sample crd but was not")
@@ -238,22 +229,3 @@ var _ = Describe("crd validation webhook", func() {
 		})
 	})
 })
-
-func newTestingCRD(name string, versions []apiextensionsv1.CustomResourceDefinitionVersion) *apiextensionsv1.CustomResourceDefinition {
-	return &apiextensionsv1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%v.%v", name, defaultTestingCrdGroup),
-		},
-		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
-			Scope:    apiextensionsv1.ClusterScoped,
-			Group:    defaultTestingCrdGroup,
-			Versions: versions,
-			Names: apiextensionsv1.CustomResourceDefinitionNames{
-				Plural:   name,
-				Singular: name,
-				Kind:     name,
-				ListKind: name + "List",
-			},
-		},
-	}
-}
