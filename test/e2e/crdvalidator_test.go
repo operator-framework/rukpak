@@ -198,7 +198,7 @@ var _ = Describe("crd validation webhook", func() {
 				}).Should(Succeed(), "should be able to create a safe crd but was not")
 
 				// Build up a CR to create out of unstructured.Unstructured
-				sampleCR := util.NewTestingCR(defaultTestingCrName, crd.Spec.Names.Singular, defaultTestingCrdGroup, "v1alpha1")
+				sampleCR := util.NewTestingCR(defaultTestingCrName, defaultTestingCrdGroup, "v1alpha1", crd.Spec.Names.Singular)
 				Eventually(func() error {
 					return c.Create(ctx, sampleCR)
 				}).Should(Succeed(), "should be able to create a cr for the sample crd but was not")
