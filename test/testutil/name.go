@@ -1,4 +1,4 @@
-package util
+package testutil
 
 import "k8s.io/apimachinery/pkg/util/rand"
 

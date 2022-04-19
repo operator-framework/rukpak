@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/operator-framework/rukpak/internal/unit"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/test/testutil"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -146,10 +146,10 @@ func TestValidate(t *testing.T) {
 			defer ctx.Done()
 
 			// Create needed structs for testing using uniquely generated names
-			existingCrd := util.NewTestingCRD("samplecrd", "e2e.io", true, tt.existingCrdVersions)
+			existingCrd := testutil.NewTestingCRD("", testutil.DefaultGroup, tt.existingCrdVersions)
 			uniqueName := existingCrd.Spec.Names.Singular
-			existingCr := util.NewTestingCR("samplecr", "e2e.io", tt.existingCrVersion, uniqueName)
-			newCrd := util.NewTestingCRD(uniqueName, "e2e.io", false, tt.newCrdVersions)
+			existingCr := testutil.NewTestingCR(testutil.DefaultCrName, testutil.DefaultGroup, tt.existingCrVersion, uniqueName)
+			newCrd := testutil.NewTestingCRD(uniqueName, testutil.DefaultGroup, tt.newCrdVersions)
 
 			// Create existing CRD
 			err := kubeclient.Create(ctx, existingCrd)

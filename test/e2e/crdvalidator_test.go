@@ -5,15 +5,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/test/testutil"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	defaultTestingCrdName  = "samplecrd"
-	defaultTestingCrName   = "samplecr"
-	defaultTestingCrdGroup = "e2e.io"
 )
 
 var _ = Describe("crd validation webhook", func() {
@@ -27,7 +21,7 @@ var _ = Describe("crd validation webhook", func() {
 			var crd *apiextensionsv1.CustomResourceDefinition
 
 			BeforeEach(func() {
-				crd = util.NewTestingCRD(defaultTestingCrdName, defaultTestingCrdGroup, true,
+				crd = testutil.NewTestingCRD("", testutil.DefaultGroup,
 					[]apiextensionsv1.CustomResourceDefinitionVersion{
 						{
 							Name:    "v1alpha1",
@@ -91,7 +85,7 @@ var _ = Describe("crd validation webhook", func() {
 			var crd *apiextensionsv1.CustomResourceDefinition
 
 			BeforeEach(func() {
-				crd = util.NewTestingCRD(defaultTestingCrdName, defaultTestingCrdGroup, true,
+				crd = testutil.NewTestingCRD("", testutil.DefaultGroup,
 					[]apiextensionsv1.CustomResourceDefinitionVersion{
 						{
 							Name:    "v1alpha1",
@@ -134,7 +128,7 @@ var _ = Describe("crd validation webhook", func() {
 						return err.Error()
 					}
 
-					newCRD := util.NewTestingCRD(crd.Spec.Names.Singular, defaultTestingCrdGroup, false,
+					newCRD := testutil.NewTestingCRD(crd.Spec.Names.Singular, testutil.DefaultGroup,
 						[]apiextensionsv1.CustomResourceDefinitionVersion{
 							{
 								Name:    "v1alpha2",
@@ -177,7 +171,7 @@ var _ = Describe("crd validation webhook", func() {
 			var crd *apiextensionsv1.CustomResourceDefinition
 
 			BeforeEach(func() {
-				crd = util.NewTestingCRD(defaultTestingCrdName, defaultTestingCrdGroup, true, []apiextensionsv1.CustomResourceDefinitionVersion{{
+				crd = testutil.NewTestingCRD("", testutil.DefaultGroup, []apiextensionsv1.CustomResourceDefinitionVersion{{
 					Name:    "v1alpha1",
 					Served:  true,
 					Storage: true,
@@ -198,7 +192,7 @@ var _ = Describe("crd validation webhook", func() {
 				}).Should(Succeed(), "should be able to create a safe crd but was not")
 
 				// Build up a CR to create out of unstructured.Unstructured
-				sampleCR := util.NewTestingCR(defaultTestingCrName, defaultTestingCrdGroup, "v1alpha1", crd.Spec.Names.Singular)
+				sampleCR := testutil.NewTestingCR(testutil.DefaultCrName, testutil.DefaultGroup, "v1alpha1", crd.Spec.Names.Singular)
 				Eventually(func() error {
 					return c.Create(ctx, sampleCR)
 				}).Should(Succeed(), "should be able to create a cr for the sample crd but was not")
