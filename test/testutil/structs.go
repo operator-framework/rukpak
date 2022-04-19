@@ -1,4 +1,4 @@
-package util
+package testutil
 
 import (
 	"fmt"
@@ -8,9 +8,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func NewTestingCRD(name, group string, unique bool, versions []apiextensionsv1.CustomResourceDefinitionVersion) *apiextensionsv1.CustomResourceDefinition {
-	if unique {
-		name = GenName(name)
+func NewTestingCRD(name, group string, versions []apiextensionsv1.CustomResourceDefinitionVersion) *apiextensionsv1.CustomResourceDefinition {
+	if name == "" {
+		name = GenName(DefaultCrdName)
 	}
 	return &apiextensionsv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
