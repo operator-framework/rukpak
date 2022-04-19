@@ -151,14 +151,17 @@ func TestValidate(t *testing.T) {
 			existingCr := testutil.NewTestingCR(testutil.DefaultCrName, testutil.DefaultGroup, tt.existingCrVersion, uniqueName)
 			newCrd := testutil.NewTestingCRD(uniqueName, testutil.DefaultGroup, tt.newCrdVersions)
 
-			// Create existing CRD
+			// Create existing CRD and wait for it to be ready
 			err := kubeclient.Create(ctx, existingCrd)
 			require.NoError(t, err, "failed to create initial crd for testing")
 			require.Eventuallyf(t, func() bool {
-				return kubeclient.Get(ctx, client.ObjectKeyFromObject(existingCrd), existingCrd) == nil
+				if err := kubeclient.Get(ctx, client.ObjectKeyFromObject(existingCrd), existingCrd); err != nil {
+					return false
+				}
+				return testutil.CrdReady(&existingCrd.Status)
 			}, defaultWaitPeriod, defaultTick, "failed to get initial crd for testing: %v", err)
 
-			// Creating existing CR
+			// Creating existing CR and wait for it to be created
 			err = kubeclient.Create(ctx, existingCr)
 			require.NoError(t, err, "failed to create initial cr for testing")
 			require.Eventuallyf(t, func() bool {
