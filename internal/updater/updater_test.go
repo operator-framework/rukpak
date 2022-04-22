@@ -27,7 +27,7 @@ var _ = Describe("Updater", func() {
 		obj    *rukpakv1alpha1.Bundle
 		status = &rukpakv1alpha1.BundleStatus{
 			Info:               &rukpakv1alpha1.BundleInfo{},
-			Phase:              rukpakv1alpha1.PhaseFailing,
+			Phase:              string(rukpakv1alpha1.PhaseFailing),
 			Digest:             "digest",
 			ObservedGeneration: 1,
 			Conditions: []metav1.Condition{
@@ -77,7 +77,7 @@ var _ = Describe("Updater", func() {
 			},
 			Status: rukpakv1alpha1.BundleStatus{
 				Info:               &rukpakv1alpha1.BundleInfo{},
-				Phase:              rukpakv1alpha1.PhaseFailing,
+				Phase:              string(rukpakv1alpha1.PhaseFailing),
 				Digest:             "digest",
 				ObservedGeneration: 1,
 				Conditions: []metav1.Condition{
@@ -106,7 +106,7 @@ var _ = Describe("Updater", func() {
 	When("the object does not exist", func() {
 		It("should fail", func() {
 			Expect(client.Delete(context.Background(), obj)).To(Succeed())
-			u.UpdateStatus(updater.EnsureCondition(status.Conditions[0]), updater.EnsureObservedGeneration(status.ObservedGeneration), updater.EnsureBundleDigest(status.Digest), updater.SetBundleInfo(status.Info), updater.SetPhase(status.Phase))
+			u.UpdateStatus(updater.EnsureCondition(status.Conditions[0]), updater.EnsureObservedGeneration(status.ObservedGeneration), updater.EnsureBundleDigest(status.Digest), updater.SetBundleInfo(status.Info), updater.SetPhase(rukpakv1alpha1.BundlePhase(status.Phase)))
 			err := u.Apply(context.Background(), obj)
 			Expect(err).NotTo(BeNil())
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())

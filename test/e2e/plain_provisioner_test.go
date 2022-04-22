@@ -240,10 +240,10 @@ var _ = Describe("plain provisioner bundle", func() {
 				if err != nil {
 					return false
 				}
-				if bundle.Status.Phase != rukpakv1alpha1.PhasePending {
+				if bundle.Status.Phase != string(rukpakv1alpha1.PhasePending) {
 					return false
 				}
-				unpackPending := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.PhaseUnpacked)
+				unpackPending := meta.FindStatusCondition(bundle.Status.Conditions, string(rukpakv1alpha1.PhaseUnpacked))
 				if unpackPending == nil {
 					return false
 				}
@@ -398,7 +398,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 						return false
 					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+					if bundle.Status.Phase != string(rukpakv1alpha1.PhaseUnpacked) {
 						return false
 					}
 					if bundle.Status.Info == nil {
@@ -455,7 +455,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 						return false
 					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+					if bundle.Status.Phase != string(rukpakv1alpha1.PhaseUnpacked) {
 						return false
 					}
 					if bundle.Status.Info == nil {
@@ -512,7 +512,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 						return false
 					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+					if bundle.Status.Phase != string(rukpakv1alpha1.PhaseUnpacked) {
 						return false
 					}
 					if bundle.Status.Info == nil {
@@ -570,7 +570,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 						return false
 					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+					if bundle.Status.Phase != string(rukpakv1alpha1.PhaseUnpacked) {
 						return false
 					}
 					if bundle.Status.Info == nil {

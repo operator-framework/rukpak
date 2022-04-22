@@ -114,12 +114,12 @@ func SetBundleInfo(info *rukpakv1alpha1.BundleInfo) UpdateStatusFunc {
 	}
 }
 
-func SetPhase(phase string) UpdateStatusFunc {
+func SetPhase(phase rukpakv1alpha1.BundlePhase) UpdateStatusFunc {
 	return func(status *rukpakv1alpha1.BundleStatus) bool {
-		if status.Phase == phase {
+		if status.Phase == string(phase) {
 			return false
 		}
-		status.Phase = phase
+		status.Phase = string(phase)
 		return true
 	}
 }
