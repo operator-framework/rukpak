@@ -100,3 +100,11 @@ a `spec.provisionerClassName` that matches that particular ID.
 For example, in this repository the [plain](internal/provisioner/plain/README.md) provisioner is implemented.
 The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
 the content of the bundle available in the cluster.
+
+### CustomResourceDefinition (CRD) Validator
+
+RukPak comes with a webhook for validating the upgrade of CRDs from `Bundle`s. If a CRD does potentially destructive
+actions to the cluster, it will not allow it go be applied. In the context of RukPak, this will result in a failed 
+`BundleInstance` resolution. 
+
+To read more about this webhook, and learn how to disable this default behavior, view the `crdvalidator` [documentation](cmd/crdvalidator/README.md).
