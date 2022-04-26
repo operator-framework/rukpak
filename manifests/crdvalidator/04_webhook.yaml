@@ -18,6 +18,9 @@ webhooks:
         name: crd-validation-webhook
         path: /validate-crd
         port: 9443
+    objectSelector:
+      matchLabels:
+        core.rukpak.io/owner-kind: BundleInstance
     admissionReviewVersions: ["v1"]
     sideEffects: None
 ---

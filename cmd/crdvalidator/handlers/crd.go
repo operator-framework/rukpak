@@ -22,7 +22,9 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
+	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
 	"github.com/operator-framework/rukpak/internal/crd"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -49,17 +51,21 @@ func NewCrdValidator(log logr.Logger, client client.Client) CrdValidator {
 // a safe upgrade based on the crd.Validate() function call
 func (cv *CrdValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	incomingCrd := &apiextensionsv1.CustomResourceDefinition{}
-
-	err := cv.decoder.Decode(req, incomingCrd)
-	if err != nil {
+	if err := cv.decoder.Decode(req, incomingCrd); err != nil {
 		message := fmt.Sprintf("failed to decode CRD %q", req.Name)
 		cv.log.V(0).Error(err, message)
 		return admission.Errored(http.StatusBadRequest, fmt.Errorf("%s: %w", message, err))
 	}
 
-	err = crd.Validate(ctx, cv.client, incomingCrd)
-	if err != nil {
-		message := fmt.Sprintf("failed to validate safety of %s for CRD %q: %s", req.Operation, req.Name, err)
+	// Check if the request should get validated
+	if disabled(incomingCrd) {
+		return admission.Allowed("")
+	}
+
+	if err := crd.Validate(ctx, cv.client, incomingCrd); err != nil {
+		message := fmt.Sprintf(
+			"failed to validate safety of %s for CRD %q (NOTE: to disable this validation, set the %q annotation to %q): %s",
+			req.Operation, req.Name, annotation.ValidationKey, annotation.Disabled, err)
 		cv.log.V(0).Info(message)
 		return admission.Denied(message)
 	}
@@ -72,4 +78,11 @@ func (cv *CrdValidator) Handle(ctx context.Context, req admission.Request) admis
 func (cv *CrdValidator) InjectDecoder(d *admission.Decoder) error {
 	cv.decoder = d
 	return nil
+}
+
+// disabled takes a CRD and checks its content to see crdvalidator
+// is disabled explicitly
+func disabled(crd *apiextensionsv1.CustomResourceDefinition) bool {
+	// Check if the annotation to disable validation is set
+	return crd.GetAnnotations()[annotation.ValidationKey] == annotation.Disabled
 }
