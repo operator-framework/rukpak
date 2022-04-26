@@ -99,7 +99,7 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 install-apis: generate kustomize ## Install the core rukpak CRDs
 	$(KUSTOMIZE) build manifests/apis/crds | kubectl apply -f -
 
-install-provisioners: kustomize ## Install the plain provisioner
+install-provisioners: kustomize ## Install the rukpak provisioners
 	$(KUSTOMIZE) build manifests/provisioners | kubectl apply -f -
 
 install-crdvalidator-webhook: kustomize ## Install the crdvalidator webhook to the current cluster.
