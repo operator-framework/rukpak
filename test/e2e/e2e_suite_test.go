@@ -11,12 +11,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
-	c client.Client
+	c             client.Client
+	coreClientSet *kubernetes.Clientset
 )
 
 func TestE2E(t *testing.T) {
@@ -43,5 +45,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).To(BeNil())
 
 	c, err = client.New(config, client.Options{Scheme: scheme})
+	Expect(err).To(BeNil())
+
+	coreClientSet, err = kubernetes.NewForConfig(config)
 	Expect(err).To(BeNil())
 })

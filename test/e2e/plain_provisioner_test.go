@@ -76,7 +76,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						return "", err
 					}
 					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
+				}).Should(Equal(string(rukpakv1alpha1.PhaseUnpacked)))
 			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
@@ -179,6 +179,18 @@ var _ = Describe("plain provisioner bundle", func() {
 				return pod.GetUID(), err
 			}).ShouldNot(Equal(originalUID))
 		})
+		It("should emit bundle{name,namespace} metric with a positive value", func() {
+
+			Eventually(func() []Metric {
+				return getMetricsFromPod(coreClientSet, getPodWithLabel(coreClientSet, "app=plain-provisioner"))
+			}).Should(ContainElement(LikeMetric(
+				WithFamily("bundle"),
+				WithName(bundle.Name),
+				WithValueGreaterThan(0),
+			),
+			))
+
+		})
 	})
 
 	When("an invalid Bundle referencing a remote container image is created", func() {
@@ -253,6 +265,18 @@ var _ = Describe("plain provisioner bundle", func() {
 				return true
 			}).Should(BeTrue())
 		})
+		It("should emit bundle{name,namespace} metric with a zero value", func() {
+
+			Eventually(func() []Metric {
+				return getMetricsFromPod(coreClientSet, getPodWithLabel(coreClientSet, "app=plain-provisioner"))
+			}).Should(ContainElement(LikeMetric(
+				WithFamily("bundle"),
+				WithName(bundle.Name),
+				WithValue(0),
+			),
+			))
+
+		})
 	})
 
 	When("a bundle containing no manifests is created", func() {
@@ -302,6 +326,18 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`readdir manifests: file does not exist`)),
 			))
 		})
+		It("should emit bundle{name,namespace} metric with a negative value", func() {
+
+			Eventually(func() []Metric {
+				return getMetricsFromPod(coreClientSet, getPodWithLabel(coreClientSet, "app=plain-provisioner"))
+			}).Should(ContainElement(LikeMetric(
+				WithFamily("bundle"),
+				WithName(bundle.Name),
+				WithValueLessThan(0),
+			),
+			))
+
+		})
 	})
 
 	When("a bundle containing an empty manifests directory is created", func() {
@@ -350,6 +386,18 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`found zero objects: plain+v0 bundles are required to contain at least one object`)),
 			))
+		})
+		It("should emit bundle{name,namespace} metric with a negative value", func() {
+
+			Eventually(func() []Metric {
+				return getMetricsFromPod(coreClientSet, getPodWithLabel(coreClientSet, "app=plain-provisioner"))
+			}).Should(ContainElement(LikeMetric(
+				WithFamily("bundle"),
+				WithName(bundle.Name),
+				WithValueLessThan(0),
+			),
+			))
+
 		})
 	})
 
@@ -1447,11 +1495,3 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 	})
 })
-
-func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
-	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && a.Message == b.Message
-}
-
-func conditionsLooselyEqual(a, b metav1.Condition) bool {
-	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && strings.Contains(b.Message, a.Message)
-}

@@ -36,6 +36,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
+	"github.com/operator-framework/rukpak/internal/provisioner/plain/metrics"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
@@ -159,7 +160,7 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
-
+	metrics.ServeMetrics()
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
