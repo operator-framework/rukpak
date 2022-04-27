@@ -92,25 +92,14 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 ###################
 # Install and Run #
 ###################
-.PHONY: install-apis install-provisioners install-crdvalidator-webhook install-core-webhook install-webhooks run cert-mgr
+.PHONY: install run cert-mgr
 
 ##@ install/run:
 
-install-apis: generate kustomize ## Install the core rukpak CRDs
-	$(KUSTOMIZE) build manifests/apis/crds | kubectl apply -f -
+install: generate kustomize cert-mgr ## Install rukpak
+	$(KUSTOMIZE) build manifests | kubectl apply -f -
 
-install-provisioners: kustomize ## Install the rukpak provisioners
-	$(KUSTOMIZE) build manifests/provisioners | kubectl apply -f -
-
-install-crdvalidator-webhook: kustomize ## Install the crdvalidator webhook to the current cluster.
-	$(KUSTOMIZE) build manifests/crdvalidator | kubectl apply -f -
-
-install-core-webhook: kustomize ## Install the core bundle webhook to the current cluster.
-	$(KUSTOMIZE) build manifests/apis/webhooks | kubectl apply -f -
-
-install-webhooks: cert-mgr install-crdvalidator-webhook install-core-webhook ## Install all webhooks to the current cluster
-
-run: build-container kind-load install-apis install-webhooks install-provisioners ## Build image and run operator in-cluster
+run: build-container kind-load install ## Build image and run operator in-cluster
 
 cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
