@@ -51,6 +51,7 @@ lint: golangci-lint ## Run golangci linter
 
 tidy: ## Update dependencies
 	$(Q)go mod tidy
+	$(Q)(cd $(TOOLS_DIR) && go mod tidy)
 
 clean: ## Remove binaries and test artifacts
 	@rm -rf bin
