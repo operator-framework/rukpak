@@ -74,7 +74,7 @@ func main() {
 	setupLog.Info("starting up the rukpak core webhook", "Git commit", version.String())
 
 	cfg := ctrl.GetConfigOrDie()
-	dependentRequirement, err := labels.NewRequirement("api.core.rukpak.io/owner-kind", selection.In, []string{"Bundle"})
+	dependentRequirement, err := labels.NewRequirement("api.core.rukpak.io/owner-kind", selection.In, []string{rukpakv1alpha1.BundleKind})
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
@@ -102,7 +102,7 @@ func main() {
 	}
 
 	if err = (&rukpakv1alpha1.Bundle{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Bundle")
+		setupLog.Error(err, "unable to create webhook", "webhook", rukpakv1alpha1.BundleKind)
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

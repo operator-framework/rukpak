@@ -96,13 +96,13 @@ func newLabelSelector(name, kind string) labels.Selector {
 // NewBundleLabelSelector is responsible for constructing a label.Selector
 // for any underlying resources that are associated with the Bundle parameter.
 func NewBundleLabelSelector(bundle *rukpakv1alpha1.Bundle) labels.Selector {
-	return newLabelSelector(bundle.GetName(), "Bundle")
+	return newLabelSelector(bundle.GetName(), rukpakv1alpha1.BundleKind)
 }
 
 // NewBundleInstanceLabelSelector is responsible for constructing a label.Selector
 // for any underlying resources that are associated with the BundleInstance parameter.
 func NewBundleInstanceLabelSelector(bi *rukpakv1alpha1.BundleInstance) labels.Selector {
-	return newLabelSelector(bi.GetName(), "BundleInstance")
+	return newLabelSelector(bi.GetName(), rukpakv1alpha1.BundleInstanceKind)
 }
 
 func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {

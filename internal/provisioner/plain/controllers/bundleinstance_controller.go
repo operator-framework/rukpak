@@ -333,7 +333,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1a
 	for _, obj := range objects {
 		obj := obj
 		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
-			"core.rukpak.io/owner-kind": "BundleInstance",
+			"core.rukpak.io/owner-kind": rukpakv1alpha1.BundleInstanceKind,
 			"core.rukpak.io/owner-name": bi.Name,
 		}))
 		objs = append(objs, &obj)
