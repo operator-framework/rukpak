@@ -406,6 +406,9 @@ func bundleImagePod(pod *corev1.Pod, source rukpakv1alpha1.ImageSource, unpackIm
 	pod.Spec.Containers[0].Command = []string{"/bin/unpack", "--bundle-dir", "/"}
 	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}}
 
+	if source.ImagePullSecretName != "" {
+		pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: source.ImagePullSecretName}}
+	}
 	pod.Spec.Volumes = []corev1.Volume{
 		{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 	}

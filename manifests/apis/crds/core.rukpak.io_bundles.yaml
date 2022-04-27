@@ -101,6 +101,11 @@ spec:
                     description: Image is the bundle image that backs the content
                       of this bundle.
                     properties:
+                      pullSecret:
+                        description: ImagePullSecretName contains the name of the
+                          image pull secret in the namespace that the provisioner
+                          is deployed.
+                        type: string
                       ref:
                         description: Ref contains the reference to a container image
                           containing Bundle contents.

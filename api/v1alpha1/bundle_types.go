@@ -64,6 +64,8 @@ type BundleSource struct {
 type ImageSource struct {
 	// Ref contains the reference to a container image containing Bundle contents.
 	Ref string `json:"ref"`
+	// ImagePullSecretName contains the name of the image pull secret in the namespace that the provisioner is deployed.
+	ImagePullSecretName string `json:"pullSecret,omitempty"`
 }
 
 type GitSource struct {
