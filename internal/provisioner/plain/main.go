@@ -90,7 +90,7 @@ func main() {
 		setupLog.Error(err, "unable to create kubernetes client")
 		os.Exit(1)
 	}
-	dependentRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.In, []string{"Bundle", "BundleInstance"})
+	dependentRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.In, []string{rukpakv1alpha1.BundleKind, rukpakv1alpha1.BundleInstanceKind})
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
@@ -134,7 +134,7 @@ func main() {
 		UnpackImage:    unpackImage,
 		GitClientImage: gitClientImage,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Bundle")
+		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind)
 		os.Exit(1)
 	}
 
@@ -146,7 +146,7 @@ func main() {
 		ReleaseNamespace:   ns,
 		ActionClientGetter: helmclient.NewActionClientGetter(cfgGetter),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "BundleInstance")
+		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleInstanceKind)
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
