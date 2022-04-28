@@ -82,11 +82,11 @@ func MetadataConfigMapName(bundleName string) string {
 }
 
 func newLabelSelector(name, kind string) labels.Selector {
-	kindRequirement, err := labels.NewRequirement("core.rukpak.io/owner-kind", selection.Equals, []string{kind})
+	kindRequirement, err := labels.NewRequirement(CoreOwnerKindKey, selection.Equals, []string{kind})
 	if err != nil {
 		return nil
 	}
-	nameRequirement, err := labels.NewRequirement("core.rukpak.io/owner-name", selection.Equals, []string{name})
+	nameRequirement, err := labels.NewRequirement(CoreOwnerNameKey, selection.Equals, []string{name})
 	if err != nil {
 		return nil
 	}
