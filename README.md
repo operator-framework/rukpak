@@ -49,9 +49,9 @@ of a container image need to be pulled and unpacked in order for Pods to start u
 generalization of the image concept, and can be used to represent any type of content.
 
 `Bundles` do nothing on their own - they require a `Provisioner` to unpack and make their content available in-cluster.
-They can be unpacked to any arbitrary storage medium such as a series of ConfigMaps. Each `Bundle` has an
-associated `spec.provisionerClassName` field which indicates the `Provisioner` that should be watching and unpacking
-that particular bundle type.
+They can be unpacked to any arbitrary storage medium such as a tar.gz file in a directory mounted into the provisioner
+pods. Each `Bundle` has an associated `spec.provisionerClassName` field which indicates the `Provisioner` that should be
+watching and unpacking that particular bundle type.
 
 Example Bundle configured to work with the [plain provisioner](internal/provisioner/plain/README.md).
 

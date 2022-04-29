@@ -15,14 +15,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
   - pods
   verbs:
   - create

@@ -33,10 +33,11 @@ const (
 
 	TypeUnpacked = "Unpacked"
 
-	ReasonUnpackPending    = "UnpackPending"
-	ReasonUnpacking        = "Unpacking"
-	ReasonUnpackSuccessful = "UnpackSuccessful"
-	ReasonUnpackFailed     = "UnpackFailed"
+	ReasonUnpackPending             = "UnpackPending"
+	ReasonUnpacking                 = "Unpacking"
+	ReasonUnpackSuccessful          = "UnpackSuccessful"
+	ReasonUnpackFailed              = "UnpackFailed"
+	ReasonProcessingFinalizerFailed = "ProcessingFinalizerFailed"
 
 	PhasePending   = "Pending"
 	PhaseUnpacking = "Unpacking"

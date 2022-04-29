@@ -85,7 +85,8 @@ my-bundle-instance   my-bundle        my-bundle          InstallationSucceeded  
 There is a natural separation between sourcing of the content and application of that content via two separate RukPak
 APIs, `Bundle` and `BundleInstance`. A user can specify a particular `Bundle` to be available in the cluster for
 inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, the plain provisioner
-will pull down and unpack the bundle to a set of ConfigMaps.
+will pull down and unpack the bundle to a tar.gz file that is saved into a bundle cache directory mounted in the
+provisioner pods.
 
 By default, `rukpak-system` is the configured namespace for deploying `plain` provisioner-related system resources.
 

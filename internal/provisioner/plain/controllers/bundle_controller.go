@@ -33,12 +33,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
@@ -60,6 +62,7 @@ type BundleReconciler struct {
 	KubeClient kubernetes.Interface
 	Scheme     *runtime.Scheme
 	Storage    storage.Storage
+	Finalizers finalizer.Finalizers
 
 	PodNamespace    string
 	UnpackImage     string
@@ -70,7 +73,7 @@ type BundleReconciler struct {
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=list;watch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=pods;configmaps,verbs=list;watch;create;delete
+//+kubebuilder:rbac:groups=core,resources=pods,verbs=list;watch;create;delete
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -94,6 +97,54 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 		}
 	}()
 	u.UpdateStatus(updater.EnsureObservedGeneration(bundle.Generation))
+
+	res, err := r.Finalizers.Finalize(ctx, bundle)
+	if err != nil {
+		u.UpdateStatus(
+			updater.SetBundleInfo(nil),
+			updater.EnsureBundleDigest(""),
+			updater.SetPhase(rukpakv1alpha1.PhaseFailing),
+			updater.EnsureCondition(metav1.Condition{
+				Type:    rukpakv1alpha1.TypeUnpacked,
+				Status:  metav1.ConditionUnknown,
+				Reason:  rukpakv1alpha1.ReasonProcessingFinalizerFailed,
+				Message: err.Error(),
+			}),
+		)
+		return ctrl.Result{}, err
+	}
+	var (
+		finalizerUpdateErrs []error
+	)
+	// Update the status subresource before updating the main object. This is
+	// necessary because, in many cases, the main object update will remove the
+	// finalizer, which will cause the core Kubernetes deletion logic to
+	// complete. Therefore, we need to make the status update prior to the main
+	// object update to ensure that the status update can be processed before
+	// a potential deletion.
+	if res.StatusUpdated {
+		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Status().Update(ctx, bundle))
+	}
+	if res.Updated {
+		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Update(ctx, bundle))
+	}
+	if res.Updated || res.StatusUpdated || !bundle.GetDeletionTimestamp().IsZero() {
+		err := apimacherrors.NewAggregate(finalizerUpdateErrs)
+		if err != nil {
+			u.UpdateStatus(
+				updater.SetBundleInfo(nil),
+				updater.EnsureBundleDigest(""),
+				updater.SetPhase(rukpakv1alpha1.PhaseFailing),
+				updater.EnsureCondition(metav1.Condition{
+					Type:    rukpakv1alpha1.TypeUnpacked,
+					Status:  metav1.ConditionUnknown,
+					Reason:  rukpakv1alpha1.ReasonProcessingFinalizerFailed,
+					Message: err.Error(),
+				}),
+			)
+		}
+		return ctrl.Result{}, err
+	}
 
 	pod := &corev1.Pod{}
 	if op, err := r.ensureUnpackPod(ctx, bundle, pod); err != nil {
@@ -264,7 +315,6 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get bundle image digest: %w", err))
 	}
-
 	objects, err := getObjects(bundleFS)
 	if err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("get objects from bundle manifests: %w", err))
@@ -274,7 +324,7 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 			"plain+v0 bundles are required to contain at least one object"))
 	}
 
-	if err := r.Storage.Store(ctx, bundle, objects); err != nil {
+	if err := r.Storage.Store(ctx, bundle, bundleFS); err != nil {
 		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %w", err))
 	}
 
@@ -387,7 +437,6 @@ func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Pod{}).
-		Owns(&corev1.ConfigMap{}).
 		Complete(r)
 }
 

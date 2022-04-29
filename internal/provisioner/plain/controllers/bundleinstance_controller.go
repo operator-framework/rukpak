@@ -68,7 +68,6 @@ type BundleInstanceReconciler struct {
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances,verbs=list;watch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundleinstances/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=list;watch
 //+kubebuilder:rbac:groups=*,resources=*,verbs=*
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -322,9 +321,14 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1a
 		return nil, &errBundleNotUnpacked{currentPhase: b.Status.Phase}
 	}
 
-	objects, err := r.BundleStorage.Load(ctx, b)
+	bundle, err := r.BundleStorage.Load(ctx, b)
 	if err != nil {
-		return nil, fmt.Errorf("load bundle objects: %w", err)
+		return nil, fmt.Errorf("load bundle: %w", err)
+	}
+
+	objects, err := getObjects(bundle)
+	if err != nil {
+		return nil, fmt.Errorf("read bundle objects from bundle: %w", err)
 	}
 
 	objs := make([]client.Object, 0, len(objects))
@@ -334,7 +338,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1a
 			util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind,
 			util.CoreOwnerNameKey: bi.Name,
 		}))
-		objs = append(objs, &obj)
+		objs = append(objs, obj)
 	}
 	return objs, nil
 }

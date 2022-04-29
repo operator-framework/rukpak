@@ -1,18 +1,14 @@
 package util
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
-	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -76,10 +72,6 @@ func PodName(provisionerName, bundleName string) string {
 
 func BundleLabels(bundleName string) map[string]string {
 	return map[string]string{"core.rukpak.io/bundle-name": bundleName}
-}
-
-func MetadataConfigMapName(bundleName string) string {
-	return fmt.Sprintf("bundle-metadata-%s", bundleName)
 }
 
 func newLabelSelector(name, kind string) labels.Selector {
@@ -170,67 +162,4 @@ func MergeMaps(maps ...map[string]string) map[string]string {
 		}
 	}
 	return out
-}
-
-func ConfigMapsEqual(a, b corev1.ConfigMap) bool {
-	//if !stringMapsEqual(a.Labels, b.Labels) {
-	//	fmt.Println("labels differ", a.Labels, b.Labels)
-	//}
-	//if !stringMapsEqual(a.Annotations, b.Annotations) {
-	//	fmt.Println("annotations differ", a.Annotations, b.Annotations)
-	//}
-	//if !ownerRefsEqual(a.OwnerReferences, b.OwnerReferences) {
-	//	fmt.Println("ownerrefs differ", a.OwnerReferences, b.OwnerReferences)
-	//}
-	//if !stringMapsEqual(a.Data, b.Data) {
-	//	fmt.Println("data differs", a.Data, b.Data)
-	//}
-	//if !bytesMapsEqual(a.BinaryData, b.BinaryData) {
-	//	fmt.Println("binary data differs", a.BinaryData, b.BinaryData)
-	//}
-
-	return stringMapsEqual(a.Labels, b.Labels) &&
-		stringMapsEqual(a.Annotations, b.Annotations) &&
-		ownerRefsEqual(a.OwnerReferences, b.OwnerReferences) &&
-		stringMapsEqual(a.Data, b.Data) &&
-		bytesMapsEqual(a.BinaryData, b.BinaryData)
-}
-
-func stringMapsEqual(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for ka, va := range a {
-		vb, ok := b[ka]
-		if !ok || va != vb {
-			return false
-		}
-	}
-	return true
-}
-
-func bytesMapsEqual(a, b map[string][]byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for ka, va := range a {
-		vb, ok := b[ka]
-		if !ok || !bytes.Equal(va, vb) {
-			return false
-		}
-	}
-	return true
-}
-
-func ownerRefsEqual(a, b []metav1.OwnerReference) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, ora := range a {
-		orb := b[i]
-		if !reflect.DeepEqual(ora, orb) {
-			return false
-		}
-	}
-	return true
 }
