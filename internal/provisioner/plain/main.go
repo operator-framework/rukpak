@@ -31,11 +31,13 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
+	"github.com/operator-framework/rukpak/internal/provisioner/plain/finalizer"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
@@ -114,15 +116,30 @@ func main() {
 		}),
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to create manager")
 		os.Exit(1)
 	}
 
 	ns := util.PodNamespace(systemNamespace)
-	bundleStorage := &storage.ConfigMaps{
-		Client:     mgr.GetClient(),
-		Namespace:  ns,
-		NamePrefix: "bundle-",
+	bundleStorage := storage.DefaultLocalDirectory
+
+	// This finalizer logic MUST be co-located with this main
+	// controller logic because it deals with cleaning up bundle data
+	// from the bundle cache when the bundles are deleted. The
+	// consequence is that this process MUST remain running in order
+	// to process DELETE events for bundles that include this finalizer.
+	// If this process is NOT running, deletion of such bundles will
+	// hang until $something removes the finalizer.
+	//
+	// If the bundle cache is backed by a storage implementation that allows
+	// multiple writers from different processes (e.g. a ReadWriteMany volume or
+	// an S3 bucket), we could have separate processes for finalizer handling
+	// and the primary plain provisioner controller. For now, the assumption is
+	// that we are not using such an implementation.
+	bundleFinalizers := crfinalizer.NewFinalizers()
+	if err := bundleFinalizers.Register(finalizer.DeleteCachedBundleKey, &finalizer.DeleteCachedBundle{Storage: bundleStorage}); err != nil {
+		setupLog.Error(err, "unable to register finalizer", "finalizerKey", finalizer.DeleteCachedBundleKey)
+		os.Exit(1)
 	}
 
 	if err = (&controllers.BundleReconciler{
@@ -131,6 +148,7 @@ func main() {
 		Scheme:         mgr.GetScheme(),
 		PodNamespace:   ns,
 		Storage:        bundleStorage,
+		Finalizers:     bundleFinalizers,
 		UnpackImage:    unpackImage,
 		GitClientImage: gitClientImage,
 	}).SetupWithManager(mgr); err != nil {

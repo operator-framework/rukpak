@@ -3,6 +3,9 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,14 +18,15 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
+	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -101,49 +105,6 @@ var _ = Describe("plain provisioner bundle", func() {
 					return len(bundle.Status.Info.Objects), nil
 				}).Should(Equal(8))
 			})
-		})
-
-		It("should re-create the bundle configmaps", func() {
-			var (
-				cm *corev1.ConfigMap
-			)
-
-			By("getting the metadata configmap for the bundle")
-			// TODO(tflannag): Create a constant for the "core.rukpak.io/configmap-type" label
-			// and update the internal/controller packages.
-			configMapTypeRequirement, err := labels.NewRequirement("core.rukpak.io/configmap-type", selection.Equals, []string{"metadata"})
-			Expect(err).To(BeNil())
-
-			selector := util.NewBundleLabelSelector(bundle)
-			selector = selector.Add(*configMapTypeRequirement)
-
-			Eventually(func() bool {
-				cms := &corev1.ConfigMapList{}
-				if err := c.List(ctx, cms, &client.ListOptions{
-					Namespace:     defaultSystemNamespace,
-					LabelSelector: selector,
-				}); err != nil {
-					return false
-				}
-				if len(cms.Items) != 1 {
-					return false
-				}
-				cm = &cms.Items[0]
-
-				return true
-			}).Should(BeTrue())
-
-			By("deleting the metadata configmap and checking if it gets recreated")
-			originalUID := cm.GetUID()
-
-			Eventually(func() error {
-				return c.Delete(ctx, cm)
-			}).Should(Succeed())
-
-			Eventually(func() (types.UID, error) {
-				err := c.Get(ctx, client.ObjectKeyFromObject(cm), cm)
-				return cm.GetUID(), err
-			}).ShouldNot(Equal(originalUID))
 		})
 
 		It("should re-create underlying system resources", func() {
@@ -1363,7 +1324,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			By("deleting the test Bundle resource")
 			Expect(c.Delete(ctx, b)).To(BeNil())
 
-			By("waiting until all the configmaps have been deleted")
+			By("waiting until the unpack pods for this bundle have been deleted")
 			selector := util.NewBundleLabelSelector(b)
 			Eventually(func() bool {
 				pods := &corev1.PodList{}
@@ -1376,22 +1337,22 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				return len(pods.Items) == 0
 			}).Should(BeTrue())
 		})
-		It("should result in the underlying metadata/object configmaps being deleted", func() {
+		It("should result in the underlying bundle file being deleted", func() {
+			provisionerPods := &corev1.PodList{}
+			err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"})
+			Expect(err).To(BeNil())
+			Expect(provisionerPods.Items).To(HaveLen(1))
+
+			By("checking that the bundle file exists")
+			Expect(checkProvisionerBundle(b, provisionerPods.Items[0].Name)).To(Succeed())
+
 			By("deleting the test Bundle resource")
 			Expect(c.Delete(ctx, b)).To(BeNil())
 
-			By("waiting until all the configmaps have been deleted")
-			selector := util.NewBundleLabelSelector(b)
-			Eventually(func() bool {
-				cms := &corev1.ConfigMapList{}
-				if err := c.List(ctx, cms, &client.ListOptions{
-					Namespace:     defaultSystemNamespace,
-					LabelSelector: selector,
-				}); err != nil {
-					return false
-				}
-				return len(cms.Items) == 0
-			}).Should(BeTrue())
+			By("waiting until the bundle file has been deleted")
+			Eventually(func() error {
+				return checkProvisionerBundle(b, provisionerPods.Items[0].Name)
+			}).Should(MatchError(ContainSubstring("command terminated with exit code 1")))
 		})
 	})
 
@@ -1479,4 +1440,32 @@ func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
 
 func conditionsLooselyEqual(a, b metav1.Condition) bool {
 	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && strings.Contains(b.Message, a.Message)
+}
+
+func checkProvisionerBundle(object client.Object, provisionerPodName string) error {
+	req := kubeClient.CoreV1().RESTClient().Post().
+		Namespace(defaultSystemNamespace).
+		Resource("pods").
+		Name(provisionerPodName).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: "plain-provisioner",
+			Command:   []string{"ls", filepath.Join(storage.DefaultBundleCacheDir, fmt.Sprintf("%s.tgz", object.GetUID()))},
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		}, runtime.NewParameterCodec(c.Scheme()))
+
+	exec, err := remotecommand.NewSPDYExecutor(cfg, http.MethodPost, req.URL())
+	if err != nil {
+		return err
+	}
+
+	return exec.Stream(remotecommand.StreamOptions{
+		Stdin:  os.Stdin,
+		Stdout: io.Discard,
+		Stderr: io.Discard,
+		Tty:    false,
+	})
 }
