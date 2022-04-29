@@ -81,6 +81,11 @@ type GitSource struct {
 	// is required. Setting more than one field or zero fields will result in an
 	// error.
 	Ref GitRef `json:"ref"`
+	// SecretName contains the secret name that has authorization information for HTTPS protocol and is in the namespace that the provisioner is deployed.
+	// The secret is expected to contain `data.username` and `data.accesstoken` for the username and personal access token, respectively.
+	SecretName string `json:"secretName,omitempty"`
+	// If SslNoVerify is set true, the server certificate is ignored.
+	SslNoVerify bool `json:"sslNoVerify,omitempty"`
 }
 
 type GitRef struct {

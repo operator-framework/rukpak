@@ -3,6 +3,7 @@ package git
 import (
 	"errors"
 	"fmt"
+	"net/url"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
@@ -10,6 +11,7 @@ import (
 const (
 	defaultDirectory = "./"
 	repositoryName   = "repo"
+	sslNoVerify      = "GIT_SSL_NO_VERIFY=true "
 )
 
 type checkoutCmd struct {
@@ -22,36 +24,49 @@ func CloneCommandFor(s rukpakv1alpha1.GitSource) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return cmd.String(), nil
+	return cmd.String()
 }
 
-func (c *checkoutCmd) String() string {
+func (c *checkoutCmd) String() (string, error) {
 	var checkoutCommand string
 	var repository = c.Repository
 	var directory = c.Directory
 	var branch = c.Ref.Branch
 	var commit = c.Ref.Commit
 	var tag = c.Ref.Tag
+	var preset string
+
+	if c.SecretName != "" {
+		repositoryURL, err := url.Parse(repository)
+		if err != nil {
+			return "", fmt.Errorf("authorization is supported for https: %w", err)
+		}
+		repositoryURL.User = url.UserPassword("$USER", "$TOKEN")
+		repository = repositoryURL.String()
+	}
+	if c.SslNoVerify {
+		preset = sslNoVerify
+	}
 
 	if directory == "" {
 		directory = defaultDirectory
 	}
 
 	if commit != "" {
-		checkoutCommand = fmt.Sprintf("git clone %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s/. /bundle",
-			repository, repositoryName, repositoryName, commit, directory)
-		return checkoutCommand
+		checkoutCommand = fmt.Sprintf("%sgit clone %s %s && cd %s && %sgit checkout %s && rm -r .git && cp -r %s/. /bundle",
+			preset, repository, repositoryName, repositoryName, preset, commit, directory)
+		return checkoutCommand, nil
 	}
 
 	if tag != "" {
-		checkoutCommand = fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout tags/%s && rm -r .git && cp -r %s/. /bundle",
-			tag, repository, repositoryName, repositoryName, tag, directory)
-		return checkoutCommand
+		checkoutCommand = fmt.Sprintf("%sgit clone --depth 1 --branch %s %s %s && cd %s && %sgit checkout tags/%s && rm -r .git && cp -r %s/. /bundle",
+			preset, tag, repository, repositoryName, repositoryName, preset, tag, directory)
+		return checkoutCommand, nil
 	}
 
-	checkoutCommand = fmt.Sprintf("git clone --depth 1 --branch %s %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s/. /bundle",
-		branch, repository, repositoryName, repositoryName, branch, directory)
-	return checkoutCommand
+	checkoutCommand = fmt.Sprintf("%sgit clone --depth 1 --branch %s %s %s && cd %s && %sgit checkout %s && rm -r .git && cp -r %s/. /bundle",
+		preset, branch, repository, repositoryName, repositoryName, preset, branch, directory)
+	return checkoutCommand, nil
 }
 
 func (c *checkoutCmd) Validate() error {

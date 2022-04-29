@@ -86,6 +86,31 @@ func TestCheckoutCommand(t *testing.T) {
 			expected: "",
 			err:      errors.New("cannot specify both branch and commit: only one is allowed"),
 		},
+		{
+			source: rukpakv1alpha1.GitSource{
+				Repository: "https://github.com/operator-framework/combo",
+				Ref: rukpakv1alpha1.GitRef{
+					Commit: "4567031e158b42263e70a7c63e29f8981a4a6135",
+				},
+				SecretName: "secretname",
+			},
+			expected: fmt.Sprintf("git clone %s %s && cd %s && git checkout %s && rm -r .git && cp -r %s/. /bundle",
+				"https://$USER:$TOKEN@github.com/operator-framework/combo", repositoryName, repositoryName, "4567031e158b42263e70a7c63e29f8981a4a6135",
+				"./"),
+		},
+		{
+			source: rukpakv1alpha1.GitSource{
+				Repository: "https://github.com/operator-framework/combo",
+				Ref: rukpakv1alpha1.GitRef{
+					Commit: "4567031e158b42263e70a7c63e29f8981a4a6135",
+				},
+				SecretName:  "secretname",
+				SslNoVerify: true,
+			},
+			expected: fmt.Sprintf("%sgit clone %s %s && cd %s && %sgit checkout %s && rm -r .git && cp -r %s/. /bundle",
+				"GIT_SSL_NO_VERIFY=true ", "https://$USER:$TOKEN@github.com/operator-framework/combo", repositoryName, repositoryName, "GIT_SSL_NO_VERIFY=true ", "4567031e158b42263e70a7c63e29f8981a4a6135",
+				"./"),
+		},
 	}
 
 	for _, tt := range gitSources {

@@ -94,6 +94,17 @@ spec:
                           containing the bundle. Repository is required and the URL
                           should be parsable by a standard git tool.
                         type: string
+                      secretName:
+                        description: SecretName contains the secret name that has
+                          authorization information for HTTPS protocol and is in the
+                          namespace that the provisioner is deployed. The secret is
+                          expected to contain `data.username` and `data.accesstoken`
+                          for the username and personal access token, respectively.
+                        type: string
+                      sslNoVerify:
+                        description: If SslNoVerify is set true, the server certificate
+                          is ignored.
+                        type: boolean
                     required:
                     - ref
                     - repository
