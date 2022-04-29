@@ -30,6 +30,7 @@ import (
 
 	"github.com/nlepage/go-tarfs"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,6 +44,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/git"
+	"github.com/operator-framework/rukpak/internal/provisioner/plain/metrics"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/updater"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -66,6 +68,16 @@ type BundleReconciler struct {
 	GitClientImage  string
 }
 
+type BundlePhaseTransitioner struct {
+	ctx             context.Context
+	bundle          *rukpakv1alpha1.Bundle
+	pod             *corev1.Pod
+	podOpResult     controllerutil.OperationResult
+	u               *updater.Updater
+	metricsRecorder metrics.BundleMetricsRecorder
+	err             error
+}
+
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=list;watch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/finalizers,verbs=update
@@ -83,9 +95,18 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 	defer l.V(1).Info("ending reconciliation")
 	bundle := &rukpakv1alpha1.Bundle{}
 	if err := r.Get(ctx, req.NamespacedName, bundle); err != nil {
+		// (TODO) This is a very hacky way of executing actions that need to be executed on resource deletion
+		// Instead, refactor to separate actions out to reconcilers built for each phase, eg a Reconciler built
+		// for handling actions when resource is in Pending, another reconciler for when resource is in Unpacking,
+		// another for when resource is deleted.
+		if apierrors.IsNotFound(err) {
+			r := metrics.NewBundleMetricsRecorder(&rukpakv1alpha1.Bundle{ObjectMeta: metav1.ObjectMeta{Name: req.Name, Namespace: req.Namespace}}, l)
+			r.DeleteBundleMetric()
+		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	metricsRecorder := metrics.NewBundleMetricsRecorder(bundle, l)
 	u := updater.New(r.Client)
 	defer func() {
 		if err := u.Apply(ctx, bundle); err != nil {
@@ -95,27 +116,35 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 	u.UpdateStatus(updater.EnsureObservedGeneration(bundle.Generation))
 
 	pod := &corev1.Pod{}
-	if op, err := r.ensureUnpackPod(ctx, bundle, pod); err != nil {
-		u.UpdateStatus(updater.SetBundleInfo(nil), updater.EnsureBundleDigest(""))
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("ensure unpack pod: %w", err))
-	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
-		updateStatusUnpackPending(&u)
+	op, err := r.ensureUnpackPod(ctx, bundle, pod)
+	return r.transitionBundlePhase(BundlePhaseTransitioner{ctx, bundle, pod, op, &u, metricsRecorder, err})
+}
+
+func (r *BundleReconciler) transitionBundlePhase(pt BundlePhaseTransitioner) (_ ctrl.Result, reconcileErr error) {
+	// first record metric for phase bundle currently is in
+	pt.metricsRecorder.SetBundleMetric()
+	// transition bundle to new phase
+	if pt.err != nil {
+		pt.u.UpdateStatus(updater.SetBundleInfo(nil), updater.EnsureBundleDigest(""))
+		return ctrl.Result{}, updateStatusUnpackFailing(pt.u, fmt.Errorf("could not create unpack pod: %w", pt.err))
+	}
+	if pt.podOpResult == controllerutil.OperationResultCreated || pt.podOpResult == controllerutil.OperationResultUpdated || pt.pod.DeletionTimestamp != nil {
+		updateStatusUnpackPending(pt.u)
 		return ctrl.Result{}, nil
 	}
-
-	switch phase := pod.Status.Phase; phase {
+	switch phase := pt.pod.Status.Phase; phase {
 	case corev1.PodPending:
-		r.handlePendingPod(&u, pod)
+		r.handlePendingPod(pt.u, pt.pod)
 		return ctrl.Result{}, nil
 	case corev1.PodRunning:
-		r.handleRunningPod(&u)
+		r.handleRunningPod(pt.u)
 		return ctrl.Result{}, nil
 	case corev1.PodFailed:
-		return ctrl.Result{}, r.handleFailedPod(ctx, &u, pod)
+		return ctrl.Result{}, r.handleFailedPod(pt.ctx, pt.u, pt.pod)
 	case corev1.PodSucceeded:
-		return ctrl.Result{}, r.handleCompletedPod(ctx, &u, bundle, pod)
+		return ctrl.Result{}, r.handleCompletedPod(pt.ctx, pt.u, pt.bundle, pt.pod)
 	default:
-		return ctrl.Result{}, r.handleUnexpectedPod(ctx, &u, pod)
+		return ctrl.Result{}, r.handleUnexpectedPod(pt.ctx, pt.u, pt.pod)
 	}
 }
 

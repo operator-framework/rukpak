@@ -16,3 +16,6 @@ vendor/
 bin/
 dist/
 .goreleaser.yml
+
+# Editor specific directories
+.vscode/

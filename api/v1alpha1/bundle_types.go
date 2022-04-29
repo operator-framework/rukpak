@@ -27,6 +27,8 @@ var (
 
 type BundleConditionType string
 
+type BundlePhase string
+
 const (
 	SourceTypeImage = "image"
 	SourceTypeGit   = "git"
@@ -38,10 +40,11 @@ const (
 	ReasonUnpackSuccessful = "UnpackSuccessful"
 	ReasonUnpackFailed     = "UnpackFailed"
 
-	PhasePending   = "Pending"
-	PhaseUnpacking = "Unpacking"
-	PhaseFailing   = "Failing"
-	PhaseUnpacked  = "Unpacked"
+	PhasePending   = BundlePhase("Pending")
+	PhaseUnpacking = BundlePhase("Unpacking")
+	PhaseFailing   = BundlePhase("Failing")
+	PhaseUnpacked  = BundlePhase("Unpacked")
+	PhaseUnknown   = BundlePhase("Unknown")
 )
 
 // BundleSpec defines the desired state of Bundle

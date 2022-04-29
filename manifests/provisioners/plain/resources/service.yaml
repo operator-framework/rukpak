@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: plain-provisioner-metrics
+  namespace: rukpak-system
+spec:
+  selector:
+    app: plain-provisioner
+  ports:
+  - name: metrics
+    port: 8383
+    protocol: TCP
+    targetPort: 8383

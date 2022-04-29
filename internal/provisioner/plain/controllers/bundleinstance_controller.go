@@ -120,7 +120,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		var bnuErr *errBundleNotUnpacked
 		if errors.As(err, &bnuErr) {
 			reason := fmt.Sprintf("BundleUnpack%s", b.Status.Phase)
-			if b.Status.Phase == rukpakv1alpha1.PhaseUnpacking {
+			if b.Status.Phase == string(rukpakv1alpha1.PhaseUnpacking) {
 				reason = "BundleUnpackRunning"
 			}
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
@@ -320,7 +320,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1a
 	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
 		return nil, fmt.Errorf("get bundle %q: %w", bi.Spec.BundleName, err)
 	}
-	if b.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+	if b.Status.Phase != string(rukpakv1alpha1.PhaseUnpacked) {
 		return nil, &errBundleNotUnpacked{currentPhase: b.Status.Phase}
 	}
 
