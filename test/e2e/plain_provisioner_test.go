@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
@@ -178,6 +180,28 @@ var _ = Describe("plain provisioner bundle", func() {
 				err := c.Get(ctx, client.ObjectKeyFromObject(pod), pod)
 				return pod.GetUID(), err
 			}).ShouldNot(Equal(originalUID))
+		})
+		It("should block spec.source updates", func() {
+			Consistently(func() error {
+				return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return err
+					}
+					bundle.Spec.Source.Image.Ref = "foobar"
+					return c.Update(ctx, bundle)
+				})
+			}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("bundle.spec is immutable")))
+		})
+		It("should block spec.provisionerClassName updates", func() {
+			Consistently(func() error {
+				return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return err
+					}
+					bundle.Spec.ProvisionerClassName = "foobar"
+					return c.Update(ctx, bundle)
+				})
+			}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("bundle.spec is immutable")))
 		})
 	})
 

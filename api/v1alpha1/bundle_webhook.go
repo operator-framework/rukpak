@@ -17,8 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -49,6 +51,11 @@ func (r *Bundle) ValidateCreate() error {
 func (r *Bundle) ValidateUpdate(old runtime.Object) error {
 	bundlelog.V(1).Info("validate update", "name", r.Name)
 
+	oldBundle := old.(*Bundle)
+	if err := checkImmutableSpec(oldBundle, r); err != nil {
+		return err
+	}
+
 	return checkBundleSource(r)
 }
 
@@ -69,6 +76,13 @@ func checkBundleSource(r *Bundle) error {
 		if r.Spec.Source.Git == nil {
 			return fmt.Errorf("bundle.spec.source.git must be set for source type \"git\"")
 		}
+	}
+	return nil
+}
+
+func checkImmutableSpec(oldBundle, newBundle *Bundle) error {
+	if !equality.Semantic.DeepEqual(oldBundle.Spec, newBundle.Spec) {
+		return errors.New("bundle.spec is immutable")
 	}
 	return nil
 }
