@@ -3,7 +3,7 @@
 ###########################
 ORG := github.com/operator-framework
 PKG := $(ORG)/rukpak
-export IMAGE_REPO ?= quay.io/operator-framework/plain-provisioner
+export IMAGE_REPO ?= quay.io/operator-framework/rukpak
 export IMAGE_TAG ?= latest
 IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= kind

@@ -130,13 +130,13 @@ EOF
    have push access to. For example,
 
 ```bash
-docker build -f Dockerfile.example -t quay.io/operator-framework/plain-provisioner:example .
+docker build -f Dockerfile.example -t quay.io/operator-framework/rukpak:example .
 ```
 
 6. Push the image to the remote registry
 
 ```bash
-docker push quay.io/operator-framework/plain-provisioner:example
+docker push quay.io/operator-framework/rukpak:example
 ```
 
 7. Make sure rukpak is installed locally on a running cluster.
@@ -157,7 +157,7 @@ spec:
   source:
     type: image
     image:
-      ref: quay.io/operator-framework/plain-provisioner:example
+      ref: quay.io/operator-framework/rukpak:example
   provisionerClassName: core.rukpak.io/plain
 EOF
 ```
