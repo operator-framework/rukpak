@@ -7,4 +7,3 @@ COPY core core
 COPY crdvalidator crdvalidator
 
 EXPOSE 8080
-ENTRYPOINT ["/plain"]

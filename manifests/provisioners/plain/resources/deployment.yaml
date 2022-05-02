@@ -19,6 +19,7 @@ spec:
       containers:
         - name: plain-provisioner
           image: quay.io/operator-framework/rukpak:latest
+          command: ["/plain"]
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
