@@ -732,14 +732,14 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				if bi.Status.InstalledBundleName != bundle.GetName() {
 					return false
 				}
-				existing := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				existing := meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled)
 				if existing == nil {
 					return false
 				}
 				expected := metav1.Condition{
-					Type:    "Installed",
+					Type:    rukpakv1alpha1.TypeInstalled,
 					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
-					Reason:  "InstallationSucceeded",
+					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
 					Message: "",
 				}
 				return conditionsSemanticallyEqual(expected, *existing)
@@ -762,26 +762,26 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				}
 
 				// Find the installed condition
-				existingInstalledStatus := meta.FindStatusCondition(bi.Status.Conditions, "Installed")
+				existingInstalledStatus := meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled)
 				if existingInstalledStatus == nil {
 					return false
 				}
 				expectedInstalledStatus := metav1.Condition{
-					Type:    "Installed",
+					Type:    rukpakv1alpha1.TypeInstalled,
 					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
-					Reason:  "InstallationSucceeded",
+					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
 					Message: "",
 				}
 
 				// Find the HasValidBundle status
-				existingBundleStatus := meta.FindStatusCondition(bi.Status.Conditions, "HasValidBundle")
+				existingBundleStatus := meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle)
 				if existingBundleStatus == nil {
 					return false
 				}
 				expectedBundleStatus := metav1.Condition{
-					Type:    "HasValidBundle",
+					Type:    rukpakv1alpha1.TypeHasValidBundle,
 					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
-					Reason:  "BundleLookupFailed",
+					Reason:  rukpakv1alpha1.ReasonBundleLookupFailed,
 					Message: fmt.Sprintf(`Bundle.core.rukpak.io "%s" not found`, bundle.GetName()),
 				}
 
