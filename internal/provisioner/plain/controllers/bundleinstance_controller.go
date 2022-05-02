@@ -263,9 +263,10 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 	meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-		Type:   rukpakv1alpha1.TypeInstalled,
-		Status: metav1.ConditionTrue,
-		Reason: rukpakv1alpha1.ReasonInstallationSucceeded,
+		Type:    rukpakv1alpha1.TypeInstalled,
+		Status:  metav1.ConditionTrue,
+		Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
+		Message: fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName),
 	})
 	bi.Status.InstalledBundleName = bi.Spec.BundleName
 	return ctrl.Result{}, nil
