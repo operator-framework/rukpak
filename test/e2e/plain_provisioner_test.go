@@ -686,69 +686,51 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 		It("should rollout the bundle contents successfully", func() {
 			By("eventually writing a successful installation state back to the bundleinstance status")
-			Eventually(func() bool {
+			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
-					return false
+					return nil, err
 				}
-				if bi.Status.InstalledBundleName != bundle.GetName() {
-					return false
-				}
-				existing := meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled)
-				if existing == nil {
-					return false
-				}
-				expected := metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
-					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-					Message: fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName),
-				}
-				return conditionsSemanticallyEqual(expected, *existing)
-			}).Should(BeTrue())
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal(fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName))),
+			))
 
 			By("eventually reseting a bundle lookup failure when the targeted bundle has been deleted")
 			Eventually(func() error {
 				return c.Delete(ctx, bundle)
 			}).Should(Succeed())
 
-			By("eventually having a status indicating that the bundle lookup failed but installation succeeded")
-			Eventually(func() bool {
+			By("eventually having a status indicating the bundle lookup failed")
+			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
-					return false
+					return nil, err
 				}
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonBundleLookupFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal(fmt.Sprintf(`Bundle.core.rukpak.io "%s" not found`, bundle.GetName()))),
+			))
 
-				// Should still have the original InstalledBundleName in the status
-				if bi.Status.InstalledBundleName == "" {
-					return false
+			By("continuing to indicate a successful installation in the status")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return nil, err
 				}
-
-				// Find the installed condition
-				existingInstalledStatus := meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled)
-				if existingInstalledStatus == nil {
-					return false
-				}
-				expectedInstalledStatus := metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
-					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-					Message: fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName),
-				}
-
-				// Find the HasValidBundle status
-				existingBundleStatus := meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle)
-				if existingBundleStatus == nil {
-					return false
-				}
-				expectedBundleStatus := metav1.Condition{
-					Type:    rukpakv1alpha1.TypeHasValidBundle,
-					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
-					Reason:  rukpakv1alpha1.ReasonBundleLookupFailed,
-					Message: fmt.Sprintf(`Bundle.core.rukpak.io "%s" not found`, bundle.GetName()),
-				}
-
-				return conditionsSemanticallyEqual(expectedInstalledStatus, *existingInstalledStatus) &&
-					conditionsSemanticallyEqual(expectedBundleStatus, *existingBundleStatus)
-			}).Should(BeTrue())
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal(fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName))),
+			))
 		})
 	})
 
@@ -1066,25 +1048,18 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 			// ensure the original BI owns the underlying bundle before creating the duplicate
 			By("projecting a successful installation status for the original BundleInstance")
-			Eventually(func() bool {
+			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(biOriginal), biOriginal); err != nil {
-					return false
+					return nil, err
 				}
-				if biOriginal.Status.InstalledBundleName != bundle.GetName() {
-					return false
-				}
-				existing := meta.FindStatusCondition(biOriginal.Status.Conditions, rukpakv1alpha1.TypeInstalled)
-				if existing == nil {
-					return false
-				}
-				expected := metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
-					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-					Message: fmt.Sprintf("instantiated bundle %s successfully", biOriginal.Spec.BundleName),
-				}
-				return conditionsSemanticallyEqual(*existing, expected)
-			}).Should(BeTrue())
+				return meta.FindStatusCondition(biOriginal.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal(fmt.Sprintf("instantiated bundle %s successfully", biOriginal.Spec.BundleName))),
+			))
 
 			biDuplicate = &rukpakv1alpha1.BundleInstance{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1120,28 +1095,18 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 		It("should fail for the duplicate BundleInstance", func() {
 			By("projecting a failed installation status for the duplicate BundleInstance")
-			Eventually(func() bool {
+			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(biDuplicate), biDuplicate); err != nil {
-					return false
+					return nil, err
 				}
-				if biDuplicate.Status.InstalledBundleName != "" {
-					return false
-				}
-				existing := meta.FindStatusCondition(biDuplicate.Status.Conditions, rukpakv1alpha1.TypeInstalled)
-				if existing == nil {
-					return false
-				}
-				// Create what the message should contain
-				looselyExpectedMessage := "rendered manifests contain a resource that already exists"
-				expected := metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionStatus(corev1.ConditionFalse),
-					Reason:  rukpakv1alpha1.ReasonInstallFailed,
-					Message: looselyExpectedMessage,
-				}
-
-				return conditionsLooselyEqual(expected, *existing)
-			}).Should(BeTrue())
+				return meta.FindStatusCondition(biDuplicate.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`rendered manifests contain a resource that already exists`)),
+			))
 		})
 	})
 
@@ -1433,14 +1398,6 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 	})
 })
-
-func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
-	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && a.Message == b.Message
-}
-
-func conditionsLooselyEqual(a, b metav1.Condition) bool {
-	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && strings.Contains(b.Message, a.Message)
-}
 
 func checkProvisionerBundle(object client.Object, provisionerPodName string) error {
 	req := kubeClient.CoreV1().RESTClient().Post().
