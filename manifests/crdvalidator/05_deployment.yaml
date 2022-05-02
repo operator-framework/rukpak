@@ -14,7 +14,7 @@ spec:
     spec:
       serviceAccountName: crd-validation-webhook
       containers:
-        - image: quay.io/operator-framework/plain-provisioner:latest
+        - image: quay.io/operator-framework/rukpak:latest
           imagePullPolicy: IfNotPresent
           command: ["/crdvalidator"]
           name: crd-validation-webhook
