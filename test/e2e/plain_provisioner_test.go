@@ -740,7 +740,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					Type:    rukpakv1alpha1.TypeInstalled,
 					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
 					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-					Message: "",
+					Message: fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName),
 				}
 				return conditionsSemanticallyEqual(expected, *existing)
 			}).Should(BeTrue())
@@ -770,7 +770,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					Type:    rukpakv1alpha1.TypeInstalled,
 					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
 					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-					Message: "",
+					Message: fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName),
 				}
 
 				// Find the HasValidBundle status
@@ -991,7 +991,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-					WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal("")),
+					WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal(fmt.Sprintf("instantiated bundle %s successfully", dependentBI.Spec.BundleName))),
 				))
 			})
 		})
@@ -1117,9 +1117,10 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					return false
 				}
 				expected := metav1.Condition{
-					Type:   rukpakv1alpha1.TypeInstalled,
-					Status: metav1.ConditionStatus(corev1.ConditionTrue),
-					Reason: rukpakv1alpha1.ReasonInstallationSucceeded,
+					Type:    rukpakv1alpha1.TypeInstalled,
+					Status:  metav1.ConditionStatus(corev1.ConditionTrue),
+					Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
+					Message: fmt.Sprintf("instantiated bundle %s successfully", biOriginal.Spec.BundleName),
 				}
 				return conditionsSemanticallyEqual(*existing, expected)
 			}).Should(BeTrue())
@@ -1253,7 +1254,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal("")),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal(fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName))),
 			))
 		})
 		AfterEach(func() {
@@ -1443,7 +1444,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal("")),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, Equal(fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName))),
 			))
 		})
 		AfterEach(func() {
