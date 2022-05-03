@@ -6,13 +6,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
-	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/operator-framework/rukpak/test/testutil"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
+	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/test/testutil"
 )
 
 var _ = Describe("crdvalidator", func() {

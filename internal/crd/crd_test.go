@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/operator-framework/rukpak/internal/unit"
-	"github.com/operator-framework/rukpak/test/testutil"
 	"github.com/stretchr/testify/require"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/operator-framework/rukpak/internal/unit"
+	"github.com/operator-framework/rukpak/test/testutil"
 )
 
 func TestValidate(t *testing.T) {

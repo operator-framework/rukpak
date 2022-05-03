@@ -22,12 +22,12 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
-	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
-	"github.com/operator-framework/rukpak/internal/crd"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
+	"github.com/operator-framework/rukpak/internal/crd"
 )
 
 // +kubebuilder:webhook:path=/validate-crd,mutating=false,failurePolicy=fail,groups="",resources=customresourcedefinitions,verbs=create;update,versions=v1,name=crd-validation-webhook.io
