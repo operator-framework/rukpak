@@ -6,13 +6,14 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/operator-framework/rukpak/internal/unit"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/operator-framework/rukpak/internal/unit"
 )
 
 func TestStoreAndLoad(t *testing.T) {

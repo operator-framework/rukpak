@@ -5,7 +5,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,6 +12,7 @@ import (
 	pkgclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/updater"
 )
