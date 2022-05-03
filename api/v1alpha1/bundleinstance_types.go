@@ -61,8 +61,8 @@ type BundleInstanceStatus struct {
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:scope=Cluster,shortName={"bi","bis"}
 //+kubebuilder:printcolumn:name="Desired Bundle",type=string,JSONPath=`.spec.bundleName`
 //+kubebuilder:printcolumn:name="Installed Bundle",type=string,JSONPath=`.status.installedBundleName`
 //+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
