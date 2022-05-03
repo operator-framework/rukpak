@@ -13,6 +13,9 @@ spec:
     kind: BundleInstance
     listKind: BundleInstanceList
     plural: bundleinstances
+    shortNames:
+    - bi
+    - bis
     singular: bundleinstance
   scope: Cluster
   versions:
