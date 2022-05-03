@@ -22,13 +22,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
 const (
 	// TODO: make this is a CLI flag?
 	defaultSystemNamespace = "rukpak-system"
-	plainProvisionerID     = "core.rukpak.io/plain"
 )
 
 func Logf(f string, v ...interface{}) {
@@ -53,7 +53,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -219,7 +219,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-invalid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -293,7 +293,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-unsupported",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -342,7 +342,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-unsupported",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -396,7 +396,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-commit",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plainProvisionerID,
+						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -453,7 +453,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-tag",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plainProvisionerID,
+						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -510,7 +510,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-branch",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plainProvisionerID,
+						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -567,7 +567,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-custom-dir",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plainProvisionerID,
+						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -634,7 +634,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "namespace-subdirs",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -687,7 +687,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "olm-crds",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -704,7 +704,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "olm-crds",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           bundle.GetName(),
 				},
 			}
@@ -806,7 +806,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "olm-apis",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -823,7 +823,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "olm-apis",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           bundle.GetName(),
 				},
 			}
@@ -883,7 +883,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "e2e-bundle-dependent-",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -901,7 +901,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "e2e-bi-dependent-",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           dependentBundle.GetName(),
 				},
 			}
@@ -947,7 +947,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 						GenerateName: "e2e-bundle-providing-",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plainProvisionerID,
+						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeImage,
 							Image: &rukpakv1alpha1.ImageSource{
@@ -965,7 +965,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 						GenerateName: "e2e-bi-providing-",
 					},
 					Spec: rukpakv1alpha1.BundleInstanceSpec{
-						ProvisionerClassName: plainProvisionerID,
+						ProvisionerClassName: plain.ProvisionerID,
 						BundleName:           providesBundle.GetName(),
 					},
 				}
@@ -1012,7 +1012,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "e2e-bundle-crds-and-crs",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -1030,7 +1030,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "e2e-bi-crds-and-crs",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           bundle.GetName(),
 				},
 			}
@@ -1078,7 +1078,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -1095,7 +1095,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "olm-apis-original",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           bundle.GetName(),
 				},
 			}
@@ -1129,7 +1129,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "olm-apis-duplicate",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           bundle.GetName(),
 				},
 			}
@@ -1199,7 +1199,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "e2e-original-bundle-crd-pivoting",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -1217,7 +1217,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "e2e-pivoted-bundle-crd-pivoting",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -1235,7 +1235,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					GenerateName: "e2e-bi-crd-pivoting",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           originalBundle.GetName(),
 				},
 			}
@@ -1335,7 +1335,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					GenerateName: "e2e-ownerref-bundle-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -1409,7 +1409,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					GenerateName: "e2e-ownerref-bundle-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -1426,7 +1426,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					GenerateName: "e2e-ownerref-bi-valid",
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					BundleName:           b.GetName(),
 				},
 			}

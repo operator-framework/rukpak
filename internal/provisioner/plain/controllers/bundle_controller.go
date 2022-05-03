@@ -43,6 +43,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/git"
+	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/updater"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -382,7 +383,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
-			util.BundleProvisionerFilter(plainBundleProvisionerID),
+			util.BundleProvisionerFilter(plain.ProvisionerID),
 		)).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Pod{}).
