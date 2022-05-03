@@ -32,6 +32,8 @@ linters-settings:
       alias: apierrors
     - pkg: github.com/operator-framework/rukpak/api/v1alpha1
       alias: rukpakv1alpha1
+  goimports:
+    local-prefixes: github.com/operator-framework/rukpak
 
 output:
   format: tab
