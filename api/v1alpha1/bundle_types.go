@@ -99,27 +99,11 @@ type ProvisionerID string
 
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
-	Info               *BundleInfo        `json:"info,omitempty"`
 	Phase              string             `json:"phase,omitempty"`
 	Digest             string             `json:"digest,omitempty"`
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 	ContentURL         string             `json:"contentURL,omitempty"`
-}
-
-type BundleInfo struct {
-	Package string         `json:"package"`
-	Name    string         `json:"name"`
-	Version string         `json:"version"`
-	Objects []BundleObject `json:"objects,omitempty"`
-}
-
-type BundleObject struct {
-	Group     string `json:"group"`
-	Version   string `json:"version"`
-	Kind      string `json:"kind"`
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
 }
 
 //+kubebuilder:object:root=true
