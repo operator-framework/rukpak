@@ -200,40 +200,6 @@ spec:
                 type: string
               digest:
                 type: string
-              info:
-                properties:
-                  name:
-                    type: string
-                  objects:
-                    items:
-                      properties:
-                        group:
-                          type: string
-                        kind:
-                          type: string
-                        name:
-                          type: string
-                        namespace:
-                          type: string
-                        version:
-                          type: string
-                      required:
-                      - group
-                      - kind
-                      - name
-                      - namespace
-                      - version
-                      type: object
-                    type: array
-                  package:
-                    type: string
-                  version:
-                    type: string
-                required:
-                - name
-                - package
-                - version
-                type: object
               observedGeneration:
                 format: int64
                 type: integer

@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -92,18 +93,6 @@ var _ = Describe("plain provisioner bundle", func() {
 					}
 					return bundle.Status.Digest, nil
 				}).Should(Not(Equal("")))
-			})
-
-			By("eventually writing a non-empty list of unpacked objects to the status", func() {
-				Eventually(func() (int, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return -1, err
-					}
-					if bundle.Status.Info == nil {
-						return -1, fmt.Errorf("bundle.Status.Info is nil")
-					}
-					return len(bundle.Status.Info.Objects), nil
-				}).Should(Equal(8))
 			})
 		})
 
@@ -379,28 +368,24 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
-				Eventually(func() bool {
+				Eventually(func() error {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return false
+						return err
 					}
 					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return false
+						return errors.New("bundle is not unpacked")
 					}
-					if bundle.Status.Info == nil {
-						return false
+
+					provisionerPods := &corev1.PodList{}
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+						return err
 					}
-					/*
-						manifests
-						├── 00_namespace.yaml
-						├── 01_cluster_role.yaml
-						├── 01_service_account.yaml
-						├── 02_deployment.yaml
-						├── 03_cluster_role_binding.yaml
-						├── combo.io_combinations.yaml
-						└── combo.io_templates.yaml
-					*/
-					return len(bundle.Status.Info.Objects) == 7
-				}).Should(BeTrue())
+					if len(provisionerPods.Items) != 1 {
+						return errors.New("expected exactly 1 provisioner pod")
+					}
+
+					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+				}).Should(BeNil())
 			})
 		})
 
@@ -436,28 +421,24 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
-				Eventually(func() bool {
+				Eventually(func() error {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return false
+						return err
 					}
 					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return false
+						return errors.New("bundle is not unpacked")
 					}
-					if bundle.Status.Info == nil {
-						return false
+
+					provisionerPods := &corev1.PodList{}
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+						return err
 					}
-					/*
-						manifests
-						├── 00_namespace.yaml
-						├── 01_cluster_role.yaml
-						├── 01_service_account.yaml
-						├── 02_deployment.yaml
-						├── 03_cluster_role_binding.yaml
-						├── combo.io_combinations.yaml
-						└── combo.io_templates.yaml
-					*/
-					return len(bundle.Status.Info.Objects) == 7
-				}).Should(BeTrue())
+					if len(provisionerPods.Items) != 1 {
+						return errors.New("expected exactly 1 provisioner pod")
+					}
+
+					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+				}).Should(BeNil())
 			})
 		})
 
@@ -493,28 +474,24 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
-				Eventually(func() bool {
+				Eventually(func() error {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return false
+						return err
 					}
 					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return false
+						return errors.New("bundle is not unpacked")
 					}
-					if bundle.Status.Info == nil {
-						return false
+
+					provisionerPods := &corev1.PodList{}
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+						return err
 					}
-					/*
-						manifests
-						├── 00_namespace.yaml
-						├── 01_cluster_role.yaml
-						├── 01_service_account.yaml
-						├── 02_deployment.yaml
-						├── 03_cluster_role_binding.yaml
-						├── combo.io_combinations.yaml
-						└── combo.io_templates.yaml
-					*/
-					return len(bundle.Status.Info.Objects) == 7
-				}).Should(BeTrue())
+					if len(provisionerPods.Items) != 1 {
+						return errors.New("expected exactly 1 provisioner pod")
+					}
+
+					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+				}).Should(BeNil())
 			})
 		})
 
@@ -551,28 +528,24 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
-				Eventually(func() bool {
+				Eventually(func() error {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return false
+						return err
 					}
 					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return false
+						return errors.New("bundle is not unpacked")
 					}
-					if bundle.Status.Info == nil {
-						return false
+
+					provisionerPods := &corev1.PodList{}
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+						return err
 					}
-					/*
-						manifests
-						├── 00_namespace.yaml
-						├── 01_cluster_role.yaml
-						├── 01_service_account.yaml
-						├── 02_deployment.yaml
-						├── 03_cluster_role_binding.yaml
-						├── combo.io_combinations.yaml
-						└── combo.io_templates.yaml
-					*/
-					return len(bundle.Status.Info.Objects) == 7
-				}).Should(BeTrue())
+					if len(provisionerPods.Items) != 1 {
+						return errors.New("expected exactly 1 provisioner pod")
+					}
+
+					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+				}).Should(BeNil())
 			})
 		})
 	})

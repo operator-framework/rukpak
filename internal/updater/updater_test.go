@@ -23,7 +23,6 @@ var _ = Describe("Updater", func() {
 		u      updater.Updater
 		obj    *rukpakv1alpha1.Bundle
 		status = &rukpakv1alpha1.BundleStatus{
-			Info:               &rukpakv1alpha1.BundleInfo{},
 			Phase:              rukpakv1alpha1.PhaseFailing,
 			Digest:             "digest",
 			ObservedGeneration: 1,
@@ -73,7 +72,6 @@ var _ = Describe("Updater", func() {
 				},
 			},
 			Status: rukpakv1alpha1.BundleStatus{
-				Info:               &rukpakv1alpha1.BundleInfo{},
 				Phase:              rukpakv1alpha1.PhaseFailing,
 				Digest:             "digest",
 				ObservedGeneration: 1,
@@ -103,7 +101,7 @@ var _ = Describe("Updater", func() {
 	When("the object does not exist", func() {
 		It("should fail", func() {
 			Expect(client.Delete(context.Background(), obj)).To(Succeed())
-			u.UpdateStatus(updater.EnsureCondition(status.Conditions[0]), updater.EnsureObservedGeneration(status.ObservedGeneration), updater.EnsureBundleDigest(status.Digest), updater.SetBundleInfo(status.Info), updater.SetPhase(status.Phase))
+			u.UpdateStatus(updater.EnsureCondition(status.Conditions[0]), updater.EnsureObservedGeneration(status.ObservedGeneration), updater.EnsureBundleDigest(status.Digest), updater.SetPhase(status.Phase))
 			err := u.Apply(context.Background(), obj)
 			Expect(err).NotTo(BeNil())
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
@@ -234,47 +232,5 @@ var _ = Describe("SetPhase", func() {
 		status.Phase = "phase"
 		Expect(updater.SetPhase("phase")(status)).To(BeFalse())
 		Expect(status.Phase).To(Equal("phase"))
-	})
-})
-
-var _ = Describe("SetBundleInfo", func() {
-	var status *rukpakv1alpha1.BundleStatus
-	var info *rukpakv1alpha1.BundleInfo
-
-	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleStatus{}
-		info = &rukpakv1alpha1.BundleInfo{}
-	})
-
-	It("should set phase if not present", func() {
-		Expect(updater.SetBundleInfo(info)(status)).To(BeTrue())
-		Expect(status.Info).To(Equal(info))
-	})
-
-	It("should return false for no update", func() {
-		status.Info = info
-		Expect(updater.SetBundleInfo(info)(status)).To(BeFalse())
-		Expect(status.Info).To(Equal(info))
-	})
-})
-
-var _ = Describe("UnsetBundleInfo", func() {
-	var status *rukpakv1alpha1.BundleStatus
-	var emptyInfo *rukpakv1alpha1.BundleInfo
-
-	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleStatus{}
-		emptyInfo = &rukpakv1alpha1.BundleInfo{}
-	})
-
-	It("should set phase if not present", func() {
-		Expect(updater.UnsetBundleInfo()(status)).To(BeFalse())
-		Expect(status.Info).To(Equal((*rukpakv1alpha1.BundleInfo)(nil)))
-	})
-
-	It("should return false for no update", func() {
-		status.Info = emptyInfo
-		Expect(updater.UnsetBundleInfo()(status)).To(BeTrue())
-		Expect(status.Info).To(Equal((*rukpakv1alpha1.BundleInfo)(nil)))
 	})
 })
