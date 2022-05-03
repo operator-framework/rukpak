@@ -8,7 +8,7 @@ to help RukPak contributors.
 ## Communication
 
 - Email: [operator-framework-olm-dev](mailto:operator-framework-olm-dev@googlegroups.com)
-- Slack: [#olm-dev](https://kubernetes.slack.com/archives/C0181L6JYQ2)
+- Slack: [#rukpak-dev](https://kubernetes.slack.com/archives/C038B7MF75M)
 - Working Group: [olm-wg](https://groups.google.com/g/operator-framework-olm-dev)
 
 ## Getting started

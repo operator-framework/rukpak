@@ -21,6 +21,24 @@ the content.
 The RukPak project is community driven and is part of the broader Kubernetes ecosystem. New contributors are welcome and
 highly encouraged. See the [contributing guidelines](CONTRIBUTING.md) to get started.
 
+## Quickstart
+
+The RukPak project consists of a series of controllers, known as [provisioners](#provisioner), that install and manage
+content on a Kubernetes cluster. See [below](#components) for a more detailed look into the APIs that RukPak provides.
+
+The provisioner currently implemented and bundled with RukPak is known as the plain provisioner. To get started with
+this provisioner on a local kind cluster,
+see [the quickstart section](./internal/provisioner/plain/README.md#Running-locally) of the plain provisioner README.
+There will be other provisioners added to the RukPak project that support different content types.
+
+The plain provisioner is able to source and unpack plain bundles. To learn more about the plain bundle format,
+see [the plain bundle spec](./docs/plain-bundle-spec.md).
+
+This project uses GitHub issues and milestones to prioritize and keep track of ongoing work. To see the current state of
+the project, checkout the [open issues](https://github.com/operator-framework/rukpak/issues) and
+[recent milestones](https://github.com/operator-framework/rukpak/milestones). There is a lot of development work ongoing
+and plenty of opportunities to get involved and [contribute](CONTRIBUTING.md)!
+
 ## Components
 
 RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleInstance](#bundleInstance), as well as the concept
@@ -108,3 +126,5 @@ actions to the cluster, it will not allow it go be applied. In the context of Ru
 `BundleInstance` resolution. 
 
 To read more about this webhook, and learn how to disable this default behavior, view the `crdvalidator` [documentation](cmd/crdvalidator/README.md).
+The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
+content of the bundle available in the cluster.
