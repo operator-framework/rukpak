@@ -13,11 +13,8 @@ import (
 	pkgclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/updater"
-)
-
-const (
-	provisionerClassName = "core.rukpak.io/plain"
 )
 
 var _ = Describe("Updater", func() {
@@ -67,7 +64,7 @@ var _ = Describe("Updater", func() {
 				Namespace: "testNamespace",
 			},
 			Spec: rukpakv1alpha1.BundleSpec{
-				ProvisionerClassName: provisionerClassName,
+				ProvisionerClassName: plain.ProvisionerID,
 				Source: rukpakv1alpha1.BundleSource{
 					Type: rukpakv1alpha1.SourceTypeImage,
 					Image: &rukpakv1alpha1.ImageSource{

@@ -46,12 +46,9 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
-)
-
-const (
-	plainBundleProvisionerID = "core.rukpak.io/plain"
 )
 
 // BundleInstanceReconciler reconciles a BundleInstance object
@@ -95,7 +92,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	defer func() {
 		bi := bi.DeepCopy()
 		bi.ObjectMeta.ManagedFields = nil
-		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner(plainBundleProvisionerID)); err != nil {
+		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner(plain.ProvisionerID)); err != nil {
 			l.Error(err, "failed to patch status")
 		}
 	}()
@@ -344,7 +341,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1a
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&rukpakv1alpha1.BundleInstance{}, builder.WithPredicates(util.BundleInstanceProvisionerFilter(plainBundleProvisionerID))).
+		For(&rukpakv1alpha1.BundleInstance{}, builder.WithPredicates(util.BundleInstanceProvisionerFilter(plain.ProvisionerID))).
 		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(util.MapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {

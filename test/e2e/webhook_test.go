@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,7 +30,7 @@ var _ = Describe("bundle api validating webhook", func() {
 					GenerateName: "valid-bundle-",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -64,7 +65,7 @@ var _ = Describe("bundle api validating webhook", func() {
 					Name: "bundlename-0123456789012345678901234567891",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -99,7 +100,7 @@ var _ = Describe("bundle api validating webhook", func() {
 					Name: "bundlenamegit",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -134,7 +135,7 @@ var _ = Describe("bundle api validating webhook", func() {
 					Name: "bundlenamemorerefs",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
 						Git: &rukpakv1alpha1.GitSource{
@@ -173,7 +174,7 @@ var _ = Describe("bundle api validating webhook", func() {
 					Name: "bundlenameimage",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plainProvisionerID,
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Git: &rukpakv1alpha1.GitSource{
