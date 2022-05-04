@@ -4,7 +4,7 @@
 
 The `plain` provisioner is a core rukpak provisioner that knows how to interact with bundles of a particular format.
 These `plain+v0` bundles, or plain bundles, are simply container images containing a set of static Kubernetes YAML
-manifests in a given directory. For more information on the `plain+v0` format, see 
+manifests in a given directory. For more information on the `plain+v0` format, see
 the [plain+v0 bundle spec](/docs/plain-bundle-spec.md).
 
 The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
@@ -56,24 +56,27 @@ spec:
 
 First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
 
-```
-NAME          IMAGE                                        PHASE     AGE
-my-bundle     my-bundle@sha256:xyz123                      Pending   3s
+```console
+$ kubectl get bundle my-bundle
+NAME           TYPE    PHASE      AGE
+my-bundle      image   Pending    3s
 ```
 
 Then eventually, as the bundle content is unpacked onto the cluster via the defined storage mechanism, the bundle status
 will be updated to Unpacked, indicating that all its contents have been stored on-cluster.
 
-```
-NAME          IMAGE                                        PHASE      AGE
-my-bundle     my-bundle@sha256:xyz123                      Unpacked   10s
+```console
+$ kubectl get bundle my-bundle
+NAME           TYPE    PHASE      AGE
+my-bundle      image   Unpacked   10s
 ```
 
 Now that the bundle has been unpacked, the provisioner is able to create the resources in the bundle on the cluster.
 These resources will be owned by the corresponding BundleInstance. Creating the BundleInstance on-cluster results in an
 InstallationSucceeded Phase if the application of resources to the cluster was successful.
 
-```
+```console
+$ kubectl get bundleinstance my-bundle-instance
 NAME                 DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
 my-bundle-instance   my-bundle        my-bundle          InstallationSucceeded   11s
 ```
@@ -142,8 +145,8 @@ Check the Bundle status via `kubectl get bundle combo-0.0.1`. Eventually the Bun
 
 ```console
 $ kubectl get bundle combo-v0.0.1
-NAME           IMAGE                                           PHASE      AGE
-combo-v0.0.1   quay.io/tflannag/bundle:combo-operator-v0.0.1   Unpacked   10s
+NAME           TYPE    PHASE      AGE
+combo-v0.0.1   image   Unpacked   10s
 ```
 
 Create the combo `BundleInstance` referencing the combo `Bundle` available in the cluster.
@@ -223,8 +226,8 @@ And wait until that Bundle is reporting an Unpacked status:
 
 ```console
 $ kubectl get bundles combo-v0.0.2
-NAME           IMAGE                                           PHASE      AGE
-combo-v0.0.2   quay.io/tflannag/bundle:combo-operator-v0.0.2   Unpacked   10s
+NAME           TYPE    PHASE      AGE
+combo-v0.0.2   image   Unpacked   10s
 ```
 
 Once the Bundle has been unpacked, update the existing `combo` BundleInstance resource to point to the
