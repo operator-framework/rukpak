@@ -20,9 +20,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.bundleName
-      name: Desired Bundle
-      type: string
     - jsonPath: .status.installedBundleName
       name: Installed Bundle
       type: string
