@@ -139,8 +139,20 @@ kind: BundleInstance
 metadata:
   name: my-bundle-instance
 spec:
-  bundleName: my-bundle
   provisionerClassName: core.rukpak.io/plain
+  selector:
+    matchLabels:
+      app: my-bundle
+  template:
+    metadata:
+      labels:
+        app: my-bundle
+    spec:
+      source:
+        type: image
+        image:
+          ref: my-bundle@sha256:xyz123
+      provisionerClassName: core.rukpak.io/plain: my-bundle
 ```
 
 ### Provisioner
@@ -156,7 +168,7 @@ content of the bundle available in the cluster.
 ### CustomResourceDefinition (CRD) Validator
 
 RukPak comes with a webhook for validating the upgrade of CRDs from `Bundle`s. If a CRD does potentially destructive
-actions to the cluster, it will not allow it go be applied. In the context of RukPak, this will result in a failed
+actions to the cluster, it will not allow it to be applied. In the context of RukPak, this will result in a failed
 `BundleInstance` resolution.
 
 To read more about this webhook, and learn how to disable this default behavior, view
