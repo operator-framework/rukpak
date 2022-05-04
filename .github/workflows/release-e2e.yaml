@@ -1,0 +1,40 @@
+---
+name: release-e2e
+
+on:
+  release:
+    types:
+    - published
+    - edited
+
+jobs:
+  release-e2e-kind:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '~1.18'
+
+    - name: Download kubectl
+      run: |
+        curl -LO "https://dl.k8s.io/release/$(go list -m k8s.io/kubectl | cut -d" " -f2 | sed 's/^v0/v1/')/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+    - name: Start a kind cluster
+      run: make kind-cluster
+
+    - name: Install the cert-manager dependency
+      run: make cert-mgr
+
+    - name: Install the rukpak release manifests
+      run: |
+        kubectl apply -f https://github.com/operator-framework/rukpak/releases/download/${{ github.event.release.tag_name }}/rukpak.yaml
+        make wait
+
+
+    - name: Load testdata bundle container images into kind
+      run: make kind-load-bundles KIND=hack/tools/bin/kind
+
+    - name: Run e2e tests
+      run: make test-e2e KIND=hack/tools/bin/kind
