@@ -52,25 +52,170 @@ spec:
           spec:
             description: BundleInstanceSpec defines the desired state of BundleInstance
             properties:
-              bundleName:
-                description: BundleName is the name of the bundle that this instance
-                  is managing on the cluster.
-                type: string
               provisionerClassName:
                 description: ProvisionerClassName sets the name of the provisioner
                   that should reconcile this BundleInstance.
                 type: string
+              selector:
+                description: Label selector for Bundles resources.
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: A label selector requirement is a selector that
+                        contains values, a key, and an operator that relates the key
+                        and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: operator represents a key's relationship to
+                            a set of values. Valid operators are In, NotIn, Exists
+                            and DoesNotExist.
+                          type: string
+                        values:
+                          description: values is an array of string values. If the
+                            operator is In or NotIn, the values array must be non-empty.
+                            If the operator is Exists or DoesNotExist, the values
+                            array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: matchLabels is a map of {key,value} pairs. A single
+                      {key,value} in the matchLabels map is equivalent to an element
+                      of matchExpressions, whose key field is "key", the operator
+                      is "In", and the values array contains only "value". The requirements
+                      are ANDed.
+                    type: object
+                type: object
+              template:
+                description: Template describes the generated Bundle that this instance
+                  will manage.
+                properties:
+                  metadata:
+                    description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      finalizers:
+                        items:
+                          type: string
+                        type: array
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    type: object
+                  spec:
+                    description: 'Specification of the desired behavior of the Bundle.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status'
+                    properties:
+                      provisionerClassName:
+                        description: ProvisionerClassName sets the name of the provisioner
+                          that should reconcile this BundleInstance.
+                        type: string
+                      source:
+                        description: Source defines the configuration for the underlying
+                          Bundle content.
+                        properties:
+                          git:
+                            description: Git is the git repository that backs the
+                              content of this Bundle.
+                            properties:
+                              directory:
+                                description: Directory refers to the location of the
+                                  bundle within the git repository. Directory is optional
+                                  and if not set defaults to ./manifests.
+                                type: string
+                              ref:
+                                description: Ref configures the git source to clone
+                                  a specific branch, tag, or commit from the specified
+                                  repo. Ref is required, and exactly one field within
+                                  Ref is required. Setting more than one field or
+                                  zero fields will result in an error.
+                                properties:
+                                  branch:
+                                    description: Branch refers to the branch to checkout
+                                      from the repository. The Branch should contain
+                                      the bundle manifests in the specified directory.
+                                    type: string
+                                  commit:
+                                    description: Commit refers to the commit to checkout
+                                      from the repository. The Commit should contain
+                                      the bundle manifests in the specified directory.
+                                    type: string
+                                  tag:
+                                    description: Tag refers to the tag to checkout
+                                      from the repository. The Tag should contain
+                                      the bundle manifests in the specified directory.
+                                    type: string
+                                type: object
+                              repository:
+                                description: Repository is a URL link to the git repository
+                                  containing the bundle. Repository is required and
+                                  the URL should be parsable by a standard git tool.
+                                type: string
+                            required:
+                            - ref
+                            - repository
+                            type: object
+                          image:
+                            description: Image is the bundle image that backs the
+                              content of this bundle.
+                            properties:
+                              pullSecret:
+                                description: ImagePullSecretName contains the name
+                                  of the image pull secret in the namespace that the
+                                  provisioner is deployed.
+                                type: string
+                              ref:
+                                description: Ref contains the reference to a container
+                                  image containing Bundle contents.
+                                type: string
+                            required:
+                            - ref
+                            type: object
+                          type:
+                            description: Type defines the kind of Bundle content being
+                              sourced.
+                            type: string
+                        required:
+                        - type
+                        type: object
+                    required:
+                    - provisionerClassName
+                    - source
+                    type: object
+                required:
+                - spec
+                type: object
             required:
-            - bundleName
             - provisionerClassName
+            - selector
+            - template
             type: object
           status:
             description: BundleInstanceStatus defines the observed state of BundleInstance
             properties:
               conditions:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
