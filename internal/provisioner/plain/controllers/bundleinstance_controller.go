@@ -51,6 +51,17 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
+const (
+	maxGeneratedBundleLimit = 4
+)
+
+var (
+	// ErrMaxGeneratedLimit is the error returned by the BundleInstance controller
+	// when the configured maximum number of Bundles that match a label selector
+	// has been reached.
+	ErrMaxGeneratedLimit = errors.New("reached the maximum generated Bundle limit")
+)
+
 // BundleInstanceReconciler reconciles a BundleInstance object
 type BundleInstanceReconciler struct {
 	client.Client
@@ -288,6 +299,12 @@ func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1al
 		return nil, nil, err
 	}
 	sort.Sort(util.BundlesByCreationTimestamp(existingBundles))
+
+	// check whether the BI controller has already reached the maximum
+	// generated Bundle limit to avoid hotlooping scenarios.
+	if len(existingBundles) > maxGeneratedBundleLimit {
+		return nil, nil, ErrMaxGeneratedLimit
+	}
 
 	// check whether there's an existing Bundle that matches the desired Bundle template
 	// specified in the BI resource, and if not, generate a new matches the template.
