@@ -17,10 +17,24 @@ spec:
     spec:
       serviceAccountName: plain-provisioner-admin
       containers:
-        - name: plain-provisioner
+        - name: kube-rbac-proxy
+          image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+          args:
+            - "--secure-listen-address=0.0.0.0:8443"
+            - "--upstream=http://127.0.0.1:8080/"
+            - "--logtostderr=true"
+            - "--v=1"
+          ports:
+            - containerPort: 8443
+              protocol: TCP
+              name: https
+        - name: manager
           image: quay.io/operator-framework/rukpak:latest
-          command: ["/plain"]
           imagePullPolicy: IfNotPresent
+          command: ["/plain"]
+          args:
+            - "--http-bind-address=127.0.0.1:8080"
+            - "--http-external-address=https://$(PLAIN_PROVISIONER_SERVICE_NAME).$(PLAIN_PROVISIONER_SERVICE_NAMESPACE).svc"
           ports:
             - containerPort: 8080
           volumeMounts:

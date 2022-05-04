@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -56,14 +57,16 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
+	var httpBindAddr string
+	var httpExternalAddr string
 	var enableLeaderElection bool
 	var probeAddr string
 	var systemNamespace string
 	var unpackImage string
 	var rukpakVersion bool
 	var gitClientImage string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
+	flag.StringVar(&httpExternalAddr, "http-external-address", "http://localhost:8080", "The external address at which the http server is reachable.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources.")
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:latest", "Configures the container image that gets used to unpack Bundle contents.")
@@ -100,7 +103,7 @@ func main() {
 	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
+		MetricsBindAddress:     httpBindAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
@@ -121,7 +124,23 @@ func main() {
 	}
 
 	ns := util.PodNamespace(systemNamespace)
-	bundleStorage := storage.DefaultLocalDirectory
+	storageURL, err := url.Parse(fmt.Sprintf("%s/bundles/", httpExternalAddr))
+	if err != nil {
+		setupLog.Error(err, "unable to parse bundle content server URL")
+		os.Exit(1)
+	}
+	bundleStorage := &storage.LocalDirectory{
+		RootDirectory: storage.DefaultBundleCacheDir,
+		URL:           *storageURL,
+	}
+	// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
+	// whatever handlers we want on the existing webserver that
+	// controller-runtime runs when MetricsBindAddress is configured on the
+	// manager.
+	if err := mgr.AddMetricsExtraHandler("/bundles/", bundleStorage); err != nil {
+		setupLog.Error(err, "unable to register bundle content server")
+		os.Exit(1)
+	}
 
 	// This finalizer logic MUST be co-located with this main
 	// controller logic because it deals with cleaning up bundle data

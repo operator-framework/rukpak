@@ -104,6 +104,7 @@ type BundleStatus struct {
 	Digest             string             `json:"digest,omitempty"`
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
+	ContentURL         string             `json:"contentURL,omitempty"`
 }
 
 type BundleInfo struct {

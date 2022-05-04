@@ -1406,8 +1406,8 @@ func checkProvisionerBundle(object client.Object, provisionerPodName string) err
 		Name(provisionerPodName).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
-			Container: "plain-provisioner",
-			Command:   []string{"ls", filepath.Join(storage.DefaultBundleCacheDir, fmt.Sprintf("%s.tgz", object.GetUID()))},
+			Container: "manager",
+			Command:   []string{"ls", filepath.Join(storage.DefaultBundleCacheDir, fmt.Sprintf("%s.tgz", object.GetName()))},
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,

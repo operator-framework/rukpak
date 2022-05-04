@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -20,15 +22,13 @@ var _ Storage = &LocalDirectory{}
 
 const DefaultBundleCacheDir = "/var/cache/bundles"
 
-var DefaultLocalDirectory = &LocalDirectory{RootDirectory: DefaultBundleCacheDir}
-
 type LocalDirectory struct {
 	RootDirectory string
+	URL           url.URL
 }
 
 func (s *LocalDirectory) Load(_ context.Context, owner client.Object) (fs.FS, error) {
-	bundlePath := filepath.Join(s.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetUID()))
-	bundleFile, err := os.Open(bundlePath)
+	bundleFile, err := os.Open(s.bundlePath(owner.GetName()))
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +91,7 @@ func (s *LocalDirectory) Store(_ context.Context, owner client.Object, bundle fs
 		return err
 	}
 
-	bundlePath := filepath.Join(s.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetUID()))
-	bundleFile, err := os.Create(bundlePath)
+	bundleFile, err := os.Create(s.bundlePath(owner.GetName()))
 	if err != nil {
 		return err
 	}
@@ -105,8 +104,24 @@ func (s *LocalDirectory) Store(_ context.Context, owner client.Object, bundle fs
 }
 
 func (s *LocalDirectory) Delete(_ context.Context, owner client.Object) error {
-	bundlePath := filepath.Join(s.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetUID()))
-	return ignoreNotExist(os.Remove(bundlePath))
+	return ignoreNotExist(os.Remove(s.bundlePath(owner.GetName())))
+}
+
+func (s *LocalDirectory) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	fsys := &filesOnlyFilesystem{os.DirFS(s.RootDirectory)}
+	http.StripPrefix(s.URL.Path, http.FileServer(http.FS(fsys))).ServeHTTP(resp, req)
+}
+
+func (s *LocalDirectory) URLFor(_ context.Context, owner client.Object) (string, error) {
+	return fmt.Sprintf("%s%s", s.URL.String(), localDirectoryBundleFile(owner.GetName())), nil
+}
+
+func (s *LocalDirectory) bundlePath(bundleName string) string {
+	return filepath.Join(s.RootDirectory, localDirectoryBundleFile(bundleName))
+}
+
+func localDirectoryBundleFile(bundleName string) string {
+	return fmt.Sprintf("%s.tgz", bundleName)
 }
 
 func ignoreNotExist(err error) error {
@@ -114,4 +129,35 @@ func ignoreNotExist(err error) error {
 		return nil
 	}
 	return err
+}
+
+// filesOnlyFilesystem is an fs.FS implementation that treats non-regular files
+// (e.g. directories, symlinks, devices, etc.) as non-existent. The reason for
+// this is so that we only serve bundle files.
+//
+// This treats directories as not found so that the http server does not serve
+// HTML directory index responses.
+//
+// This treats other symlink files as not found so that we prevent HTTP requests
+// from escaping the filesystem root.
+//
+// Lastly, this treats other non-regular files as not found because they are
+// out of scope for serving bundle contents.
+type filesOnlyFilesystem struct {
+	fs fs.FS
+}
+
+func (f *filesOnlyFilesystem) Open(name string) (fs.File, error) {
+	file, err := f.fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !stat.Mode().IsRegular() {
+		return nil, os.ErrNotExist
+	}
+	return file, nil
 }

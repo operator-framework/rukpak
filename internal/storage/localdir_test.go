@@ -44,7 +44,7 @@ var _ = Describe("LocalDirectory", func() {
 		Describe("Store", func() {
 			It("should store a bundle FS", func() {
 				Expect(store.Store(ctx, owner, testFS)).To(Succeed())
-				_, err := os.Stat(filepath.Join(store.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetUID())))
+				_, err := os.Stat(filepath.Join(store.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetName())))
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -83,7 +83,7 @@ var _ = Describe("LocalDirectory", func() {
 		Describe("Delete", func() {
 			It("should delete the bundle", func() {
 				Expect(store.Delete(ctx, owner)).To(Succeed())
-				_, err := os.Stat(filepath.Join(store.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetUID())))
+				_, err := os.Stat(filepath.Join(store.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetName())))
 				Expect(err).To(WithTransform(func(err error) bool { return errors.Is(err, os.ErrNotExist) }, BeTrue()))
 			})
 		})
