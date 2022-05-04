@@ -100,6 +100,16 @@ func EnsureBundleDigest(digest string) UpdateStatusFunc {
 	}
 }
 
+func EnsureContentURL(url string) UpdateStatusFunc {
+	return func(status *rukpakv1alpha1.BundleStatus) bool {
+		if status.ContentURL == url {
+			return false
+		}
+		status.ContentURL = url
+		return true
+	}
+}
+
 func UnsetBundleInfo() UpdateStatusFunc {
 	return SetBundleInfo(nil)
 }

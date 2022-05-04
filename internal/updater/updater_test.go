@@ -150,6 +150,25 @@ var _ = Describe("EnsureBundleDigest", func() {
 	})
 })
 
+var _ = Describe("EnsureContentURL", func() {
+	var status *rukpakv1alpha1.BundleStatus
+
+	BeforeEach(func() {
+		status = &rukpakv1alpha1.BundleStatus{}
+	})
+
+	It("should add ContentURL if not present", func() {
+		Expect(updater.EnsureContentURL("url")(status)).To(BeTrue())
+		Expect(status.ContentURL).To(Equal("url"))
+	})
+
+	It("should return false for no update", func() {
+		status.ContentURL = "url"
+		Expect(updater.EnsureContentURL("url")(status)).To(BeFalse())
+		Expect(status.ContentURL).To(Equal("url"))
+	})
+})
+
 var _ = Describe("EnsureCondition", func() {
 	var status *rukpakv1alpha1.BundleStatus
 	var condition, anotherCondition metav1.Condition

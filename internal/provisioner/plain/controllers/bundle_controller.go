@@ -75,6 +75,8 @@ type BundleReconciler struct {
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=list;watch;create;delete
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
+//+kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
+//+kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -103,6 +105,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 		u.UpdateStatus(
 			updater.SetBundleInfo(nil),
 			updater.EnsureBundleDigest(""),
+			updater.EnsureContentURL(""),
 			updater.SetPhase(rukpakv1alpha1.PhaseFailing),
 			updater.EnsureCondition(metav1.Condition{
 				Type:    rukpakv1alpha1.TypeUnpacked,
@@ -134,6 +137,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 			u.UpdateStatus(
 				updater.SetBundleInfo(nil),
 				updater.EnsureBundleDigest(""),
+				updater.EnsureContentURL(""),
 				updater.SetPhase(rukpakv1alpha1.PhaseFailing),
 				updater.EnsureCondition(metav1.Condition{
 					Type:    rukpakv1alpha1.TypeUnpacked,
@@ -148,7 +152,11 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 
 	pod := &corev1.Pod{}
 	if op, err := r.ensureUnpackPod(ctx, bundle, pod); err != nil {
-		u.UpdateStatus(updater.SetBundleInfo(nil), updater.EnsureBundleDigest(""))
+		u.UpdateStatus(
+			updater.SetBundleInfo(nil),
+			updater.EnsureBundleDigest(""),
+			updater.EnsureContentURL(""),
+		)
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("ensure unpack pod: %w", err))
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
 		updateStatusUnpackPending(&u)
@@ -190,6 +198,7 @@ func (r *BundleReconciler) handlePendingPod(u *updater.Updater, pod *corev1.Pod)
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
+		updater.EnsureContentURL(""),
 		updater.SetPhase(rukpakv1alpha1.PhasePending),
 		updater.EnsureCondition(metav1.Condition{
 			Type:    rukpakv1alpha1.TypeUnpacked,
@@ -204,6 +213,7 @@ func (r *BundleReconciler) handleRunningPod(u *updater.Updater) {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
+		updater.EnsureContentURL(""),
 		updater.SetPhase(rukpakv1alpha1.PhaseUnpacking),
 		updater.EnsureCondition(metav1.Condition{
 			Type:   rukpakv1alpha1.TypeUnpacked,
@@ -217,6 +227,7 @@ func (r *BundleReconciler) handleFailedPod(ctx context.Context, u *updater.Updat
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
+		updater.EnsureContentURL(""),
 		updater.SetPhase(rukpakv1alpha1.PhaseFailing),
 	)
 	logs, err := r.getPodLogs(ctx, pod)
@@ -281,6 +292,7 @@ func updateStatusUnpackPending(u *updater.Updater) {
 	u.UpdateStatus(
 		updater.SetBundleInfo(nil),
 		updater.EnsureBundleDigest(""),
+		updater.EnsureContentURL(""),
 		updater.SetPhase(rukpakv1alpha1.PhasePending),
 		updater.EnsureCondition(metav1.Condition{
 			Type:   rukpakv1alpha1.TypeUnpacked,
@@ -328,6 +340,11 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 		return updateStatusUnpackFailing(u, fmt.Errorf("persist bundle objects: %w", err))
 	}
 
+	contentURL, err := r.Storage.URLFor(ctx, bundle)
+	if err != nil {
+		return updateStatusUnpackFailing(u, fmt.Errorf("get content URL: %w", err))
+	}
+
 	info := &rukpakv1alpha1.BundleInfo{}
 	for _, obj := range objects {
 		gvk := obj.GetObjectKind().GroupVersionKind()
@@ -343,6 +360,7 @@ func (r *BundleReconciler) handleCompletedPod(ctx context.Context, u *updater.Up
 	u.UpdateStatus(
 		updater.SetBundleInfo(info),
 		updater.EnsureBundleDigest(bundleImageDigest),
+		updater.EnsureContentURL(contentURL),
 		updater.SetPhase(rukpakv1alpha1.PhaseUnpacked),
 		updater.EnsureCondition(metav1.Condition{
 			Type:   rukpakv1alpha1.TypeUnpacked,
