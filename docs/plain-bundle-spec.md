@@ -150,15 +150,24 @@ make run
 ```bash
 kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
-kind: Bundle
+kind: BundleInstance
 metadata:
   name: my-bundle
 spec:
-  source:
-    type: image
-    image:
-      ref: quay.io/operator-framework/rukpak:example
   provisionerClassName: core.rukpak.io/plain
+  selector:
+    matchLabels:
+      app: my-bundle
+  template:
+    metadata:
+      labels:
+        app: my-bundle
+    spec:
+      source:
+        type: image
+        image:
+          ref: quay.io/operator-framework/rukpak:example
+      provisionerClassName: core.rukpak.io/plain
 EOF
 ```
 

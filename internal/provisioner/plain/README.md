@@ -29,30 +29,34 @@ graph TD
 
 The `plain` provisioner can install and make available a specific `plain+v0` bundle in the cluster.
 
-Simply create a `Bundle` resource pointing to a specific version of your bundle, and a `BundleInstance` which references
-that bundle. The `plain` provisioner will unpack the provided Bundle onto the cluster, and eventually make the content
+Simply create a `BundleInstance` resource that contains the desired specification of a Bundle resource.
+The `plain` provisioner will unpack the provided Bundle onto the cluster, and eventually make the content
 available on the cluster.
 
 ```yaml
-apiVersion: core.rukpak.io/v1alpha1
-kind: Bundle
-metadata:
-  name: my-bundle
-spec:
-  source:
-    type: image
-    image:
-      ref: my-bundle@sha256:xyz123
-  provisionerClassName: core.rukpak.io/plain
----
 apiVersion: core.rukpak.io/v1alpha1
 kind: BundleInstance
 metadata:
   name: my-bundle-instance
 spec:
   provisionerClassName: core.rukpak.io/plain
-  bundleName: my-bundle
+  selector:
+    matchLabels:
+      app: my-bundle
+  template:
+    metadata:
+      labels:
+        app: my-bundle
+    spec:
+      source:
+        type: image
+        image:
+          ref: my-bundle@sha256:xyz123
+      provisionerClassName: core.rukpak.io/plain
 ```
+
+> Note: the generated Bundle will contain the BundleInstance's metadata.Name as a prefix, following
+> a randomized value to prevent collisions with other Bundle resources.
 
 First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
 
@@ -97,12 +101,15 @@ Surfacing the content of a bundle in a more user-friendly way, via a plugin or a
 
 ### Pivoting between bundle versions
 
-The `BundleInstance` API is meant to indicate the version of the bundle that should be active within the cluster. Given
-two unpacked bundles in the cluster,
-`my-bundle-v0.0.1` and `my-bundle-v0.0.2`, the `spec.bundleName` field of the related `BundleInstance` can be updated to
-pivot to a different version. For example by pivoting from an older version, to the newer version, by updating
-the `spec.bundleName` field the `plain` provisioner will create the new bundle content on-cluster and remove the old
-content. The provisioner also continually reconciles the created content via dynamic watches to ensure that all
+The `BundleInstance` API is meant to indicate the version of the bundle that should be active within the cluster.
+
+Given an existing BundleInstance resource in the cluster, which contains an embedded Bundle template for the
+`my-bundle-v0.0.1` bundle, you can modify the desired specification and the plain provisioner will automatically generate
+a new `my-bundle-v0.0.2` Bundle matching that template.
+
+When the new Bundle resource has been rolled out successfully, the old `my-bundle-v0.0.1` Bundle will be deleted from the cluster.
+
+The provisioner also continually reconciles the created content via dynamic watches to ensure that all
 resources referenced by the bundle are present on the cluster.
 
 ## Running locally
@@ -123,37 +130,7 @@ Once the cluster has been setup, take the following steps:
 From there, create some `Bundles` and `BundleInstance` types to see the provisioner in action. For an example bundle to
 use, the [combo operator](https://github.com/operator-framework/combo) is a good candidate.
 
-Create the bundle:
-
-```console
-$ kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
-kind: Bundle
-metadata:
-  name: combo-v0.0.1
-spec:
-  source:
-    type: image
-    image:
-      ref: quay.io/tflannag/bundle:combo-operator-v0.0.1
-  provisionerClassName: core.rukpak.io/plain
-EOF
-bundle.core.rukpak.io/combo-v0.0.1 created
-```
-
-Check the Bundle status via `kubectl get bundle combo-0.0.1`. Eventually the Bundle should show up as Unpacked.
-
-```console
-$ kubectl get bundle combo-v0.0.1
-NAME           TYPE    PHASE      AGE
-combo-v0.0.1   image   Unpacked   10s
-```
-
-Create the combo `BundleInstance` referencing the combo `Bundle` available in the cluster.
-
-Note: it's perfectly valid to create a `Bundle` and `BundleInstance` referencing that `Bundle` at the same time. There
-is no specific ordering required, which is perfect for GitOps flows, and eventually both the `Bundle`
-and `BundleInstance` would succeed.
+Create the combo `BundleInstance` referencing the desired combo `Bundle` configuration.
 
 ```console
 $ kubectl apply -f -<<EOF
@@ -163,17 +140,37 @@ metadata:
   name: combo
 spec:
   provisionerClassName: core.rukpak.io/plain
-  bundleName: combo-v0.0.1
+  selector:
+    matchLabels:
+      app: combo
+  template:
+    metadata:
+      labels:
+        app: combo
+    spec:
+      provisionerClassName: core.rukpak.io/plain
+      source:
+        image:
+          ref: quay.io/tflannag/bundle:combo-operator-v0.0.1
+        type: image
 EOF
 bundleinstance.core.rukpak.io/combo created
+```
+
+Check the Bundle status via `kubectl get bundle -l app=combo`. Eventually the Bundle should show up as Unpacked.
+
+```console
+$ kubectl get bundle -l app=combo
+NAME          TYPE   PHASE      AGE
+combo-9njsj   image  Unpacked   10s
 ```
 
 Check the BundleInstance status to ensure that the installation was successful.
 
 ```console
 $ kubectl get bundleinstance combo
-NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-v0.0.1     combo-v0.0.1       InstallationSucceeded   10s
+NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
+combo   combo-9njsj        InstallationSucceeded   10s
 ```
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster.
@@ -203,47 +200,49 @@ the BundleInstance to run are accounted for on-cluster.
 
 Let's say the combo operator released a new patch version, and we want to upgrade to that version.
 
-> Note: Currently upgrading a BundleInstance is a manual process that involves updating the spec.BundleName being referenced, and point to a new Bundle's metadata.Name. Automatically pivoting to a new Bundle is on the roadmap.
+> Note: Upgrading a BundleInstance involves updating the desired Bundle template being referenced.
 
-First, create a new Bundle resource that points to this new plain+v0 bundle container image:
+Update the existing `combo` BundleInstance resource and update the container image being referenced:
 
 ```console
 $ kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
-kind: Bundle
+kind: BundleInstance
 metadata:
-  name: combo-v0.0.2
+  name: combo
 spec:
-  source:
-    type: image
-    image:
-      ref: quay.io/tflannag/bundle:combo-operator-v0.0.2
   provisionerClassName: core.rukpak.io/plain
+  selector:
+    matchLabels:
+      app: combo
+  template:
+    metadata:
+      labels:
+        app: combo
+    spec:
+      provisionerClassName: core.rukpak.io/plain
+      source:
+        image:
+          ref: quay.io/tflannag/bundle:combo-operator-v0.0.2
+        type: image
 EOF
 ```
 
-And wait until that Bundle is reporting an Unpacked status:
+And wait until the newly generated `combo-xzfxv` Bundle is reporting an Unpacked status:
 
 ```console
-$ kubectl get bundles combo-v0.0.2
+$ kubectl get bundles -l app=combo
 NAME           TYPE    PHASE      AGE
-combo-v0.0.2   image   Unpacked   10s
-```
-
-Once the Bundle has been unpacked, update the existing `combo` BundleInstance resource to point to the
-new `combo-v0.0.2` Bundle:
-
-```console
-$ kubectl patch bundleinstance combo --type='merge' -p '{"spec":{"bundleName": "combo-v0.0.2"}}'
-bundleinstance.core.rukpak.io/combo patched
+combo-9njsj     image  Unpacked   30s
+combo-xzfxv    image   Unpacked   10s
 ```
 
 And verify that the BundleInstance `combo` resource now points to the new Bundle version:
 
 ```console
 $ kubectl get bundleinstance combo
-NAME    DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-v0.0.2     combo-v0.0.2       InstallationSucceeded   10s
+NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
+combo   combo-xzfxv        InstallationSucceeded   10s
 ```
 
 And check that the combo-operator deployment in the combo namespace is healthy and contains a new container image:
@@ -262,18 +261,13 @@ Notice that the container image has changed since we had first installed the com
 ### Deleting the Combo Operator
 
 To cleanup from the installation, simply remove the BundleInstance from the cluster. This will remove all references
-resources including the deployment, RBAC, and the operator namespace. Then the Bundle can be removed as well, which
-removes any unpacked manifests from the cluster.
+resources including the deployment, RBAC, and the operator namespace.
+
+> Note: There's no need to manually clean up the Bundles that were generated from a BundleInstance resource. The plain provisioner places owner references on any Bundle that's generated from an individual BundleInstance resource.
 
 ```console
 $ kubectl delete bundleinstances.core.rukpak.io combo
 bundleinstance.core.rukpak.io "combo" deleted
-
-$ kubectl delete bundle combo-v0.0.1
-bundle.core.rukpak.io "combo-v0.0.1" deleted
-
-$ kubectl delete bundle combo-v0.0.2
-bundle.core.rukpak.io "combo-v0.0.2" deleted
 ```
 
 The cluster state is now the same as it was prior to installing the operator.
