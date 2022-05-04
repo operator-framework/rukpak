@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -28,13 +29,12 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,10 +72,6 @@ type BundleInstanceReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the BundleInstance object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
@@ -96,36 +92,41 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}()
 
-	b := &rukpakv1alpha1.Bundle{}
-	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
-		bundleStatus := metav1.ConditionUnknown
-		if apierrors.IsNotFound(err) {
-			bundleStatus = metav1.ConditionFalse
+	bundle, allBundles, err := reconcileDesiredBundle(ctx, r.Client, bi)
+	if err != nil {
+		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
+			Status:  metav1.ConditionUnknown,
+			Reason:  rukpakv1alpha1.ReasonReconcileFailed,
+			Message: err.Error(),
+		})
+		return ctrl.Result{}, err
+	}
+	if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+		reason := rukpakv1alpha1.ReasonUnpackPending
+		status := metav1.ConditionTrue
+		message := fmt.Sprintf("Waiting for the %s Bundle to be unpacked", bundle.GetName())
+		if bundle.Status.Phase == rukpakv1alpha1.PhaseFailing {
+			reason = rukpakv1alpha1.ReasonUnpackFailed
+			status = metav1.ConditionFalse
+			message = fmt.Sprintf("Failed to unpack the %s Bundle", bundle.GetName())
 		}
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    rukpakv1alpha1.TypeHasValidBundle,
-			Status:  bundleStatus,
-			Reason:  rukpakv1alpha1.ReasonBundleLookupFailed,
-			Message: err.Error(),
+			Status:  status,
+			Reason:  reason,
+			Message: message,
 		})
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, nil
 	}
-
-	desiredObjects, err := r.loadBundle(ctx, bi)
+	meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeHasValidBundle,
+		Status:  metav1.ConditionTrue,
+		Reason:  rukpakv1alpha1.ReasonUnpackSuccessful,
+		Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
+	})
+	desiredObjects, err := r.loadBundle(ctx, bundle, bi.GetName())
 	if err != nil {
-		var bnuErr *errBundleNotUnpacked
-		if errors.As(err, &bnuErr) {
-			reason := fmt.Sprintf("BundleUnpack%s", b.Status.Phase)
-			if b.Status.Phase == rukpakv1alpha1.PhaseUnpacking {
-				reason = "BundleUnpackRunning"
-			}
-			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
-				Type:   rukpakv1alpha1.TypeInstalled,
-				Status: metav1.ConditionFalse,
-				Reason: reason,
-			})
-			return ctrl.Result{}, nil
-		}
 		meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 			Type:    rukpakv1alpha1.TypeHasValidBundle,
 			Status:  metav1.ConditionFalse,
@@ -262,10 +263,69 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		Type:    rukpakv1alpha1.TypeInstalled,
 		Status:  metav1.ConditionTrue,
 		Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-		Message: fmt.Sprintf("instantiated bundle %s successfully", bi.Spec.BundleName),
+		Message: fmt.Sprintf("instantiated bundle %s successfully", bundle.GetName()),
 	})
-	bi.Status.InstalledBundleName = bi.Spec.BundleName
+	bi.Status.InstalledBundleName = bundle.GetName()
+
+	if err := r.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
+		l.Error(err, "failed to delete old bundles")
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
+}
+
+// reconcileDesiredBundle is responsible for checking whether the desired
+// Bundle resource that's specified in the BundleInstance parameter's
+// spec.Template configuration is present on cluster, and if not, creates
+// a new Bundle resource matching that desired specification.
+func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) (*rukpakv1alpha1.Bundle, []*rukpakv1alpha1.Bundle, error) {
+	// get the set of Bundle resources that already exist on cluster, and sort
+	// by metadata.CreationTimestamp in the case there's multiple Bundles
+	// that match the label selector.
+	existingBundles, err := util.GetBundlesForBundleInstanceSelector(ctx, c, bi)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Sort(util.BundlesByCreationTimestamp(existingBundles))
+
+	// check whether there's an existing Bundle that matches the desired Bundle template
+	// specified in the BI resource, and if not, generate a new matches the template.
+	b := util.CheckExistingBundlesMatchesTemplate(existingBundles, bi.Spec.Template)
+	if b == nil {
+		controllerRef := metav1.NewControllerRef(bi, bi.GroupVersionKind())
+		b = &rukpakv1alpha1.Bundle{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            util.GenerateBundleName(bi.GetName()),
+				OwnerReferences: []metav1.OwnerReference{*controllerRef},
+				Labels:          bi.Spec.Template.Labels,
+				Annotations:     bi.Spec.Template.Annotations,
+			},
+			Spec: bi.Spec.Template.Spec,
+		}
+		if err := c.Create(ctx, b); err != nil {
+			return nil, nil, err
+		}
+	}
+	return b, existingBundles, err
+}
+
+// reconcileOldBundles is responsible for garbage collecting any Bundles
+// that no longer match the desired Bundle template.
+func (r *BundleInstanceReconciler) reconcileOldBundles(ctx context.Context, currBundle *rukpakv1alpha1.Bundle, allBundles []*rukpakv1alpha1.Bundle) error {
+	var (
+		errors []error
+	)
+	for _, b := range allBundles {
+		if b.GetName() == currBundle.GetName() {
+			continue
+		}
+		if err := r.Delete(ctx, b); err != nil {
+			errors = append(errors, err)
+			continue
+		}
+	}
+	return utilerrors.NewAggregate(errors)
 }
 
 type releaseState string
@@ -312,21 +372,13 @@ func (err errBundleNotUnpacked) Error() string {
 	return fmt.Sprintf("%s, current phase=%s", baseError, err.currentPhase)
 }
 
-func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1alpha1.BundleInstance) ([]client.Object, error) {
-	b := &rukpakv1alpha1.Bundle{}
-	if err := r.Get(ctx, types.NamespacedName{Name: bi.Spec.BundleName}, b); err != nil {
-		return nil, fmt.Errorf("get bundle %q: %w", bi.Spec.BundleName, err)
-	}
-	if b.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-		return nil, &errBundleNotUnpacked{currentPhase: b.Status.Phase}
-	}
-
-	bundle, err := r.BundleStorage.Load(ctx, b)
+func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bundle *rukpakv1alpha1.Bundle, biName string) ([]client.Object, error) {
+	bundleFS, err := r.BundleStorage.Load(ctx, bundle)
 	if err != nil {
 		return nil, fmt.Errorf("load bundle: %w", err)
 	}
 
-	objects, err := getObjects(bundle)
+	objects, err := getObjects(bundleFS)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle objects from bundle: %w", err)
 	}
@@ -336,7 +388,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bi *rukpakv1a
 		obj := obj
 		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
 			util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind,
-			util.CoreOwnerNameKey: bi.Name,
+			util.CoreOwnerNameKey: biName,
 		}))
 		objs = append(objs, obj)
 	}

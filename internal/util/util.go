@@ -9,8 +9,10 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -38,20 +40,71 @@ func BundleInstanceProvisionerFilter(provisionerClassName string) predicate.Pred
 func MapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler.MapFunc {
 	return func(object client.Object) []reconcile.Request {
 		b := object.(*rukpakv1alpha1.Bundle)
+
 		bundleInstances := &rukpakv1alpha1.BundleInstanceList{}
-		var requests []reconcile.Request
 		if err := cl.List(context.Background(), bundleInstances); err != nil {
 			log.WithName("mapBundleToBundleInstanceHandler").Error(err, "list bundles")
-			return requests
+			return nil
 		}
+		var requests []reconcile.Request
 		for _, bi := range bundleInstances.Items {
 			bi := bi
-			if bi.Spec.BundleName == b.Name {
-				requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&bi)})
+			for _, ref := range b.GetOwnerReferences() {
+				if ref.Name == bi.GetName() {
+					requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&bi)})
+				}
 			}
 		}
 		return requests
 	}
+}
+
+// GetBundlesForBundleInstanceSelector is responsible for returning a list of
+// Bundle resource that exist on cluster that match the label selector specified
+// in the BI parameter's spec.Selector field.
+func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) ([]*rukpakv1alpha1.Bundle, error) {
+	bundleSelector, err := metav1.LabelSelectorAsSelector(bi.Spec.Selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse the %s label selector: %w", bi.Spec.Selector.String(), err)
+	}
+	bundleList := &rukpakv1alpha1.BundleList{}
+	if err := c.List(ctx, bundleList, &client.ListOptions{
+		LabelSelector: bundleSelector,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to list bundles using the %s selector: %w", bundleSelector.String(), err)
+	}
+	bundles := []*rukpakv1alpha1.Bundle{}
+	for _, b := range bundleList.Items {
+		bundles = append(bundles, b.DeepCopy())
+	}
+	return bundles, nil
+}
+
+// CheckExistingBundlesMatchesTemplate evaluates whether the existing list of Bundle objects
+// match the desired Bundle template that's specified in a BundleInstance object. If a match
+// is found, that Bundle object is returned, so callers are responsible for nil checking the result.
+func CheckExistingBundlesMatchesTemplate(existingBundles []*rukpakv1alpha1.Bundle, desiredBundleTemplate *rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
+	for _, bundle := range existingBundles {
+		if !CheckDesiredBundleTemplate(bundle, desiredBundleTemplate) {
+			continue
+		}
+		return bundle
+	}
+	return nil
+}
+
+// CheckDesiredBundleTemplate is responsible for determining whether the existingBundle
+// parameter is semantically equal to the desiredBundle Bundle template.
+func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle *rukpakv1alpha1.BundleTemplate) bool {
+	return equality.Semantic.DeepEqual(existingBundle.Spec, desiredBundle.Spec) &&
+		equality.Semantic.DeepEqual(existingBundle.Annotations, desiredBundle.Annotations) &&
+		equality.Semantic.DeepEqual(existingBundle.Labels, desiredBundle.Labels)
+}
+
+// GenerateBundleName is responsible for generating a unique
+// Bundle metadata.Name using the biName parameter as the base.
+func GenerateBundleName(biName string) string {
+	return fmt.Sprintf("%s-%s", biName, rand.String(5))
 }
 
 // GetPodNamespace checks whether the controller is running in a Pod vs.
