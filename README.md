@@ -28,8 +28,9 @@ content on a Kubernetes cluster. See [below](#components) for a more detailed lo
 
 The provisioner currently implemented and bundled with RukPak is known as the plain provisioner. To get started with
 this provisioner on a local kind cluster,
-see [the quickstart section](./internal/provisioner/plain/README.md#Running-locally) of the plain provisioner README.
-There will be other provisioners added to the RukPak project that support different content types.
+see [the quickstart section](./internal/provisioner/plain/README.md#Running-locally) of the plain provisioner README. To
+install the latest version of the provisioner on an existing cluster, see the [installation guide](#install). There will
+be other provisioners added to the RukPak project that support different content types.
 
 The plain provisioner is able to source and unpack plain bundles. To learn more about the plain bundle format,
 see [the plain bundle spec](./docs/plain-bundle-spec.md).
@@ -38,6 +39,37 @@ This project uses GitHub issues and milestones to prioritize and keep track of o
 the project, checkout the [open issues](https://github.com/operator-framework/rukpak/issues) and
 [recent milestones](https://github.com/operator-framework/rukpak/milestones). There is a lot of development work ongoing
 and plenty of opportunities to get involved and [contribute](CONTRIBUTING.md)!
+
+## Install
+
+The recommended way of installing RukPak is via a tagged release from
+the [releases](https://github.com/operator-framework/rukpak/releases) page. There are detailed instructions provided in
+the release notes on how to install a particular release. The only requirement is to have a `kubectl` client available
+that is configured to target the cluster to install to.
+
+> Note: RukPak depends on [cert-manager](https://cert-manager.io/) for creating and managing certificates for its webhooks.
+> cert-manager should be installed prior to installing RukPak. See the cert-manager [installation docs](https://cert-manager.io/docs/installation/) 
+> for more information on how to install cert-manager.
+
+It is recommended to install the latest release to access the latest features and new bugfixes. RukPak releases target
+the linux operating system and support amd64, arm64, ppc64le, and s390x architectures via multi-arch images.
+
+To install the latest release of RukPak, simply run:
+
+```bash
+kubectl apply -f https://github.com/operator-framework/rukpak/releases/latest/download/rukpak.yaml
+```
+
+Another installation option for developers interested in running RukPak locally is to clone the source code and deploy
+RukPak to a local [kind](https://kind.sigs.k8s.io/) cluster.
+
+```bash
+git clone https://github.com/operator-framework/rukpak && cd rukpak
+make run
+```
+
+There are currently no other supported ways of installing RukPak, although there are plans to add support for other
+popular packaging formats such as a Helm chart or an OLM bundle.
 
 ## Components
 
@@ -116,15 +148,16 @@ Each `Provisioner` is assigned a unique ID, and is responsible for reconciling a
 a `spec.provisionerClassName` that matches that particular ID.
 
 For example, in this repository the [plain](internal/provisioner/plain/README.md) provisioner is implemented.
-The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making
-the content of the bundle available in the cluster.
+The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
+content of the bundle available in the cluster.
 
 ### CustomResourceDefinition (CRD) Validator
 
 RukPak comes with a webhook for validating the upgrade of CRDs from `Bundle`s. If a CRD does potentially destructive
-actions to the cluster, it will not allow it go be applied. In the context of RukPak, this will result in a failed 
-`BundleInstance` resolution. 
+actions to the cluster, it will not allow it go be applied. In the context of RukPak, this will result in a failed
+`BundleInstance` resolution.
 
-To read more about this webhook, and learn how to disable this default behavior, view the `crdvalidator` [documentation](cmd/crdvalidator/README.md).
-The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
-content of the bundle available in the cluster.
+To read more about this webhook, and learn how to disable this default behavior, view
+the `crdvalidator` [documentation](cmd/crdvalidator/README.md). The `plain` provisioner is able to unpack a
+given `plain+v0` bundle onto a cluster and then instantiate it, making the content of the bundle available in the
+cluster.
