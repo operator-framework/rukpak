@@ -1,7 +1,6 @@
+# RukPak
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 [![Slack Channel](https://img.shields.io/badge/chat-4A154B?logo=slack&logoColor=white "Slack Channel")](https://kubernetes.slack.com/archives/C038B7MF75M)
-
-# RukPak
 
 RukPak runs in a Kubernetes cluster and defines an API for installing cloud native bundle content.
 
@@ -48,7 +47,7 @@ the release notes on how to install a particular release. The only requirement i
 that is configured to target the cluster to install to.
 
 > Note: RukPak depends on [cert-manager](https://cert-manager.io/) for creating and managing certificates for its webhooks.
-> cert-manager should be installed prior to installing RukPak. See the cert-manager [installation docs](https://cert-manager.io/docs/installation/) 
+> cert-manager should be installed prior to installing RukPak. See the cert-manager [installation docs](https://cert-manager.io/docs/installation/)
 > for more information on how to install cert-manager.
 
 It is recommended to install the latest release to access the latest features and new bugfixes. RukPak releases target
