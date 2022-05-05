@@ -21,7 +21,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"sort"
 	"sync"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -290,7 +289,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 // Bundle resource that's specified in the BundleInstance parameter's
 // spec.Template configuration is present on cluster, and if not, creates
 // a new Bundle resource matching that desired specification.
-func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) (*rukpakv1alpha1.Bundle, []*rukpakv1alpha1.Bundle, error) {
+func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) (*rukpakv1alpha1.Bundle, *rukpakv1alpha1.BundleList, error) {
 	// get the set of Bundle resources that already exist on cluster, and sort
 	// by metadata.CreationTimestamp in the case there's multiple Bundles
 	// that match the label selector.
@@ -298,11 +297,11 @@ func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1al
 	if err != nil {
 		return nil, nil, err
 	}
-	sort.Sort(util.BundlesByCreationTimestamp(existingBundles))
+	util.SortBundlesByCreation(existingBundles)
 
 	// check whether the BI controller has already reached the maximum
 	// generated Bundle limit to avoid hotlooping scenarios.
-	if len(existingBundles) > maxGeneratedBundleLimit {
+	if len(existingBundles.Items) > maxGeneratedBundleLimit {
 		return nil, nil, ErrMaxGeneratedLimit
 	}
 
@@ -329,15 +328,15 @@ func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1al
 
 // reconcileOldBundles is responsible for garbage collecting any Bundles
 // that no longer match the desired Bundle template.
-func (r *BundleInstanceReconciler) reconcileOldBundles(ctx context.Context, currBundle *rukpakv1alpha1.Bundle, allBundles []*rukpakv1alpha1.Bundle) error {
+func (r *BundleInstanceReconciler) reconcileOldBundles(ctx context.Context, currBundle *rukpakv1alpha1.Bundle, allBundles *rukpakv1alpha1.BundleList) error {
 	var (
 		errors []error
 	)
-	for _, b := range allBundles {
+	for _, b := range allBundles.Items {
 		if b.GetName() == currBundle.GetName() {
 			continue
 		}
-		if err := r.Delete(ctx, b); err != nil {
+		if err := r.Delete(ctx, &b); err != nil {
 			errors = append(errors, err)
 			continue
 		}

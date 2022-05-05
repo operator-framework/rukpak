@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -740,13 +739,13 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					if err != nil {
 						return false
 					}
-					if len(existingBundles) != 2 {
+					if len(existingBundles.Items) != 2 {
 						return false
 					}
-					sort.Sort(util.BundlesByCreationTimestamp(existingBundles))
+					util.SortBundlesByCreation(existingBundles)
 					// Note: existing bundles are sorted by metadata.CreationTimestamp, so select
 					// the Bundle that was generated second to compare to the desired Bundle template.
-					return util.CheckDesiredBundleTemplate(existingBundles[1], bi.Spec.Template)
+					return util.CheckDesiredBundleTemplate(&existingBundles.Items[1], bi.Spec.Template)
 				}).Should(BeTrue())
 			})
 
