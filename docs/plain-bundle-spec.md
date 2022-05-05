@@ -155,9 +155,6 @@ metadata:
   name: my-bundle
 spec:
   provisionerClassName: core.rukpak.io/plain
-  selector:
-    matchLabels:
-      app: my-bundle
   template:
     metadata:
       labels:

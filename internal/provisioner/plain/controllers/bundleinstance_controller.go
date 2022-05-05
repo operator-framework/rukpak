@@ -310,11 +310,18 @@ func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1al
 	b := util.CheckExistingBundlesMatchesTemplate(existingBundles, bi.Spec.Template)
 	if b == nil {
 		controllerRef := metav1.NewControllerRef(bi, bi.GroupVersionKind())
+		labels := bi.Spec.Template.Labels
+		if len(labels) == 0 {
+			labels = make(map[string]string)
+		}
+		labels[util.CoreOwnerKindKey] = rukpakv1alpha1.BundleInstanceKind
+		labels[util.CoreOwnerNameKey] = bi.GetName()
+
 		b = &rukpakv1alpha1.Bundle{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            util.GenerateBundleName(bi.GetName()),
 				OwnerReferences: []metav1.OwnerReference{*controllerRef},
-				Labels:          bi.Spec.Template.Labels,
+				Labels:          labels,
 				Annotations:     bi.Spec.Template.Annotations,
 			},
 			Spec: bi.Spec.Template.Spec,

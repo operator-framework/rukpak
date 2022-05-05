@@ -136,9 +136,19 @@ func TestCheckDesiredBundleTemplate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			injectCoreLabels(tt.args.existingBundle)
 			if got := CheckDesiredBundleTemplate(tt.args.existingBundle, tt.args.desiredBundle); got != tt.want {
 				t.Errorf("CheckDesiredBundleTemplate() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+func injectCoreLabels(bundle *rukpakv1alpha1.Bundle) {
+	labels := bundle.GetLabels()
+	if len(labels) == 0 {
+		labels = make(map[string]string)
+	}
+	labels[CoreOwnerKindKey] = ""
+	labels[CoreOwnerNameKey] = ""
 }

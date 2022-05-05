@@ -10,7 +10,6 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -64,15 +63,12 @@ func MapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler
 // Bundle resource that exist on cluster that match the label selector specified
 // in the BI parameter's spec.Selector field.
 func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) (*rukpakv1alpha1.BundleList, error) {
-	bundleSelector, err := metav1.LabelSelectorAsSelector(bi.Spec.Selector)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse the %s label selector: %w", bi.Spec.Selector.String(), err)
-	}
+	selector := NewBundleInstanceLabelSelector(bi)
 	bundleList := &rukpakv1alpha1.BundleList{}
 	if err := c.List(ctx, bundleList, &client.ListOptions{
-		LabelSelector: bundleSelector,
+		LabelSelector: selector,
 	}); err != nil {
-		return nil, fmt.Errorf("failed to list bundles using the %s selector: %w", bundleSelector.String(), err)
+		return nil, fmt.Errorf("failed to list bundles using the %s selector: %w", selector.String(), err)
 	}
 	return bundleList, nil
 }
@@ -93,9 +89,15 @@ func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleL
 // CheckDesiredBundleTemplate is responsible for determining whether the existingBundle
 // parameter is semantically equal to the desiredBundle Bundle template.
 func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle *rukpakv1alpha1.BundleTemplate) bool {
-	return equality.Semantic.DeepEqual(existingBundle.Spec, desiredBundle.Spec) &&
+	// Create a copy of the existingBundle resource and delete the known set of
+	// auto-generated labels that the BI controller injects when comparing the
+	// current and desired set of labels.
+	bundle := existingBundle.DeepCopy()
+	delete(bundle.Labels, CoreOwnerKindKey)
+	delete(bundle.Labels, CoreOwnerNameKey)
+	return equality.Semantic.DeepEqual(bundle.Spec, desiredBundle.Spec) &&
 		equality.Semantic.DeepEqual(existingBundle.Annotations, desiredBundle.Annotations) &&
-		equality.Semantic.DeepEqual(existingBundle.Labels, desiredBundle.Labels)
+		equality.Semantic.DeepEqual(bundle.Labels, desiredBundle.Labels)
 }
 
 // GenerateBundleName is responsible for generating a unique
