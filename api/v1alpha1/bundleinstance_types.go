@@ -47,8 +47,6 @@ const (
 type BundleInstanceSpec struct {
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
 	ProvisionerClassName string `json:"provisionerClassName"`
-	// Label selector for Bundles resources.
-	Selector *metav1.LabelSelector `json:"selector"`
 	// Template describes the generated Bundle that this instance will manage.
 	Template *BundleTemplate `json:"template"`
 }
