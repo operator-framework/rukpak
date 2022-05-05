@@ -21,7 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Run linting checks
+      - name: Run golangci linting checks
         uses: "golangci/golangci-lint-action@v2"
         with:
           version: "v1.45.2"
+
+      - name: Lint markdown files
+        uses: github/super-linter/slim@v4
+        env:
+          VALIDATE_ALL_CODEBASE: true
+          DEFAULT_BRANCH: main
+          # only runs the markdown linter
+          VALIDATE_MARKDOWN: true
