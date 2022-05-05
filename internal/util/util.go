@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"sort"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -62,7 +63,7 @@ func MapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler
 // GetBundlesForBundleInstanceSelector is responsible for returning a list of
 // Bundle resource that exist on cluster that match the label selector specified
 // in the BI parameter's spec.Selector field.
-func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) ([]*rukpakv1alpha1.Bundle, error) {
+func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) (*rukpakv1alpha1.BundleList, error) {
 	bundleSelector, err := metav1.LabelSelectorAsSelector(bi.Spec.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the %s label selector: %w", bi.Spec.Selector.String(), err)
@@ -73,22 +74,18 @@ func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, b
 	}); err != nil {
 		return nil, fmt.Errorf("failed to list bundles using the %s selector: %w", bundleSelector.String(), err)
 	}
-	bundles := []*rukpakv1alpha1.Bundle{}
-	for _, b := range bundleList.Items {
-		bundles = append(bundles, b.DeepCopy())
-	}
-	return bundles, nil
+	return bundleList, nil
 }
 
 // CheckExistingBundlesMatchesTemplate evaluates whether the existing list of Bundle objects
 // match the desired Bundle template that's specified in a BundleInstance object. If a match
 // is found, that Bundle object is returned, so callers are responsible for nil checking the result.
-func CheckExistingBundlesMatchesTemplate(existingBundles []*rukpakv1alpha1.Bundle, desiredBundleTemplate *rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
-	for _, bundle := range existingBundles {
-		if !CheckDesiredBundleTemplate(bundle, desiredBundleTemplate) {
+func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate *rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
+	for _, bundle := range existingBundles.Items {
+		if !CheckDesiredBundleTemplate(&bundle, desiredBundleTemplate) {
 			continue
 		}
-		return bundle
+		return bundle.DeepCopy()
 	}
 	return nil
 }
@@ -105,6 +102,14 @@ func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBu
 // Bundle metadata.Name using the biName parameter as the base.
 func GenerateBundleName(biName string) string {
 	return fmt.Sprintf("%s-%s", biName, rand.String(5))
+}
+
+// SortBundlesByCreation sorts a BundleList's items by it's
+// metadata.CreationTimestamp value.
+func SortBundlesByCreation(bundles *rukpakv1alpha1.BundleList) {
+	sort.Slice(bundles.Items, func(a, b int) bool {
+		return bundles.Items[a].CreationTimestamp.Before(&bundles.Items[b].CreationTimestamp)
+	})
 }
 
 // GetPodNamespace checks whether the controller is running in a Pod vs.
