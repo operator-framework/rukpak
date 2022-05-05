@@ -619,17 +619,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app.kubernetes.io/name": "olm-crds",
-						},
-					},
 					Template: &rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "olm-crds",
-							},
-						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
@@ -685,20 +675,23 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				ContainElement(*biRef)),
 			)
 		})
-		// TODO: spec.Selector cannot be different than spec.Template.Metadata.Labels?
 		It("should generate a Bundle that contains the correct labels", func() {
-			Eventually(func() map[string]string {
+			expectedLabels := map[string]string{
+				util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind,
+				util.CoreOwnerNameKey: bi.GetName(),
+			}
+			Eventually(func() (map[string]string, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
-					return nil
+					return nil, err
 				}
 				b := &rukpakv1alpha1.Bundle{}
 				if err := c.Get(ctx, types.NamespacedName{Name: bi.Status.InstalledBundleName}, b); err != nil {
-					return nil
+					return nil, err
 				}
-				return b.Labels
+				return b.Labels, nil
 			}).Should(And(
 				Not(BeNil()),
-				Equal(bi.Spec.Selector.MatchLabels)),
+				Equal(expectedLabels)),
 			)
 		})
 		Describe("template is unsuccessfully updated", func() {
@@ -801,6 +794,9 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					if err := c.Get(ctx, types.NamespacedName{Name: bi.Status.InstalledBundleName}, originalBundle); err != nil {
 						return err
 					}
+					if len(bi.Spec.Template.Labels) == 0 {
+						bi.Spec.Template.Labels = make(map[string]string)
+					}
 					bi.Spec.Template.Labels["e2e-test"] = "stub"
 					return c.Update(ctx, bi)
 				}).Should(Succeed())
@@ -857,11 +853,6 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app.kubernetes.io/name": "olm-crds",
-						},
-					},
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
@@ -921,11 +912,6 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app.kubernetes.io/name": "olm-apis",
-						},
-					},
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
@@ -994,11 +980,6 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app.kubernetes.io/name": "e2e-dependent-bundle",
-						},
-					},
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
@@ -1056,11 +1037,6 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					},
 					Spec: rukpakv1alpha1.BundleInstanceSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app.kubernetes.io/name": "e2e-bundle-providing",
-							},
-						},
 						Template: &rukpakv1alpha1.BundleTemplate{
 							ObjectMeta: metav1.ObjectMeta{
 								Labels: map[string]string{
@@ -1122,11 +1098,6 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app.kubernetes.io/name": "e2e-bundle-crds-and-crs",
-						},
-					},
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
@@ -1261,9 +1232,6 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: labels,
-					},
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: labels,
@@ -1346,11 +1314,6 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				},
 				Spec: rukpakv1alpha1.BundleInstanceSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app.kubernetes.io/name": "e2e-ownerref-bundle-valid",
-						},
-					},
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{

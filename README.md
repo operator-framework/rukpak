@@ -140,9 +140,6 @@ metadata:
   name: my-bundle-instance
 spec:
   provisionerClassName: core.rukpak.io/plain
-  selector:
-    matchLabels:
-      app: my-bundle
   template:
     metadata:
       labels:
