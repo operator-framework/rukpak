@@ -845,7 +845,11 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallFailed)),
 					WithTransform(func(c *metav1.Condition) string { return c.Message },
-						ContainSubstring(`unable to recognize "": no matches for kind "OperatorGroup" in version "operators.coreos.com/v1"`)),
+						Or(
+							ContainSubstring(`unable to recognize "": no matches for kind "OperatorGroup" in version "operators.coreos.com/v1"`),
+							ContainSubstring(`the server could not find the requested resource (post operatorgroups.operators.coreos.com)`),
+						),
+					),
 				))
 			})
 		})
