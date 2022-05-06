@@ -97,6 +97,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	defer func() {
 		bi := bi.DeepCopy()
 		bi.ObjectMeta.ManagedFields = nil
+		bi.Spec.Template = nil
 		if err := r.Status().Patch(ctx, bi, client.Apply, client.FieldOwner(plain.ProvisionerID)); err != nil {
 			l.Error(err, "failed to patch status")
 		}
