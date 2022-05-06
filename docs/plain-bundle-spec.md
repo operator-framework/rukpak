@@ -161,3 +161,46 @@ spec:
   provisionerClassName: core.rukpak.io/plain
 EOF
 ```
+
+## Private image registries
+
+A Bundle can reference content in a private image registry by creating an `pullSecret` in the namespace that the provisioner is deployed.
+
+### Example steps
+
+1. Login to your private registry
+
+```bash
+docker login quay.io -u "your user name" -p "your password"
+```
+
+2. Push the image to the private registry
+
+```bash
+docker tag quay.io/operator-framework/rukpak:example quay.io/my-registry/rukpak:example
+docker push quay.io/my-registry/rukpak:example
+```
+
+3. Create the secret for quay.io registry
+
+```bash
+kubectl create secret docker-registry mysecret --docker-server=quay.io --docker-username="your user name" --docker-password="your password" --docker-email="your e-mail adress" -n rukpak-system
+```
+
+4. Create a Bundle referencing a private image registry:
+
+```bash
+kubectl apply -f -<<EOF
+apiVersion: core.rukpak.io/v1alpha1
+kind: Bundle
+metadata:
+  name: my-private-bundle
+spec:
+  source:
+    type: image
+    image:
+      ref: quay.io/my-registry/rukpak:example
+      pullSecret: mysecret
+  provisionerClassName: core.rukpak.io/plain
+EOF
+```
