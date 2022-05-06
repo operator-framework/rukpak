@@ -37,23 +37,43 @@ func BundleInstanceProvisionerFilter(provisionerClassName string) predicate.Pred
 	})
 }
 
+func MapBundleInstanceToBundles(ctx context.Context, c client.Client, bi rukpakv1alpha1.BundleInstance) *rukpakv1alpha1.BundleList {
+	bundles := &rukpakv1alpha1.BundleList{}
+	if err := c.List(ctx, bundles, &client.ListOptions{
+		LabelSelector: NewBundleInstanceLabelSelector(&bi),
+	}); err != nil {
+		return nil
+	}
+	return bundles
+}
+
+func MapBundleToBundleInstances(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) []*rukpakv1alpha1.BundleInstance {
+	bundleInstances := &rukpakv1alpha1.BundleInstanceList{}
+	if err := c.List(context.Background(), bundleInstances); err != nil {
+		return nil
+	}
+	var bis []*rukpakv1alpha1.BundleInstance
+	for _, bi := range bundleInstances.Items {
+		bi := bi
+
+		bundles := MapBundleInstanceToBundles(ctx, c, bi)
+		for _, bundle := range bundles.Items {
+			if bundle.GetName() == b.GetName() {
+				bis = append(bis, &bi)
+			}
+		}
+	}
+	return bis
+}
+
 func MapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler.MapFunc {
 	return func(object client.Object) []reconcile.Request {
 		b := object.(*rukpakv1alpha1.Bundle)
 
-		bundleInstances := &rukpakv1alpha1.BundleInstanceList{}
-		if err := cl.List(context.Background(), bundleInstances); err != nil {
-			log.WithName("mapBundleToBundleInstanceHandler").Error(err, "list bundles")
-			return nil
-		}
 		var requests []reconcile.Request
-		for _, bi := range bundleInstances.Items {
-			bi := bi
-			for _, ref := range b.GetOwnerReferences() {
-				if ref.Name == bi.GetName() {
-					requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&bi)})
-				}
-			}
+		matchingBIs := MapBundleToBundleInstances(context.Background(), cl, *b)
+		for _, bi := range matchingBIs {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(bi)})
 		}
 		return requests
 	}
