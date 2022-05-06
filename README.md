@@ -36,8 +36,8 @@ the release notes on how to install a particular release. The only requirement i
 that is configured to target the cluster to install to.
 
 > Note: RukPak depends on [cert-manager](https://cert-manager.io/) for creating and managing certificates for its webhooks.
-> cert-manager should be installed prior to installing RukPak. See the cert-manager [installation docs](https://cert-manager.io/docs/installation/)
-> for more information on how to install cert-manager.
+cert-manager should be installed prior to installing RukPak. See the cert-manager [installation docs](https://cert-manager.io/docs/installation/)
+for more information on how to install cert-manager.
 
 It is recommended to install the latest release to access the latest features and new bugfixes. RukPak releases target
 the linux operating system and support amd64, arm64, ppc64le, and s390x architectures via multi-arch images.
@@ -55,6 +55,8 @@ RukPak to a local [kind](https://kind.sigs.k8s.io/) cluster.
 git clone https://github.com/operator-framework/rukpak && cd rukpak
 make run
 ```
+
+> Note: RukPak may take some time to become fully operational while its controllers and webhooks are spinning up during installation. As a result, please allow a few moments before creating Bundles/BundleInstances if you are noticing unexpected failures.
 
 There are currently no other supported ways of installing RukPak, although there are plans to add support for other
 popular packaging formats such as a Helm chart or an OLM bundle.
