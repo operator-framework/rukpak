@@ -14,6 +14,7 @@ VERSION_PATH := $(PKG)/internal/version
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 PKGS = $(shell go list ./...)
 CERT_MGR_VERSION=v1.7.1
+RUKPAK_NAMESPACE ?= rukpak-system
 
 CONTAINER_RUNTIME ?= docker
 
@@ -99,6 +100,9 @@ kind-cluster: ## Standup a kind cluster for e2e testing usage
 
 install: generate kustomize cert-mgr ## Install rukpak
 	$(KUSTOMIZE) build manifests | kubectl apply -f -
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/plain-provisioner --timeout=60s
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
+	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
 run: build-container kind-load install ## Build image and run operator in-cluster
 
