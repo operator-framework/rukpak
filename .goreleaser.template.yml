@@ -105,3 +105,5 @@ changelog:
   skip: $DISABLE_RELEASE_PIPELINE
 release:
   disable: $DISABLE_RELEASE_PIPELINE
+  extra_files:
+  - glob: 'rukpak.yaml'
