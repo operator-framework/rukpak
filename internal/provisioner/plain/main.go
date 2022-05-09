@@ -87,7 +87,7 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	setupLog.Info("starting up the provisioner", "Git commit", version.String())
+	setupLog.Info("starting up the provisioner", "git commit", version.String(), "unpacker image", unpackImage, "git client image", gitClientImage)
 
 	cfg := ctrl.GetConfigOrDie()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
