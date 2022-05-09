@@ -184,6 +184,10 @@ release: GORELEASER_ARGS ?= --snapshot --rm-dist
 release: goreleaser substitute
 	$(GORELEASER) $(GORELEASER_ARGS)
 
+quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
+quickstart: generate kustomize
+	$(KUSTOMIZE) build manifests | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
+
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
 ginkgo: $(GINKGO) ## Build a local copy of ginkgo
 golangci-lint: $(GOLANGCI_LINT) ## Build a local copy of golangci-lint
