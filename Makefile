@@ -13,7 +13,7 @@ TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 PKGS = $(shell go list ./...)
-CERT_MGR_VERSION=v1.7.1
+export CERT_MGR_VERSION ?= v1.7.1
 RUKPAK_NAMESPACE ?= rukpak-system
 
 CONTAINER_RUNTIME ?= docker
