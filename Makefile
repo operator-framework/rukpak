@@ -73,7 +73,7 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 ###########
 # Testing #
 ###########
-.PHONY: test test-unit test-e2e
+.PHONY: test test-unit test-e2e image-registry
 
 ##@ testing:
 
@@ -89,7 +89,7 @@ test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: run kind-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
+e2e: run image-registry kind-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
 kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME}
@@ -97,6 +97,9 @@ kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 
 kind-cluster-cleanup: kind ## Delete the kind cluster
 	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
+
+image-registry: ## Setup in-cluster image registry 
+	./tools/imageregistry/setup_imageregistry.sh ${KIND_CLUSTER_NAME}
 
 ###################
 # Install and Run #
@@ -128,7 +131,7 @@ uninstall: ## Remove all rukpak resources from the cluster
 ##################
 # Build and Load #
 ##################
-.PHONY: build plain unpack core rukpakctl build-container kind-load kind-load-bundles kind-cluster
+.PHONY: build plain unpack core rukpakctl build-container kind-load kind-load-bundles kind-cluster registry-load-bundles
 
 ##@ build/load:
 
@@ -179,6 +182,9 @@ kind-load-bundles: kind ## Load the e2e testdata container images into a kind cl
 
 kind-load: kind ## Loads the currently constructed image onto the cluster
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
+
+registry-load-bundles: kind-load-bundles ## Load the e2e testdata container images into registry
+	./tools/imageregistry/load_test_image.sh
 
 ###########
 # Release #
