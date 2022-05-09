@@ -15,4 +15,7 @@
 vendor/
 bin/
 dist/
+
+# Release artifacts
 .goreleaser.yml
+rukpak.yaml
