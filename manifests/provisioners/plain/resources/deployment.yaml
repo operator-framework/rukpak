@@ -35,6 +35,7 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/plain"]
           args:
+            - "--unpack-image=quay.io/operator-framework/rukpak:latest"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(PLAIN_PROVISIONER_SERVICE_NAME).$(PLAIN_PROVISIONER_SERVICE_NAMESPACE).svc"
           ports:
