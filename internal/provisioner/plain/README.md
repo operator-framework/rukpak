@@ -27,6 +27,10 @@ graph TD
 
 ### Install and apply a specific version of a bundle
 
+> :warning: Anyone with the ability to create or update BundleInstance objects can become cluster admin. It's important
+> to limit access to this API via RBAC to only those that explicitly require access, as well as audit your bundles to
+> ensure the content being installed on-cluster is as-expected and secure.
+
 The `plain` provisioner can install and make available a specific `plain+v0` bundle in the cluster.
 
 Simply create a `BundleInstance` resource that contains the desired specification of a Bundle resource.

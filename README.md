@@ -124,6 +124,10 @@ spec:
 
 ### BundleInstance
 
+> :warning: A BundleInstance changes the state of the Kubernetes cluster by installing and removing objects. It's important
+> to verify and trust the content that is being installed, and limit access (via RBAC) to the BundleInstance API to only those
+> who require those permissions.
+
 The `BundleInstance` API points to a Bundle and indicates that it should be “active”. This includes pivoting from older
 versions of an active bundle.`BundleInstance` may also include an embedded spec for a desired Bundle.
 
