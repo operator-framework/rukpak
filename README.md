@@ -151,7 +151,7 @@ spec:
         type: image
         image:
           ref: my-bundle@sha256:xyz123
-      provisionerClassName: core.rukpak.io/plain: my-bundle
+      provisionerClassName: core.rukpak.io/plain
 ```
 
 ### Provisioner
