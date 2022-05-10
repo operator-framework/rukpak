@@ -384,18 +384,6 @@ func (r *BundleInstanceReconciler) getReleaseState(cl helmclient.ActionInterface
 	return currentRelease, stateUnchanged, nil
 }
 
-type errBundleNotUnpacked struct {
-	currentPhase string
-}
-
-func (err errBundleNotUnpacked) Error() string {
-	const baseError = "bundle is not yet unpacked"
-	if err.currentPhase == "" {
-		return baseError
-	}
-	return fmt.Sprintf("%s, current phase=%s", baseError, err.currentPhase)
-}
-
 func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bundle *rukpakv1alpha1.Bundle, biName string) ([]client.Object, error) {
 	bundleFS, err := r.BundleStorage.Load(ctx, bundle)
 	if err != nil {
