@@ -57,14 +57,17 @@ func init() {
 }
 
 func main() {
-	var httpBindAddr string
-	var httpExternalAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	var systemNamespace string
-	var unpackImage string
-	var rukpakVersion bool
-	var gitClientImage string
+	var (
+		httpBindAddr         string
+		httpExternalAddr     string
+		enableLeaderElection bool
+		probeAddr            string
+		systemNamespace      string
+		unpackImage          string
+		rukpakVersion        bool
+		gitClientImage       string
+		storageDirectory     string
+	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
 	flag.StringVar(&httpExternalAddr, "http-external-address", "http://localhost:8080", "The external address at which the http server is reachable.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -74,7 +77,8 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
-	flag.StringVar(&gitClientImage, "git-client-image", "alpine/git:v2.32.0", "Configures which git container image to use to clone bundle git repos")
+	flag.StringVar(&storageDirectory, "storage-dir", storage.DefaultBundleCacheDir, "Configures the directory that is used to store Bundle contents.")
+	flag.StringVar(&gitClientImage, "git-client-image", "alpine/git:v2.32.0", "Configures which git container image to use to clone bundle git repos.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -130,7 +134,7 @@ func main() {
 		os.Exit(1)
 	}
 	bundleStorage := &storage.LocalDirectory{
-		RootDirectory: storage.DefaultBundleCacheDir,
+		RootDirectory: storageDirectory,
 		URL:           *storageURL,
 	}
 	// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
