@@ -82,7 +82,6 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	flag.StringVar(&storageDirectory, "storage-dir", storage.DefaultBundleCacheDir, "Configures the directory that is used to store Bundle contents.")
-	flag.StringVar(&gitClientImage, "git-client-image", "alpine/git:v2.32.0", "Configures which git container image to use to clone bundle git repos.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -195,14 +194,7 @@ func main() {
 			PodNamespace:    ns,
 			UnpackImage:     unpackImage,
 		},
-		rukpakv1alpha1.SourceTypeGit: &source.Git{
-			Client:          mgr.GetClient(),
-			KubeClient:      kubeClient,
-			ProvisionerName: plainBundleProvisionerName,
-			PodNamespace:    ns,
-			UnpackImage:     unpackImage,
-			GitClientImage:  gitClientImage,
-		},
+		rukpakv1alpha1.SourceTypeGit: &source.Git{},
 	})
 
 	if err = (&controllers.BundleReconciler{
