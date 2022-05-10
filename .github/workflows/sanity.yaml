@@ -24,7 +24,7 @@ jobs:
       - name: Run golangci linting checks
         uses: "golangci/golangci-lint-action@v2"
         with:
-          version: "v1.45.2"
+          version: "v1.46.0"
 
       - name: Lint markdown files
         uses: github/super-linter/slim@v4
