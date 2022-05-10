@@ -168,6 +168,9 @@ For example, in this repository the [plain](internal/provisioner/plain/README.md
 The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
 content of the bundle available in the cluster.
 
+If you are interested in implementing your own provisioner, please see the
+[Provisioner Spec [DRAFT]](docs/provisioner-spec.md), which describes the expectations of provisioner implementations.
+
 ### CustomResourceDefinition (CRD) Validator
 
 RukPak comes with a webhook for validating the upgrade of CRDs from `Bundle`s. If a CRD does potentially destructive

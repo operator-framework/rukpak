@@ -98,7 +98,24 @@ provisioner pods.
 
 By default, `rukpak-system` is the configured namespace for deploying `plain` provisioner-related system resources.
 
-Surfacing the content of a bundle in a more user-friendly way, via a plugin or additional API, is on the RukPak roadmap.
+The content of a bundle can be queried using the `status.contentURL`, assuming you have the necessary
+RBAC permissions to access bundle content.
+
+As an example, a client outside the cluster can view the file contents from a bundle named `my-bundle` by running
+the following script:
+```console
+BUNDLE_NAME=my-bundle
+
+kubectl create sa fetch-bundle -n default
+kubectl create clusterrolebinding fetch-bundle --clusterrole=bundle-reader --serviceaccount=default:fetch-bundle
+export TOKEN=$(kubectl get secret -n default $(kubectl get sa -n default fetch-bundle -o jsonpath='{.secrets[0].name}') -o jsonpath='{.data.token}' | base64 -d)
+export URL=$(kubectl get bundle $BUNDLE_NAME -o jsonpath='{.status.contentURL}')
+kubectl run -qit --rm -n default --restart=Never fetch-bundle --image=curlimages/curl --overrides='{ "spec": { "serviceAccount": "fetch-bundle" }  }' --command -- curl -sSLk -H "Authorization: Bearer $TOKEN" -o - $URL | tar ztv
+kubectl delete clusterrolebinding fetch-bundle
+kubectl delete sa fetch-bundle -n default
+```
+
+Simplifying the process of fetching this bundle content (e.g. via a plugin) is on the RukPak roadmap.
 
 ### Pivoting between bundle versions
 
