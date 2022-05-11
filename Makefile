@@ -110,6 +110,9 @@ cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
 	kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
 
+uninstall: ## Remove all rukpak resources from the cluster
+	kubectl delete -k manifests
+
 ##################
 # Build and Load #
 ##################
