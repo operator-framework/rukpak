@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -28,6 +29,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -199,6 +201,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return nil
 		})
 		if err != nil {
+			if isResourceNotFoundErr(err) {
+				err = errRequiredResourceNotFound{err}
+			}
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
@@ -210,6 +215,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	case stateNeedsUpgrade:
 		_, err = cl.Upgrade(bi.Name, r.ReleaseNamespace, chrt, nil)
 		if err != nil {
+			if isResourceNotFoundErr(err) {
+				err = errRequiredResourceNotFound{err}
+			}
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
@@ -220,6 +228,9 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	case stateUnchanged:
 		if err := cl.Reconcile(rel); err != nil {
+			if isResourceNotFoundErr(err) {
+				err = errRequiredResourceNotFound{err}
+			}
 			meta.SetStatusCondition(&bi.Status.Conditions, metav1.Condition{
 				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
@@ -417,6 +428,37 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bundle *rukpa
 		objs = append(objs, obj)
 	}
 	return objs, nil
+}
+
+type errRequiredResourceNotFound struct {
+	error
+}
+
+func (err errRequiredResourceNotFound) Error() string {
+	return fmt.Sprintf("required resource not found: %v", err.error)
+}
+
+func isResourceNotFoundErr(err error) bool {
+	var agg utilerrors.Aggregate
+	if errors.As(err, &agg) {
+		for _, err := range agg.Errors() {
+			return isResourceNotFoundErr(err)
+		}
+	}
+
+	nkme := &meta.NoKindMatchError{}
+	if errors.As(err, &nkme) {
+		return true
+	}
+	if apierrors.IsNotFound(err) {
+		return true
+	}
+
+	// TODO: improve NoKindMatchError matching
+	//   An error that is bubbled up from the k8s.io/cli-runtime library
+	//   does not wrap meta.NoKindMatchError, so we need to fallback to
+	//   the use of string comparisons for now.
+	return strings.Contains(err.Error(), "no matches for kind")
 }
 
 // SetupWithManager sets up the controller with the Manager.
