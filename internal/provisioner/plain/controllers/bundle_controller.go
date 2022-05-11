@@ -30,6 +30,7 @@ import (
 
 	"github.com/nlepage/go-tarfs"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -154,6 +155,13 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 			updater.EnsureBundleDigest(""),
 			updater.EnsureContentURL(""),
 		)
+		// Check whether the error we're encountering is due to the generated unpack
+		// Pod already existing on the cluster, and ignore that error as we can assume
+		// that this is due to a slow cache.
+		if apierrors.IsAlreadyExists(err) {
+			updateStatusUnpackPending(&u)
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("ensure unpack pod: %w", err))
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
 		updateStatusUnpackPending(&u)
