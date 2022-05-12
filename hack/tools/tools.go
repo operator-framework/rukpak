@@ -9,5 +9,4 @@ import (
 	_ "github.com/onsi/ginkgo/v2/ginkgo"                    // For running E2E tests
 	_ "sigs.k8s.io/controller-runtime/tools/setup-envtest"  // Generate deepcopy, conversion, and CRDs
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"     // Generate deepcopy, conversion, and CRDs
-	_ "sigs.k8s.io/kustomize/kustomize/v4"                  // For patching manifests with kustomize
 )
