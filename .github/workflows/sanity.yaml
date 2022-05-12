@@ -20,11 +20,21 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Run golangci linting checks
-        uses: "golangci/golangci-lint-action@v2"
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Cache build and module paths
+        uses: actions/cache@v3
         with:
-          version: "v1.46.0"
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run golangci linting checks
+        run: make lint
 
       - name: Lint markdown files
         uses: github/super-linter/slim@v4
