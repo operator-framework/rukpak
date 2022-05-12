@@ -1,6 +1,8 @@
 name: todo
 on:
-- push
+  push:
+    branches:
+    - main
 jobs:
   build:
     runs-on: "ubuntu-latest"
