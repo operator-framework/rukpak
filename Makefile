@@ -162,6 +162,24 @@ kind-load-bundles: ## Load the e2e testdata container images into a kind cluster
 kind-load: ## Loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
+###########
+# Release #
+###########
+
+##@ release:
+
+export DISABLE_RELEASE_PIPELINE ?= true
+substitute:
+	envsubst < .goreleaser.template.yml > .goreleaser.yml
+
+release: GORELEASER_ARGS ?= --snapshot --rm-dist
+release: goreleaser substitute ## Run goreleaser
+	$(GORELEASER) $(GORELEASER_ARGS)
+
+quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
+quickstart: generate ## Generate the installation release manifests
+	kubectl create -k manifests --dry-run=client -o yaml | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
+
 ################
 # Hack / Tools #
 ################
@@ -177,18 +195,6 @@ GINKGO := $(abspath $(TOOLS_BIN_DIR)/ginkgo)
 CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
 GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
-
-export DISABLE_RELEASE_PIPELINE ?= true
-substitute:
-	envsubst < .goreleaser.template.yml > .goreleaser.yml
-
-release: GORELEASER_ARGS ?= --snapshot --rm-dist
-release: goreleaser substitute
-	$(GORELEASER) $(GORELEASER_ARGS)
-
-quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
-quickstart: generate
-	kubectl create -k manifests --dry-run=client -o yaml | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
 
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
 ginkgo: $(GINKGO) ## Build a local copy of ginkgo
