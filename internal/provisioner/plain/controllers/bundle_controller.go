@@ -47,7 +47,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/git"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/storage"
-	"github.com/operator-framework/rukpak/internal/updater"
+	updater "github.com/operator-framework/rukpak/internal/updater/bundle"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -92,7 +92,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	u := updater.New(r.Client)
+	u := updater.NewBundleUpdater(r.Client)
 	defer func() {
 		if err := u.Apply(ctx, bundle); err != nil {
 			l.Error(err, "failed to update status")

@@ -1,4 +1,4 @@
-package updater_test
+package bundle_test
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
-	"github.com/operator-framework/rukpak/internal/updater"
+	"github.com/operator-framework/rukpak/internal/updater/bundle"
 )
 
 var _ = Describe("Updater", func() {
 	var (
 		client pkgclient.Client
-		u      updater.Updater
+		u      bundle.Updater
 		obj    *rukpakv1alpha1.Bundle
 		status = &rukpakv1alpha1.BundleStatus{
 			Phase:              rukpakv1alpha1.PhaseFailing,
@@ -56,7 +56,7 @@ var _ = Describe("Updater", func() {
 		Expect(schemeBuilder.AddToScheme(scheme)).ShouldNot(HaveOccurred())
 
 		client = fake.NewClientBuilder().WithScheme(scheme).Build()
-		u = updater.New(client)
+		u = bundle.NewBundleUpdater(client)
 		obj = &rukpakv1alpha1.Bundle{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "testBundle",
@@ -101,7 +101,7 @@ var _ = Describe("Updater", func() {
 	When("the object does not exist", func() {
 		It("should fail", func() {
 			Expect(client.Delete(context.Background(), obj)).To(Succeed())
-			u.UpdateStatus(updater.EnsureCondition(status.Conditions[0]), updater.EnsureObservedGeneration(status.ObservedGeneration), updater.EnsureBundleDigest(status.Digest), updater.SetPhase(status.Phase))
+			u.UpdateStatus(bundle.EnsureCondition(status.Conditions[0]), bundle.EnsureObservedGeneration(status.ObservedGeneration), bundle.EnsureBundleDigest(status.Digest), bundle.SetPhase(status.Phase))
 			err := u.Apply(context.Background(), obj)
 			Expect(err).NotTo(BeNil())
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
@@ -110,7 +110,7 @@ var _ = Describe("Updater", func() {
 
 	When("an update is a change", func() {
 		It("should apply an update status function", func() {
-			u.UpdateStatus(updater.EnsureCondition(metav1.Condition{
+			u.UpdateStatus(bundle.EnsureCondition(metav1.Condition{
 
 				Type:               "Working",
 				Status:             metav1.ConditionTrue,
@@ -137,13 +137,13 @@ var _ = Describe("EnsureBundleDigest", func() {
 	})
 
 	It("should add BundleDigest if not present", func() {
-		Expect(updater.EnsureBundleDigest("digest")(status)).To(BeTrue())
+		Expect(bundle.EnsureBundleDigest("digest")(status)).To(BeTrue())
 		Expect(status.Digest).To(Equal("digest"))
 	})
 
 	It("should return false for no update", func() {
 		status.Digest = "digest"
-		Expect(updater.EnsureBundleDigest("digest")(status)).To(BeFalse())
+		Expect(bundle.EnsureBundleDigest("digest")(status)).To(BeFalse())
 		Expect(status.Digest).To(Equal("digest"))
 	})
 })
@@ -156,13 +156,13 @@ var _ = Describe("EnsureContentURL", func() {
 	})
 
 	It("should add ContentURL if not present", func() {
-		Expect(updater.EnsureContentURL("url")(status)).To(BeTrue())
+		Expect(bundle.EnsureContentURL("url")(status)).To(BeTrue())
 		Expect(status.ContentURL).To(Equal("url"))
 	})
 
 	It("should return false for no update", func() {
 		status.ContentURL = "url"
-		Expect(updater.EnsureContentURL("url")(status)).To(BeFalse())
+		Expect(bundle.EnsureContentURL("url")(status)).To(BeFalse())
 		Expect(status.ContentURL).To(Equal("url"))
 	})
 })
@@ -178,20 +178,20 @@ var _ = Describe("EnsureCondition", func() {
 	})
 
 	It("should add Condition if not present", func() {
-		Expect(updater.EnsureCondition(condition)(status)).To(BeTrue())
+		Expect(bundle.EnsureCondition(condition)(status)).To(BeTrue())
 		status.Conditions[0].LastTransitionTime = metav1.Time{}
 		Expect(status.Conditions[0]).To(Equal(condition))
 	})
 
 	It("should return false for no update", func() {
 		status = &rukpakv1alpha1.BundleStatus{Conditions: []metav1.Condition{condition}}
-		Expect(updater.EnsureCondition(condition)(status)).To(BeFalse())
+		Expect(bundle.EnsureCondition(condition)(status)).To(BeFalse())
 		Expect(status.Conditions[0]).To(Equal(condition))
 	})
 
 	It("should add Condition if same type not present", func() {
 		status = &rukpakv1alpha1.BundleStatus{Conditions: []metav1.Condition{condition}}
-		Expect(updater.EnsureCondition(anotherCondition)(status)).To(BeTrue())
+		Expect(bundle.EnsureCondition(anotherCondition)(status)).To(BeTrue())
 		status.Conditions[1].LastTransitionTime = metav1.Time{}
 		Expect(status.Conditions[1]).To(Equal(anotherCondition))
 	})
@@ -205,13 +205,13 @@ var _ = Describe("EnsureObservedGeneration", func() {
 	})
 
 	It("should add ObservedGeneration if not present", func() {
-		Expect(updater.EnsureObservedGeneration(3)(status)).To(BeTrue())
+		Expect(bundle.EnsureObservedGeneration(3)(status)).To(BeTrue())
 		Expect(status.ObservedGeneration).To(Equal(int64(3)))
 	})
 
 	It("should return false for no update", func() {
 		status.ObservedGeneration = 5
-		Expect(updater.EnsureObservedGeneration(5)(status)).To(BeFalse())
+		Expect(bundle.EnsureObservedGeneration(5)(status)).To(BeFalse())
 		Expect(status.ObservedGeneration).To(Equal(int64(5)))
 	})
 })
@@ -224,13 +224,13 @@ var _ = Describe("SetPhase", func() {
 	})
 
 	It("should set phase if not present", func() {
-		Expect(updater.SetPhase("phase")(status)).To(BeTrue())
+		Expect(bundle.SetPhase("phase")(status)).To(BeTrue())
 		Expect(status.Phase).To(Equal("phase"))
 	})
 
 	It("should return false for no update", func() {
 		status.Phase = "phase"
-		Expect(updater.SetPhase("phase")(status)).To(BeFalse())
+		Expect(bundle.SetPhase("phase")(status)).To(BeFalse())
 		Expect(status.Phase).To(Equal("phase"))
 	})
 })
