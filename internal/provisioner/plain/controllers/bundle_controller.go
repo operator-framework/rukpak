@@ -288,9 +288,10 @@ func updateStatusUnpackPending(u *updater.Updater) {
 		updater.EnsureContentURL(""),
 		updater.SetPhase(rukpakv1alpha1.PhasePending),
 		updater.EnsureCondition(metav1.Condition{
-			Type:   rukpakv1alpha1.TypeUnpacked,
-			Status: metav1.ConditionFalse,
-			Reason: rukpakv1alpha1.ReasonUnpackPending,
+			Type:    rukpakv1alpha1.TypeUnpacked,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonUnpackPending,
+			Message: "Waiting for the bundle to be unpacked",
 		}),
 	)
 }
