@@ -21,44 +21,8 @@ When creating a Bundle from a git source, a reference to a particular commit, ta
 provisioner to know where the bundle content is stored in the repository. Only one can be specified, and it is expected
 that the manifests are present in the particular commit/tag/branch at the directory specified.
 
-## Private git repositories
-
-A Bundle can reference content in a private git repository using HTTPS by creating a secret in the namespace that the provisioner is deployed.
-The secret is expected to contain `data.username` and `data.accesstoken` for the username and personal access token, respectively.
-The [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-can be generated in the github settings.  ("Setting" -> "Developer settings" -> "Personal access tokens")
-
-### Example steps
-
-1. Create the secret
-
-```sh
-echo -n 'user name' > username.txt
-echo -n 'access token' > accesstoken.txt
-kubectl create secret generic gitsecret --from-file=username=./username.txt --from-file=accesstoken=./accesstoken.txt -n rukpak-system
-```
-
-2. Create a private repository (private-registry/combo) and copy operator-framework/combo contents into it
-
-3. Create a bundle referencing a private git repository:
-
-```bash
-kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
-kind: Bundle
-metadata:
-  name: combo-private
-spec:
-  source:
-    type: git
-    git:
-      ref:
-        branch: main
-      repository: https://github.com/private-registry/combo
-      secretName: gitsecret
-  provisionerClassName: core.rukpak.io/plain
-EOF
-```
+Currently only publicly-available git repositories are available as backing sources to Bundles. Authentication and using
+private git repositories as Bundle sources is on the roadmap.
 
 ## Examples
 
