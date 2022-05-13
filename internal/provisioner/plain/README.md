@@ -173,7 +173,7 @@ spec:
       provisionerClassName: core.rukpak.io/plain
       source:
         image:
-          ref: quay.io/operator-framework/combo-operator:v0.0.1
+          ref: quay.io/operator-framework/combo-bundle:v0.0.1
         type: image
 EOF
 ```
@@ -191,7 +191,7 @@ kubectl get bundle -l app=combo
 
 Eventually the Bundle should show up as Unpacked:
 
-```console
+```
 NAME          TYPE   PHASE      AGE
 combo-9njsj   image  Unpacked   10s
 ```
@@ -202,7 +202,7 @@ kubectl get bundleinstance combo
 
 A successful installation will show InstallationSucceeded as the `INSTALL STATE`:
 
-```console
+```
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
 combo   combo-9njsj        InstallationSucceeded   10s
 ```
@@ -217,15 +217,15 @@ kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | x
 ```
 
 The deployment should show that the operator is ready and available and the operator 
-should be present with the correct version (v0.0.1): 
+should be present:
 
-```console
+```
 $ kubectl -n combo get deployments.apps combo-operator
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
 combo-operator   1/1     1            1           10s
 
 $ kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | xargs
-image: quay.io/operator-framework/combo-operator:v0.0.1
+image: quay.io/operator-framework/combo-operator:latest
 ```
 
 This means the operator should be successfully installed.
@@ -238,14 +238,14 @@ kubectl -n combo delete deployments.apps combo-operator
 
 A message saying the deployment was deleted should be returned:
 
-```console
+```
 $ kubectl -n combo delete deployments.apps combo-operator
 deployment.apps "combo-operator" deleted
 ```
 
 The provisioner ensures that all resources required for the BundleInstance to run are accounted for on-cluster. 
 So if we check for the deployment again, it will be back on the cluster:
-```console
+```
 $ kubectl -n combo get deployments.apps combo-operator
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
 combo-operator   1/1     1            1           15s
@@ -275,7 +275,7 @@ spec:
       provisionerClassName: core.rukpak.io/plain
       source:
         image:
-          ref: quay.io/operator-framework/combo-operator:v0.0.2
+          ref: quay.io/operator-framework/combo-bundle:v0.0.2
         type: image
 EOF
 ```
@@ -284,7 +284,7 @@ Once the newly generated `combo-xzfxv` Bundle is reporting an Unpacked status, t
 resource should now point to the new Bundle version. The combo-operator deployment
 in the combo namespace should also be healthy and contain a new container image:
 
-```console
+```
 $ kubectl get bundles -l app=combo
 NAME           TYPE    PHASE      AGE
 combo-9njsj    image   Unpacked   30s
@@ -319,7 +319,7 @@ kubectl delete bundleinstances.core.rukpak.io combo
 A message should show that the `BundleInstance` was deleted and now the cluster state is the same as it was 
 prior to installing the operator.
 
-```console
+```
 $ kubectl delete bundleinstances.core.rukpak.io combo
 bundleinstance.core.rukpak.io "combo" deleted
 ```
