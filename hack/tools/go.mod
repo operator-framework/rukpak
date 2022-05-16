@@ -8,6 +8,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.3
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220304125252-9ee63fc65a97
 	sigs.k8s.io/controller-tools v0.7.0
+	sigs.k8s.io/kind v0.12.0
 )
 
 require (
@@ -49,6 +50,7 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20210512092938-c05353c2d58c // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/alecthomas/jsonschema v0.0.0-20211209230136-e2b41affa5c1 // indirect
+	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/alexkohler/prealloc v1.0.0 // indirect
 	github.com/apex/log v1.9.0 // indirect
 	github.com/ashanbrown/forbidigo v1.3.0 // indirect
@@ -95,6 +97,7 @@ require (
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/esimonov/ifshort v1.0.4 // indirect
 	github.com/ettle/strcase v0.1.1 // indirect
+	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/firefart/nonamedreturns v1.0.1 // indirect
