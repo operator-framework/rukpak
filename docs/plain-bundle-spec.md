@@ -193,7 +193,9 @@ docker push quay.io/my-registry/rukpak:example
 kubectl create secret docker-registry mysecret --docker-server=quay.io --docker-username="your user name" --docker-password="your password" --docker-email="your e-mail adress" -n rukpak-system
 ```
 
-4. Create a Bundle referencing a private image registry:
+### Use the secret to pull the private image
+
+#### Method 1:  Create a Bundle referencing a private image registry
 
 ```bash
 kubectl apply -f -<<EOF
@@ -210,3 +212,10 @@ spec:
   provisionerClassName: core.rukpak.io/plain
 EOF
 ```
+
+#### Method 2: Add the secret to the `imagePullSecrets` in the `default` service account in the provisioner deployed namespace
+
+```bash
+kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "mysecret"}]}' -n rukpak-system
+```
+* This command replaces the secrets already in the `imagePullSecrets`.  To add the secret to the existing secrets, add the secret in the imagePullSecrets array of the existing secrets like `imagePullSecrets": [{"name": "mysecret"}, {"name": "existing_secret1"}, {"name": "existing_secret2"}]`
