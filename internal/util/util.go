@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"io/ioutil"
 	"sort"
 	"time"
@@ -107,23 +108,34 @@ func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleL
 }
 
 // CheckDesiredBundleTemplate is responsible for determining whether the existingBundle
-// parameter is semantically equal to the desiredBundle Bundle template.
+// hash is equal to the desiredBundle Bundle template hash.
 func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle *rukpakv1alpha1.BundleTemplate) bool {
-	// Create a copy of the existingBundle resource and delete the known set of
-	// auto-generated labels that the BI controller injects when comparing the
-	// current and desired set of labels.
-	bundle := existingBundle.DeepCopy()
-	delete(bundle.Labels, CoreOwnerKindKey)
-	delete(bundle.Labels, CoreOwnerNameKey)
-	return equality.Semantic.DeepEqual(bundle.Spec, desiredBundle.Spec) &&
-		equality.Semantic.DeepEqual(existingBundle.Annotations, desiredBundle.Annotations) &&
-		equality.Semantic.DeepEqual(bundle.Labels, desiredBundle.Labels)
+	if len(existingBundle.Labels) == 0 {
+		// Existing Bundle has no labels set, which should never be the case.
+		// Return false so that the Bundle is forced to be recreated with the expected labels.
+		return false
+	}
+
+	existingHash, ok := existingBundle.Labels[CoreBundleTemplateHashKey]
+	if !ok {
+		// Existing Bundle has no template hash associated with it.
+		// Return false so that the Bundle is forced to be recreated with the template hash label.
+		return false
+	}
+
+	// Check whether the hash of the desired bundle template matches the existing bundle on-cluster.
+	desiredHash := GenerateTemplateHash(desiredBundle)
+	return existingHash == desiredHash
 }
 
-// GenerateBundleName is responsible for generating a unique
-// Bundle metadata.Name using the biName parameter as the base.
-func GenerateBundleName(biName string) string {
-	return fmt.Sprintf("%s-%s", biName, rand.String(5))
+func GenerateTemplateHash(template *rukpakv1alpha1.BundleTemplate) string {
+	hasher := fnv.New32a()
+	DeepHashObject(hasher, template)
+	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
+
+func GenerateBundleName(biName, hash string) string {
+	return fmt.Sprintf("%s-%s", biName, hash)
 }
 
 // SortBundlesByCreation sorts a BundleList's items by it's
