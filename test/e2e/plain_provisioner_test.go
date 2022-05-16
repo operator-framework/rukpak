@@ -677,8 +677,9 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 		It("should generate a Bundle that contains the correct labels", func() {
 			expectedLabels := map[string]string{
-				util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind,
-				util.CoreOwnerNameKey: bi.GetName(),
+				util.CoreOwnerKindKey:          rukpakv1alpha1.BundleInstanceKind,
+				util.CoreOwnerNameKey:          bi.GetName(),
+				util.CoreBundleTemplateHashKey: "54dd864b69",
 			}
 			Eventually(func() (map[string]string, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
@@ -1273,18 +1274,19 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 		It("should result in a new Bundle being generated", func() {
 			var (
-				originalBundleName string
+				originalUUID types.UID
 			)
-			b := &rukpakv1alpha1.Bundle{}
 			By("deleting the test Bundle resource")
 			Eventually(func() error {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
 					return err
 				}
-				originalBundleName = bi.Status.InstalledBundleName
+				originalBundleName := bi.Status.InstalledBundleName
+				b := &rukpakv1alpha1.Bundle{}
 				if err := c.Get(ctx, types.NamespacedName{Name: originalBundleName}, b); err != nil {
 					return err
 				}
+				originalUUID = b.ObjectMeta.UID
 				return c.Delete(ctx, b)
 			}).Should(Succeed())
 
@@ -1293,8 +1295,17 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
 					return false
 				}
+
 				installedBundleName := bi.Status.InstalledBundleName
-				return installedBundleName != "" && installedBundleName != originalBundleName
+				if installedBundleName == "" {
+					return false
+				}
+
+				b := &rukpakv1alpha1.Bundle{}
+				if err := c.Get(ctx, types.NamespacedName{Name: installedBundleName}, b); err != nil {
+					return false
+				}
+				return b.UID != originalUUID
 			}).Should(BeTrue())
 		})
 	})
