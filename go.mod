@@ -10,7 +10,7 @@ require (
 	github.com/onsi/gomega v1.18.1
 	github.com/operator-framework/api v0.13.0
 	github.com/operator-framework/helm-operator-plugins v0.0.9
-	github.com/spf13/cobra v1.3.0
+	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.1
 	helm.sh/helm/v3 v3.8.0
 	k8s.io/api v0.23.1
@@ -23,7 +23,7 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/BurntSushi/toml v0.4.1 // indirect
+	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect

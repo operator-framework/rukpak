@@ -7,7 +7,7 @@ export IMAGE_REPO ?= quay.io/operator-framework/rukpak
 export IMAGE_TAG ?= latest
 IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= kind
-KIND := kind
+KIND_OS = kind-linux-amd64
 BIN_DIR := bin
 TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
@@ -116,7 +116,7 @@ uninstall: ## Remove all rukpak resources from the cluster
 ##################
 # Build and Load #
 ##################
-.PHONY: build plain unpack core build-container kind-load kind-load-bundles kind-cluster
+.PHONY: build plain unpack core build-container kind-load kind-load-bundles kind-cluster kind
 
 ##@ build/load:
 
@@ -188,19 +188,21 @@ TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
 
 ##@ hack/tools:
 
-.PHONY: golangci-lint ginkgo controller-gen goreleaser
+.PHONY: golangci-lint ginkgo controller-gen goreleaser kind
 
 GOLANGCI_LINT := $(abspath $(TOOLS_BIN_DIR)/golangci-lint)
 GINKGO := $(abspath $(TOOLS_BIN_DIR)/ginkgo)
 CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
 GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
+KIND := $(abspath $(TOOLS_BIN_DIR)/KIND)
 
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
 ginkgo: $(GINKGO) ## Build a local copy of ginkgo
 golangci-lint: $(GOLANGCI_LINT) ## Build a local copy of golangci-lint
 setup-envtest: $(SETUP_ENVTEST) ## Build a local copy of envtest
 goreleaser: $(GORELEASER) ## Builds a local copy of goreleaser
+kind: $(KIND) ## Builds a local copy of kind
 
 $(CONTROLLER_GEN): $(TOOLS_DIR)/go.mod # Build controller-gen from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen
@@ -212,3 +214,5 @@ $(SETUP_ENVTEST): $(TOOLS_DIR)/go.mod # Build setup-envtest from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/setup-envtest sigs.k8s.io/controller-runtime/tools/setup-envtest
 $(GORELEASER): $(TOOLS_DIR)/go.mod # Build goreleaser from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/goreleaser github.com/goreleaser/goreleaser
+$(KIND): $(TOOLS_DIR)/go.mod
+	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/kind sigs.k8s.io/kind
