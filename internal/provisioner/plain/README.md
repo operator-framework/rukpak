@@ -103,6 +103,7 @@ RBAC permissions to access bundle content.
 
 As an example, a client outside the cluster can view the file contents from a bundle named `my-bundle` by running
 the following script:
+
 ```console
 BUNDLE_NAME=my-bundle
 
@@ -180,34 +181,38 @@ EOF
 
 A message saying the `BundleInstance` is created should be returned:
 
-```
+```text
 bundleinstance.core.rukpak.io/combo created
 ```
 
-Next, check the Bundle status via: 
+Next, check the Bundle status via:
+
 ```console
 kubectl get bundle -l app=combo
 ```
 
 Eventually the Bundle should show up as Unpacked:
 
-```
+```text
 NAME          TYPE   PHASE      AGE
 combo-9njsj   image  Unpacked   10s
 ```
+
 Check the BundleInstance status to ensure that the installation was successful:
+
 ```console
 kubectl get bundleinstance combo
 ```
 
 A successful installation will show InstallationSucceeded as the `INSTALL STATE`:
 
-```
+```text
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
 combo   combo-9njsj        InstallationSucceeded   10s
 ```
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster:
+
 ```console
 # Check the combo operator deployment
 kubectl -n combo get deployments.apps combo-operator
@@ -216,10 +221,10 @@ kubectl -n combo get deployments.apps combo-operator
 kubectl -n combo get deployments.apps combo-operator -o yaml | grep 'image:' | xargs
 ```
 
-The deployment should show that the operator is ready and available and the operator 
+The deployment should show that the operator is ready and available and the operator
 should be present:
 
-```
+```text
 $ kubectl -n combo get deployments.apps combo-operator
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
 combo-operator   1/1     1            1           10s
@@ -238,14 +243,15 @@ kubectl -n combo delete deployments.apps combo-operator
 
 A message saying the deployment was deleted should be returned:
 
-```
+```text
 $ kubectl -n combo delete deployments.apps combo-operator
 deployment.apps "combo-operator" deleted
 ```
 
-The provisioner ensures that all resources required for the BundleInstance to run are accounted for on-cluster. 
+The provisioner ensures that all resources required for the BundleInstance to run are accounted for on-cluster.
 So if we check for the deployment again, it will be back on the cluster:
-```
+
+```text
 $ kubectl -n combo get deployments.apps combo-operator
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
 combo-operator   1/1     1            1           15s
@@ -280,11 +286,11 @@ spec:
 EOF
 ```
 
-Once the newly generated `combo-xzfxv` Bundle is reporting an Unpacked status, the BundleInstance `combo` 
+Once the newly generated `combo-xzfxv` Bundle is reporting an Unpacked status, the BundleInstance `combo`
 resource should now point to the new Bundle version. The combo-operator deployment
 in the combo namespace should also be healthy and contain a new container image:
 
-```
+```text
 $ kubectl get bundles -l app=combo
 NAME           TYPE    PHASE      AGE
 combo-9njsj    image   Unpacked   30s
@@ -316,10 +322,10 @@ resources including the deployment, RBAC, and the operator namespace.
 kubectl delete bundleinstances.core.rukpak.io combo
 ```
 
-A message should show that the `BundleInstance` was deleted and now the cluster state is the same as it was 
+A message should show that the `BundleInstance` was deleted and now the cluster state is the same as it was
 prior to installing the operator.
 
-```
+```text
 $ kubectl delete bundleinstances.core.rukpak.io combo
 bundleinstance.core.rukpak.io "combo" deleted
 ```
