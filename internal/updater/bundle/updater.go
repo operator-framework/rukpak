@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package updater
+package bundle
 
 import (
 	"context"
@@ -26,9 +26,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/updater"
 )
 
-func New(client client.Client) Updater {
+func NewBundleUpdater(client client.Client) Updater {
 	return Updater{
 		client: client,
 	}
@@ -67,16 +68,12 @@ func (u *Updater) Apply(ctx context.Context, b *rukpakv1alpha1.Bundle) error {
 func EnsureCondition(condition metav1.Condition) UpdateStatusFunc {
 	return func(status *rukpakv1alpha1.BundleStatus) bool {
 		existing := meta.FindStatusCondition(status.Conditions, condition.Type)
-		if existing == nil || !conditionsSemanticallyEqual(*existing, condition) {
+		if existing == nil || !updater.ConditionsSemanticallyEqual(*existing, condition) {
 			meta.SetStatusCondition(&status.Conditions, condition)
 			return true
 		}
 		return false
 	}
-}
-
-func conditionsSemanticallyEqual(a, b metav1.Condition) bool {
-	return a.Type == b.Type && a.Status == b.Status && a.Reason == b.Reason && a.Message == b.Message && a.ObservedGeneration == b.ObservedGeneration
 }
 
 func EnsureObservedGeneration(observedGeneration int64) UpdateStatusFunc {

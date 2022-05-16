@@ -178,7 +178,7 @@ release: goreleaser substitute ## Run goreleaser
 
 quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
 quickstart: generate ## Generate the installation release manifests
-	kubectl create -k manifests --dry-run=client -o yaml | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
+	kubectl kustomize manifests | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
 
 ################
 # Hack / Tools #

@@ -1,4 +1,4 @@
-package updater_test
+package bundleinstance_test
 
 import (
 	"context"
@@ -14,18 +14,16 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
-	"github.com/operator-framework/rukpak/internal/updater"
+	bundleinstance "github.com/operator-framework/rukpak/internal/updater/bundle-instance"
 )
 
 var _ = Describe("Updater", func() {
 	var (
 		client pkgclient.Client
-		u      updater.Updater
-		obj    *rukpakv1alpha1.Bundle
-		status = &rukpakv1alpha1.BundleStatus{
-			Phase:              rukpakv1alpha1.PhaseFailing,
-			Digest:             "digest",
-			ObservedGeneration: 1,
+		u      bundleinstance.Updater
+		obj    *rukpakv1alpha1.BundleInstance
+		status = &rukpakv1alpha1.BundleInstanceStatus{
+			InstalledBundleName: "bundle",
 			Conditions: []metav1.Condition{
 				{
 					Type:               "Working",
@@ -56,25 +54,27 @@ var _ = Describe("Updater", func() {
 		Expect(schemeBuilder.AddToScheme(scheme)).ShouldNot(HaveOccurred())
 
 		client = fake.NewClientBuilder().WithScheme(scheme).Build()
-		u = updater.New(client)
-		obj = &rukpakv1alpha1.Bundle{
+		u = bundleinstance.NewBundleInstanceUpdater(client)
+		obj = &rukpakv1alpha1.BundleInstance{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "testBundle",
-				Namespace: "testNamespace",
+				GenerateName: "olm-crds",
 			},
-			Spec: rukpakv1alpha1.BundleSpec{
+			Spec: rukpakv1alpha1.BundleInstanceSpec{
 				ProvisionerClassName: plain.ProvisionerID,
-				Source: rukpakv1alpha1.BundleSource{
-					Type: rukpakv1alpha1.SourceTypeImage,
-					Image: &rukpakv1alpha1.ImageSource{
-						Ref: "quay.io/tflannag/olm-plain-bundle:olm-crds-v0.20.0",
+				Template: &rukpakv1alpha1.BundleTemplate{
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plain.ProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeImage,
+							Image: &rukpakv1alpha1.ImageSource{
+								Ref: "testdata/bundles/plain-v0:valid",
+							},
+						},
 					},
 				},
 			},
-			Status: rukpakv1alpha1.BundleStatus{
-				Phase:              rukpakv1alpha1.PhaseFailing,
-				Digest:             "digest",
-				ObservedGeneration: 1,
+			Status: rukpakv1alpha1.BundleInstanceStatus{
+				InstalledBundleName: "bundle",
 				Conditions: []metav1.Condition{
 					{
 						Type:               "Working",
@@ -101,7 +101,7 @@ var _ = Describe("Updater", func() {
 	When("the object does not exist", func() {
 		It("should fail", func() {
 			Expect(client.Delete(context.Background(), obj)).To(Succeed())
-			u.UpdateStatus(updater.EnsureCondition(status.Conditions[0]), updater.EnsureObservedGeneration(status.ObservedGeneration), updater.EnsureBundleDigest(status.Digest), updater.SetPhase(status.Phase))
+			u.UpdateStatus(bundleinstance.EnsureCondition(status.Conditions[0]), bundleinstance.EnsureInstalledName("bundle"))
 			err := u.Apply(context.Background(), obj)
 			Expect(err).NotTo(BeNil())
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
@@ -110,7 +110,7 @@ var _ = Describe("Updater", func() {
 
 	When("an update is a change", func() {
 		It("should apply an update status function", func() {
-			u.UpdateStatus(updater.EnsureCondition(metav1.Condition{
+			u.UpdateStatus(bundleinstance.EnsureCondition(metav1.Condition{
 
 				Type:               "Working",
 				Status:             metav1.ConditionTrue,
@@ -129,108 +129,52 @@ var _ = Describe("Updater", func() {
 	})
 })
 
-var _ = Describe("EnsureBundleDigest", func() {
-	var status *rukpakv1alpha1.BundleStatus
-
-	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleStatus{}
-	})
-
-	It("should add BundleDigest if not present", func() {
-		Expect(updater.EnsureBundleDigest("digest")(status)).To(BeTrue())
-		Expect(status.Digest).To(Equal("digest"))
-	})
-
-	It("should return false for no update", func() {
-		status.Digest = "digest"
-		Expect(updater.EnsureBundleDigest("digest")(status)).To(BeFalse())
-		Expect(status.Digest).To(Equal("digest"))
-	})
-})
-
-var _ = Describe("EnsureContentURL", func() {
-	var status *rukpakv1alpha1.BundleStatus
-
-	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleStatus{}
-	})
-
-	It("should add ContentURL if not present", func() {
-		Expect(updater.EnsureContentURL("url")(status)).To(BeTrue())
-		Expect(status.ContentURL).To(Equal("url"))
-	})
-
-	It("should return false for no update", func() {
-		status.ContentURL = "url"
-		Expect(updater.EnsureContentURL("url")(status)).To(BeFalse())
-		Expect(status.ContentURL).To(Equal("url"))
-	})
-})
-
 var _ = Describe("EnsureCondition", func() {
-	var status *rukpakv1alpha1.BundleStatus
+	var status *rukpakv1alpha1.BundleInstanceStatus
 	var condition, anotherCondition metav1.Condition
 
 	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleStatus{}
+		status = &rukpakv1alpha1.BundleInstanceStatus{}
 		condition = metav1.Condition{Type: "Working"}
 		anotherCondition = metav1.Condition{Type: "Completed"}
 	})
 
 	It("should add Condition if not present", func() {
-		Expect(updater.EnsureCondition(condition)(status)).To(BeTrue())
+		Expect(bundleinstance.EnsureCondition(condition)(status)).To(BeTrue())
 		status.Conditions[0].LastTransitionTime = metav1.Time{}
 		Expect(status.Conditions[0]).To(Equal(condition))
 	})
 
 	It("should return false for no update", func() {
-		status = &rukpakv1alpha1.BundleStatus{Conditions: []metav1.Condition{condition}}
-		Expect(updater.EnsureCondition(condition)(status)).To(BeFalse())
+		status = &rukpakv1alpha1.BundleInstanceStatus{Conditions: []metav1.Condition{condition}}
+		Expect(bundleinstance.EnsureCondition(condition)(status)).To(BeFalse())
 		Expect(status.Conditions[0]).To(Equal(condition))
 	})
 
 	It("should add Condition if same type not present", func() {
-		status = &rukpakv1alpha1.BundleStatus{Conditions: []metav1.Condition{condition}}
-		Expect(updater.EnsureCondition(anotherCondition)(status)).To(BeTrue())
+		status = &rukpakv1alpha1.BundleInstanceStatus{Conditions: []metav1.Condition{condition}}
+		Expect(bundleinstance.EnsureCondition(anotherCondition)(status)).To(BeTrue())
 		status.Conditions[1].LastTransitionTime = metav1.Time{}
 		Expect(status.Conditions[1]).To(Equal(anotherCondition))
 	})
 })
 
-var _ = Describe("EnsureObservedGeneration", func() {
-	var status *rukpakv1alpha1.BundleStatus
+var _ = Describe("EnsureInstalledName", func() {
+	var status *rukpakv1alpha1.BundleInstanceStatus
+	var installedBundleName string
 
 	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleStatus{}
+		status = &rukpakv1alpha1.BundleInstanceStatus{}
+		installedBundleName = "bundle"
 	})
 
-	It("should add ObservedGeneration if not present", func() {
-		Expect(updater.EnsureObservedGeneration(3)(status)).To(BeTrue())
-		Expect(status.ObservedGeneration).To(Equal(int64(3)))
+	It("should update the installedBundleName if not set", func() {
+		Expect(bundleinstance.EnsureInstalledName(installedBundleName)(status)).To(BeTrue())
+		Expect(status.InstalledBundleName).To(Equal(installedBundleName))
 	})
 
-	It("should return false for no update", func() {
-		status.ObservedGeneration = 5
-		Expect(updater.EnsureObservedGeneration(5)(status)).To(BeFalse())
-		Expect(status.ObservedGeneration).To(Equal(int64(5)))
-	})
-})
-
-var _ = Describe("SetPhase", func() {
-	var status *rukpakv1alpha1.BundleStatus
-
-	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleStatus{}
-	})
-
-	It("should set phase if not present", func() {
-		Expect(updater.SetPhase("phase")(status)).To(BeTrue())
-		Expect(status.Phase).To(Equal("phase"))
-	})
-
-	It("should return false for no update", func() {
-		status.Phase = "phase"
-		Expect(updater.SetPhase("phase")(status)).To(BeFalse())
-		Expect(status.Phase).To(Equal("phase"))
+	It("should not update the installedBundleName if already set", func() {
+		status = &rukpakv1alpha1.BundleInstanceStatus{InstalledBundleName: installedBundleName}
+		Expect(bundleinstance.EnsureInstalledName(installedBundleName)(status)).To(BeFalse())
 	})
 })
