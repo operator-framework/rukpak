@@ -7,7 +7,6 @@ export IMAGE_REPO ?= quay.io/operator-framework/rukpak
 export IMAGE_TAG ?= latest
 IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= kind
-KIND_OS = kind-linux-amd64
 BIN_DIR := bin
 TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
@@ -116,7 +115,7 @@ uninstall: ## Remove all rukpak resources from the cluster
 ##################
 # Build and Load #
 ##################
-.PHONY: build plain unpack core build-container kind-load kind-load-bundles kind-cluster kind
+.PHONY: build plain unpack core build-container kind-load kind-load-bundles kind-cluster
 
 ##@ build/load:
 

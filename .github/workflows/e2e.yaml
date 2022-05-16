@@ -17,13 +17,9 @@ jobs:
         go-version: '~1.18'
 
     - name: Install kind binary
-      env:
-        KIND_VERSION: v0.12.0
-        KIND_OS: kind-linux-amd64
       run: |
-        curl -sLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/${KIND_OS}"
-        chmod +x kind
-        sudo mv kind /bin/
+        make kind
 
     - name: Run e2e tests
-      run: make e2e KIND=/bin/kind
+      run: |
+        make e2e KIND=hack/tools/bin/kind
