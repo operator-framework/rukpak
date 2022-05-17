@@ -115,13 +115,13 @@ uninstall: ## Remove all rukpak resources from the cluster
 ##################
 # Build and Load #
 ##################
-.PHONY: build plain unpack core build-container kind-load kind-load-bundles kind-cluster
+.PHONY: build plain unpack core rukpakctl build-container kind-load kind-load-bundles kind-cluster
 
 ##@ build/load:
 
 # Binary builds
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: plain unpack core crdvalidator
+build: plain unpack core crdvalidator rukpakctl
 
 plain:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/plain
@@ -134,6 +134,9 @@ core:
 
 crdvalidator:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/crdvalidator
+
+rukpakctl:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/rukpakctl
 
 build-container: export GOOS=linux
 build-container: BIN_DIR:=$(BIN_DIR)/$(GOOS)
@@ -215,3 +218,4 @@ $(GORELEASER): $(TOOLS_DIR)/go.mod # Build goreleaser from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/goreleaser github.com/goreleaser/goreleaser
 $(KIND): $(TOOLS_DIR)/go.mod
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/kind sigs.k8s.io/kind
+
