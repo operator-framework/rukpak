@@ -9,7 +9,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
 	github.com/operator-framework/api v0.13.0
-	github.com/operator-framework/helm-operator-plugins v0.0.9
+	github.com/operator-framework/helm-operator-plugins v0.0.10
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.1
 	helm.sh/helm/v3 v3.8.0
