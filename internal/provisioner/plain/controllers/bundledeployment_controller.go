@@ -93,6 +93,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
 
+	// Get the BD resource from the informer cache
 	bd := &rukpakv1alpha1.BundleDeployment{}
 	if err := r.Get(ctx, req.NamespacedName, bd); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -113,18 +114,66 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}()
 
+	// Find / reconcile the corresponding Bundle resource
 	bundle, allBundles, err := reconcileDesiredBundle(ctx, r.Client, bd)
 	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeHasValidBundle,
-				Status:  metav1.ConditionUnknown,
-				Reason:  rukpakv1alpha1.ReasonReconcileFailed,
-				Message: err.Error(),
-			}),
-		)
+		updateStatusHasValidBundle(&u, metav1.ConditionUnknown, rukpakv1alpha1.ReasonReconcileFailed, err.Error())
 		return ctrl.Result{}, err
 	}
+
+	// Check whether the corresponding Bundle resource is reporting an Unpacked phase
+	if ok := r.ensureBundleUnpacked(ctx, bd, bundle, &u); !ok {
+		return ctrl.Result{}, err
+	}
+
+	// Set bundle unpacked condition
+	updateStatusHasValidBundle(&u, metav1.ConditionTrue, rukpakv1alpha1.ReasonUnpackSuccessful, fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()))
+
+	// Get the unpacked Bundle contents from the storage layer's cache
+	desiredObjects, err := r.loadBundle(ctx, bundle, bd.GetName())
+	if err != nil {
+		updateStatusHasValidBundle(&u, metav1.ConditionFalse, rukpakv1alpha1.ReasonBundleLoadFailed, err.Error())
+		return ctrl.Result{}, err
+	}
+
+	// Build up a helm chart based on the desired set of client.Object resources
+	chrt := &chart.Chart{
+		Metadata: &chart.Metadata{},
+	}
+	if result, err := r.buildChart(ctx, desiredObjects, chrt, &u); err != nil {
+		return result, err
+	}
+
+	// Ensure the release state (e.g. install or upgrade) logic is performed
+	if result, err := r.ensureReleaseState(ctx, bd, chrt, &u); err != nil {
+		return result, err
+	}
+
+	// Ensure the desired objects have a dynamic watch present in the internal mapping of GVK watches
+	if result, err := r.ensureWatch(ctx, bd, desiredObjects, &u); err != nil {
+		return result, err
+	}
+
+	u.UpdateStatus(
+		updater.EnsureCondition(metav1.Condition{
+			Type:    rukpakv1alpha1.TypeInstalled,
+			Status:  metav1.ConditionTrue,
+			Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
+			Message: fmt.Sprintf("instantiated bundle %s successfully", bundle.GetName()),
+		}),
+		updater.EnsureInstalledName(bundle.GetName()),
+	)
+
+	if err := r.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
+		l.Error(err, "failed to delete old bundles")
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// Check whether the corresponding Bundle resource is reporting an Unpacked phase
+func (r *BundleDeploymentReconciler) ensureBundleUnpacked(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment, bundle *rukpakv1alpha1.Bundle, u *updater.Updater) bool {
 	if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
 		reason := rukpakv1alpha1.ReasonUnpackPending
 		status := metav1.ConditionTrue
@@ -134,39 +183,14 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			status = metav1.ConditionFalse
 			message = fmt.Sprintf("Failed to unpack the %s Bundle", bundle.GetName())
 		}
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeHasValidBundle,
-				Status:  status,
-				Reason:  reason,
-				Message: message,
-			}),
-		)
-		return ctrl.Result{}, nil
+		updateStatusHasValidBundle(u, status, reason, message)
+		return false
 	}
-	u.UpdateStatus(
-		updater.EnsureCondition(metav1.Condition{
-			Type:    rukpakv1alpha1.TypeHasValidBundle,
-			Status:  metav1.ConditionTrue,
-			Reason:  rukpakv1alpha1.ReasonUnpackSuccessful,
-			Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
-		}))
+	return true
+}
 
-	desiredObjects, err := r.loadBundle(ctx, bundle, bd.GetName())
-	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeHasValidBundle,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonBundleLoadFailed,
-				Message: err.Error(),
-			}))
-		return ctrl.Result{}, err
-	}
-
-	chrt := &chart.Chart{
-		Metadata: &chart.Metadata{},
-	}
+// Build up a helm chart based on the desired set of client.Object resources
+func (r *BundleDeploymentReconciler) buildChart(ctx context.Context, desiredObjects []client.Object, chrt *chart.Chart, u *updater.Updater) (ctrl.Result, error) {
 	for _, obj := range desiredObjects {
 		jsonData, err := yaml.Marshal(obj)
 		if err != nil {
@@ -185,30 +209,22 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			Data: jsonData,
 		})
 	}
+	return ctrl.Result{}, nil
+}
 
+// Ensure the release state (e.g. install or upgrade) logic is performed
+func (r *BundleDeploymentReconciler) ensureReleaseState(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment, chrt *chart.Chart, u *updater.Updater) (ctrl.Result, error) {
 	bd.SetNamespace(r.ReleaseNamespace)
 	cl, err := r.ActionClientGetter.ActionClientFor(bd)
 	bd.SetNamespace("")
 	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonErrorGettingClient,
-				Message: err.Error(),
-			}))
+		updateStatusInstalled(u, metav1.ConditionFalse, rukpakv1alpha1.ReasonErrorGettingClient, err.Error())
 		return ctrl.Result{}, err
 	}
 
 	rel, state, err := r.getReleaseState(cl, bd, chrt)
 	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonErrorGettingReleaseState,
-				Message: err.Error(),
-			}))
+		updateStatusInstalled(u, metav1.ConditionFalse, rukpakv1alpha1.ReasonErrorGettingReleaseState, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -222,13 +238,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonInstallFailed,
-					Message: err.Error(),
-				}))
+			updateStatusInstalled(u, metav1.ConditionFalse, rukpakv1alpha1.ReasonInstallFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
@@ -237,13 +247,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
-					Message: err.Error(),
-				}))
+			updateStatusInstalled(u, metav1.ConditionFalse, rukpakv1alpha1.ReasonUpgradeFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	case stateUnchanged:
@@ -251,29 +255,21 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonReconcileFailed,
-					Message: err.Error(),
-				}))
+			updateStatusInstalled(u, metav1.ConditionFalse, rukpakv1alpha1.ReasonReconcileFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	default:
 		return ctrl.Result{}, fmt.Errorf("unexpected release state %q", state)
 	}
+	return ctrl.Result{}, nil
+}
 
+// Ensure the desired objects have a dynamic watch present in the internal mapping of GVK watches
+func (r *BundleDeploymentReconciler) ensureWatch(ctx context.Context, bd runtime.Object, desiredObjects []client.Object, u *updater.Updater) (ctrl.Result, error) {
 	for _, obj := range desiredObjects {
 		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-					Message: err.Error(),
-				}))
+			updateStatusInstalled(u, metav1.ConditionFalse, rukpakv1alpha1.ReasonCreateDynamicWatchFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 
@@ -294,32 +290,31 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			}
 			return nil
 		}(); err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-					Message: err.Error(),
-				}))
+			updateStatusInstalled(u, metav1.ConditionFalse, rukpakv1alpha1.ReasonCreateDynamicWatchFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	}
+	return ctrl.Result{}, nil
+}
+
+func updateStatusHasValidBundle(u *updater.Updater, status metav1.ConditionStatus, reason, message string) {
+	u.UpdateStatus(
+		updater.EnsureCondition(metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
+			Status:  status,
+			Reason:  reason,
+			Message: message,
+		}))
+}
+
+func updateStatusInstalled(u *updater.Updater, status metav1.ConditionStatus, reason, message string) {
 	u.UpdateStatus(
 		updater.EnsureCondition(metav1.Condition{
 			Type:    rukpakv1alpha1.TypeInstalled,
-			Status:  metav1.ConditionTrue,
-			Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-			Message: fmt.Sprintf("instantiated bundle %s successfully", bundle.GetName()),
-		}),
-		updater.EnsureInstalledName(bundle.GetName()),
-	)
-
-	if err := r.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
-		l.Error(err, "failed to delete old bundles")
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
+			Status:  status,
+			Reason:  reason,
+			Message: message,
+		}))
 }
 
 // reconcileDesiredBundle is responsible for checking whether the desired
@@ -336,14 +331,14 @@ func reconcileDesiredBundle(ctx context.Context, c client.Client, bd *rukpakv1al
 	}
 	util.SortBundlesByCreation(existingBundles)
 
-	// check whether the BI controller has already reached the maximum
+	// check whether the BD controller has already reached the maximum
 	// generated Bundle limit to avoid hotlooping scenarios.
 	if len(existingBundles.Items) > maxGeneratedBundleLimit {
 		return nil, nil, ErrMaxGeneratedLimit
 	}
 
 	// check whether there's an existing Bundle that matches the desired Bundle template
-	// specified in the BI resource, and if not, generate a new Bundle that matches the template.
+	// specified in the BD resource, and if not, generate a new Bundle that matches the template.
 	b := util.CheckExistingBundlesMatchesTemplate(existingBundles, bd.Spec.Template)
 	if b == nil {
 		controllerRef := metav1.NewControllerRef(bd, bd.GroupVersionKind())
