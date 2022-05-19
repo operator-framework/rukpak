@@ -147,7 +147,7 @@ build-container: BIN_DIR:=$(BIN_DIR)/$(GOOS)
 build-container: build ## Builds provisioner container image locally
 	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) $(BIN_DIR)
 
-kind-load-bundles: ## Load the e2e testdata container images into a kind cluster
+kind-load-bundles: kind ## Load the e2e testdata container images into a kind cluster
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/dependent -t testdata/bundles/plain-v0:dependent
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/provides -t testdata/bundles/plain-v0:provides
@@ -165,7 +165,7 @@ kind-load-bundles: ## Load the e2e testdata container images into a kind cluster
 	${KIND} load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
 	${KIND} load docker-image testdata/bundles/plain-v0:subdir --name $(KIND_CLUSTER_NAME)
 
-kind-load: ## Loads the currently constructed image onto the cluster
+kind-load: kind ## Loads the currently constructed image onto the cluster
 	${KIND} load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
 ###########
