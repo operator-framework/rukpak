@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -153,7 +152,6 @@ var _ = Describe("crdvalidator", func() {
 					crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Required = []string{"sampleProperty"}
 
 					err := c.Update(ctx, crd)
-					fmt.Println(err)
 					if err != nil {
 						return err.Error()
 					}
