@@ -197,7 +197,7 @@ GINKGO := $(abspath $(TOOLS_BIN_DIR)/ginkgo)
 CONTROLLER_GEN := $(abspath $(TOOLS_BIN_DIR)/controller-gen)
 SETUP_ENVTEST := $(abspath $(TOOLS_BIN_DIR)/setup-envtest)
 GORELEASER := $(abspath $(TOOLS_BIN_DIR)/goreleaser)
-KIND := $(abspath $(TOOLS_BIN_DIR)/KIND)
+KIND := $(abspath $(TOOLS_BIN_DIR)/kind)
 
 controller-gen: $(CONTROLLER_GEN) ## Build a local copy of controller-gen
 ginkgo: $(GINKGO) ## Build a local copy of ginkgo
