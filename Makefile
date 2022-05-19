@@ -42,7 +42,7 @@ help: ## Show this help screen
 ###################
 # Code management #
 ###################
-.PHONY: lint tidy clean generate verify
+.PHONY: lint tidy fmt clean generate verify
 
 ##@ code management:
 
@@ -53,6 +53,10 @@ tidy: ## Update dependencies
 	$(Q)go mod tidy
 	$(Q)(cd $(TOOLS_DIR) && go mod tidy)
 
+fmt: ## Format Go code
+	$(Q)go fmt ./...
+	$(Q)(cd $(TOOLS_DIR) && go fmt $$(go list -tags=tools ./...))
+
 clean: ## Remove binaries and test artifacts
 	@rm -rf bin
 
@@ -62,7 +66,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./manifests/provisioners/plain/resources/cluster_role.yaml
 
-verify: tidy generate ## Verify the current code generation and lint
+verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
 
 ###########
