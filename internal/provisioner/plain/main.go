@@ -39,6 +39,7 @@ import (
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
+	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
@@ -165,15 +166,31 @@ func main() {
 		os.Exit(1)
 	}
 
+	const plainBundleProvisionerName = "plain"
+	unpacker := source.NewUnpacker(map[rukpakv1alpha1.SourceType]source.Unpacker{
+		rukpakv1alpha1.SourceTypeImage: &source.Image{
+			Client:          mgr.GetClient(),
+			KubeClient:      kubeClient,
+			ProvisionerName: plainBundleProvisionerName,
+			PodNamespace:    ns,
+			UnpackImage:     unpackImage,
+		},
+		rukpakv1alpha1.SourceTypeGit: &source.Git{
+			Client:          mgr.GetClient(),
+			KubeClient:      kubeClient,
+			ProvisionerName: plainBundleProvisionerName,
+			PodNamespace:    ns,
+			UnpackImage:     unpackImage,
+			GitClientImage:  gitClientImage,
+		},
+	})
+
 	if err = (&controllers.BundleReconciler{
-		Client:         mgr.GetClient(),
-		KubeClient:     kubeClient,
-		Scheme:         mgr.GetScheme(),
-		PodNamespace:   ns,
-		Storage:        bundleStorage,
-		Finalizers:     bundleFinalizers,
-		UnpackImage:    unpackImage,
-		GitClientImage: gitClientImage,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Storage:    bundleStorage,
+		Finalizers: bundleFinalizers,
+		Unpacker:   unpacker,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind)
 		os.Exit(1)

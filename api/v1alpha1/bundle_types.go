@@ -25,11 +25,11 @@ var (
 	BundleKind = BundleGVK.Kind
 )
 
-type BundleConditionType string
+type SourceType string
 
 const (
-	SourceTypeImage = "image"
-	SourceTypeGit   = "git"
+	SourceTypeImage SourceType = "image"
+	SourceTypeGit   SourceType = "git"
 
 	TypeUnpacked = "Unpacked"
 
@@ -55,7 +55,7 @@ type BundleSpec struct {
 
 type BundleSource struct {
 	// Type defines the kind of Bundle content being sourced.
-	Type string `json:"type"`
+	Type SourceType `json:"type"`
 	// Image is the bundle image that backs the content of this bundle.
 	Image *ImageSource `json:"image,omitempty"`
 	// Git is the git repository that backs the content of this Bundle.
@@ -100,7 +100,7 @@ type ProvisionerID string
 // BundleStatus defines the observed state of Bundle
 type BundleStatus struct {
 	Phase              string             `json:"phase,omitempty"`
-	Digest             string             `json:"digest,omitempty"`
+	ResolvedSource     *BundleSource      `json:"resolvedSource,omitempty"`
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
 	ContentURL         string             `json:"contentURL,omitempty"`
@@ -109,10 +109,10 @@ type BundleStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name=Reference,type=string,JSONPath=`.spec.source.image.ref`,priority=1
 //+kubebuilder:printcolumn:name=Type,type=string,JSONPath=`.spec.source.type`
 //+kubebuilder:printcolumn:name=Phase,type=string,JSONPath=`.status.phase`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
+//+kubebuilder:printcolumn:name=Resolved Source,type=string,JSONPath=`.status.resolvedSource`,priority=1
 
 // Bundle is the Schema for the bundles API
 type Bundle struct {

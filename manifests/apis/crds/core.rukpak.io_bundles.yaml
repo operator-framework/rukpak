@@ -17,10 +17,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.source.image.ref
-      name: Reference
-      priority: 1
-      type: string
     - jsonPath: .spec.source.type
       name: Type
       type: string
@@ -30,6 +26,10 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - jsonPath: .status.resolvedSource
+      name: Resolved Source
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -198,13 +198,75 @@ spec:
                 type: array
               contentURL:
                 type: string
-              digest:
-                type: string
               observedGeneration:
                 format: int64
                 type: integer
               phase:
                 type: string
+              resolvedSource:
+                properties:
+                  git:
+                    description: Git is the git repository that backs the content
+                      of this Bundle.
+                    properties:
+                      directory:
+                        description: Directory refers to the location of the bundle
+                          within the git repository. Directory is optional and if
+                          not set defaults to ./manifests.
+                        type: string
+                      ref:
+                        description: Ref configures the git source to clone a specific
+                          branch, tag, or commit from the specified repo. Ref is required,
+                          and exactly one field within Ref is required. Setting more
+                          than one field or zero fields will result in an error.
+                        properties:
+                          branch:
+                            description: Branch refers to the branch to checkout from
+                              the repository. The Branch should contain the bundle
+                              manifests in the specified directory.
+                            type: string
+                          commit:
+                            description: Commit refers to the commit to checkout from
+                              the repository. The Commit should contain the bundle
+                              manifests in the specified directory.
+                            type: string
+                          tag:
+                            description: Tag refers to the tag to checkout from the
+                              repository. The Tag should contain the bundle manifests
+                              in the specified directory.
+                            type: string
+                        type: object
+                      repository:
+                        description: Repository is a URL link to the git repository
+                          containing the bundle. Repository is required and the URL
+                          should be parsable by a standard git tool.
+                        type: string
+                    required:
+                    - ref
+                    - repository
+                    type: object
+                  image:
+                    description: Image is the bundle image that backs the content
+                      of this bundle.
+                    properties:
+                      pullSecret:
+                        description: ImagePullSecretName contains the name of the
+                          image pull secret in the namespace that the provisioner
+                          is deployed.
+                        type: string
+                      ref:
+                        description: Ref contains the reference to a container image
+                          containing Bundle contents.
+                        type: string
+                    required:
+                    - ref
+                    type: object
+                  type:
+                    description: Type defines the kind of Bundle content being sourced.
+                    type: string
+                required:
+                - type
+                type: object
             type: object
         required:
         - spec
