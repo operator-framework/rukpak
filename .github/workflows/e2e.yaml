@@ -15,11 +15,6 @@ jobs:
     - uses: actions/setup-go@v2
       with:
         go-version: '~1.18'
-
-    - name: Install kind binary
-      run: |
-        make kind
-
     - name: Run e2e tests
       run: |
-        make e2e KIND=hack/tools/bin/kind
+        make e2e
