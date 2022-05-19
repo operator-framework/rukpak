@@ -24,7 +24,7 @@ var _ = Describe("Updater", func() {
 		obj    *rukpakv1alpha1.Bundle
 		status = &rukpakv1alpha1.BundleStatus{
 			Phase:              rukpakv1alpha1.PhaseFailing,
-			Digest:             "digest",
+			ResolvedSource:     &rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}},
 			ObservedGeneration: 1,
 			Conditions: []metav1.Condition{
 				{
@@ -73,7 +73,7 @@ var _ = Describe("Updater", func() {
 			},
 			Status: rukpakv1alpha1.BundleStatus{
 				Phase:              rukpakv1alpha1.PhaseFailing,
-				Digest:             "digest",
+				ResolvedSource:     &rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}},
 				ObservedGeneration: 1,
 				Conditions: []metav1.Condition{
 					{
@@ -101,7 +101,12 @@ var _ = Describe("Updater", func() {
 	When("the object does not exist", func() {
 		It("should fail", func() {
 			Expect(client.Delete(context.Background(), obj)).To(Succeed())
-			u.UpdateStatus(bundle.EnsureCondition(status.Conditions[0]), bundle.EnsureObservedGeneration(status.ObservedGeneration), bundle.EnsureBundleDigest(status.Digest), bundle.SetPhase(status.Phase))
+			u.UpdateStatus(
+				bundle.EnsureCondition(status.Conditions[0]),
+				bundle.EnsureObservedGeneration(status.ObservedGeneration),
+				bundle.EnsureResolvedSource(&rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}}),
+				bundle.SetPhase(status.Phase),
+			)
 			err := u.Apply(context.Background(), obj)
 			Expect(err).NotTo(BeNil())
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
@@ -129,7 +134,7 @@ var _ = Describe("Updater", func() {
 	})
 })
 
-var _ = Describe("EnsureBundleDigest", func() {
+var _ = Describe("EnsureResolvedSource", func() {
 	var status *rukpakv1alpha1.BundleStatus
 
 	BeforeEach(func() {
@@ -137,14 +142,14 @@ var _ = Describe("EnsureBundleDigest", func() {
 	})
 
 	It("should add BundleDigest if not present", func() {
-		Expect(bundle.EnsureBundleDigest("digest")(status)).To(BeTrue())
-		Expect(status.Digest).To(Equal("digest"))
+		Expect(bundle.EnsureResolvedSource(&rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}})(status)).To(BeTrue())
+		Expect(status.ResolvedSource).To(Equal(&rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}}))
 	})
 
 	It("should return false for no update", func() {
-		status.Digest = "digest"
-		Expect(bundle.EnsureBundleDigest("digest")(status)).To(BeFalse())
-		Expect(status.Digest).To(Equal("digest"))
+		status.ResolvedSource = &rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}}
+		Expect(bundle.EnsureResolvedSource(&rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}})(status)).To(BeFalse())
+		Expect(status.ResolvedSource).To(Equal(&rukpakv1alpha1.BundleSource{Type: rukpakv1alpha1.SourceTypeImage, Image: &rukpakv1alpha1.ImageSource{Ref: "digest"}}))
 	})
 })
 

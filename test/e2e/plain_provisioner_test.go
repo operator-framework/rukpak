@@ -86,12 +86,19 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
-				Eventually(func() (string, error) {
+				Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
+						return nil, err
 					}
-					return bundle.Status.Digest, nil
-				}).Should(Not(Equal("")))
+					return bundle.Status.ResolvedSource, nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeImage)),
+					WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.ImageSource { return s.Image }, And(
+						Not(BeNil()),
+						WithTransform(func(i *rukpakv1alpha1.ImageSource) string { return i.Ref }, Not(Equal(""))),
+					)),
+				))
 			})
 		})
 

@@ -18,6 +18,7 @@ package bundle
 
 import (
 	"context"
+	"reflect"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -86,12 +87,12 @@ func EnsureObservedGeneration(observedGeneration int64) UpdateStatusFunc {
 	}
 }
 
-func EnsureBundleDigest(digest string) UpdateStatusFunc {
+func EnsureResolvedSource(resolvedSource *rukpakv1alpha1.BundleSource) UpdateStatusFunc {
 	return func(status *rukpakv1alpha1.BundleStatus) bool {
-		if status.Digest == digest {
+		if reflect.DeepEqual(status.ResolvedSource, resolvedSource) {
 			return false
 		}
-		status.Digest = digest
+		status.ResolvedSource = resolvedSource
 		return true
 	}
 }
