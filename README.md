@@ -53,7 +53,6 @@ RukPak to a local [kind](https://kind.sigs.k8s.io/) cluster.
 
 ```bash
 git clone https://github.com/operator-framework/rukpak && cd rukpak
-make kind-cluster # If one is not already started
 make run
 ```
 

@@ -6,7 +6,7 @@ PKG := $(ORG)/rukpak
 export IMAGE_REPO ?= quay.io/operator-framework/rukpak
 export IMAGE_TAG ?= latest
 IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
-KIND_CLUSTER_NAME ?= kind
+KIND_CLUSTER_NAME ?= rukpak
 BIN_DIR := bin
 TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
@@ -88,11 +88,14 @@ test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: build-container kind-cluster kind-load kind-load-bundles run test-e2e ## Run e2e tests against a kind cluster
+e2e: run kind-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
-kind-cluster: kind ## Standup a kind cluster for e2e testing usage
-	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
+kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME}
+	$(KIND) export kubeconfig --name ${KIND_CLUSTER_NAME}
+
+kind-cluster-cleanup: kind ## Delete the kind cluster
+	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
 
 ###################
 # Install and Run #
@@ -107,7 +110,7 @@ install: generate cert-mgr ## Install rukpak
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
-run: build-container kind-load install ## Build image and run operator in-cluster
+run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
 
 cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
