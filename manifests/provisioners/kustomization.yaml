@@ -1,4 +1,5 @@
 bases:
 - ./common
 - ./plain
+- ./registry
 

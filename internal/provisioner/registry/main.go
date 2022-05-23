@@ -23,7 +23,6 @@ import (
 	"net/url"
 	"os"
 
-	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,7 +38,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/finalizer"
-	"github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
+	"github.com/operator-framework/rukpak/internal/provisioner/registry/controllers"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -176,7 +175,7 @@ func main() {
 	// If the bundle cache is backed by a storage implementation that allows
 	// multiple writers from different processes (e.g. a ReadWriteMany volume or
 	// an S3 bucket), we could have separate processes for finalizer handling
-	// and the primary plain provisioner controller. For now, the assumption is
+	// and the primary provisioner controller. For now, the assumption is
 	// that we are not using such an implementation.
 	bundleFinalizers := crfinalizer.NewFinalizers()
 	if err := bundleFinalizers.Register(finalizer.DeleteCachedBundleKey, &finalizer.DeleteCachedBundle{Storage: bundleStorage}); err != nil {
@@ -184,12 +183,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	const plainBundleProvisionerName = "plain"
+	const registryBundleProvisionerName = "registry"
 	unpacker := source.NewUnpacker(map[rukpakv1alpha1.SourceType]source.Unpacker{
 		rukpakv1alpha1.SourceTypeImage: &source.Image{
 			Client:          mgr.GetClient(),
 			KubeClient:      kubeClient,
-			ProvisionerName: plainBundleProvisionerName,
+			ProvisionerName: registryBundleProvisionerName,
 			PodNamespace:    ns,
 			UnpackImage:     unpackImage,
 		},
@@ -204,18 +203,6 @@ func main() {
 		Unpacker:   unpacker,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind)
-		os.Exit(1)
-	}
-
-	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	if err = (&controllers.BundleInstanceReconciler{
-		Client:             mgr.GetClient(),
-		Scheme:             mgr.GetScheme(),
-		BundleStorage:      bundleStorage,
-		ReleaseNamespace:   ns,
-		ActionClientGetter: helmclient.NewActionClientGetter(cfgGetter),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleInstanceKind)
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

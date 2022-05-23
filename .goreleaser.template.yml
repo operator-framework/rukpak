@@ -32,6 +32,18 @@ builds:
     - s390x
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: registry
+    main: ./internal/provisioner/registry
+    binary: registry
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+      - s390x
+    ldflags:
+      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: core
     main: ./cmd/core
     binary: core
@@ -115,6 +127,7 @@ release:
     kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
     kubectl apply -f https://github.com/operator-framework/rukpak/releases/download/{{ .Tag }}/rukpak.yaml
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/plain-provisioner --timeout=60s
+    kubectl wait --for=condition=Available --namespace=rukpak-system deployment/registry-provisioner --timeout=60s
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/rukpak-core-webhook --timeout=60s
     kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
     ```
