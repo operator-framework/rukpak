@@ -39,7 +39,8 @@ import (
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
+	"github.com/operator-framework/rukpak/internal/convert"
+	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	updater "github.com/operator-framework/rukpak/internal/updater/bundle"
@@ -146,7 +147,12 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 		updateStatusUnpacking(&u, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacked:
-		objects, err := getObjects(unpackResult.Bundle)
+		plainFS, err := convert.RegistryV1ToPlain(unpackResult.Bundle)
+		if err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %w", err))
+		}
+
+		objects, err := getObjects(plainFS)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get objects from bundle manifests: %w", err))
 		}
@@ -155,7 +161,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 				"plain+v0 bundles are required to contain at least one object"))
 		}
 
-		if err := r.Storage.Store(ctx, bundle, unpackResult.Bundle); err != nil {
+		if err := r.Storage.Store(ctx, bundle, plainFS); err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("persist bundle objects: %w", err))
 		}
 
@@ -266,11 +272,11 @@ func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	l := mgr.GetLogger().WithName("controller.bundle")
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
-			util.BundleProvisionerFilter(plain.ProvisionerID),
+			util.BundleProvisionerFilter(registry.ProvisionerID),
 		)).
 		// The default unpacker creates Pod's ownerref'd to its bundle, so
 		// we need to watch pods to ensure we reconcile events coming from these
 		// pods.
-		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.TODO(), mgr.GetClient(), l, plain.ProvisionerID, &rukpakv1alpha1.Bundle{})).
+		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.TODO(), mgr.GetClient(), l, registry.ProvisionerID, &rukpakv1alpha1.Bundle{})).
 		Complete(r)
 }
