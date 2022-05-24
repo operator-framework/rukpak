@@ -43,6 +43,46 @@ func Logf(f string, v ...interface{}) {
 }
 
 var _ = Describe("plain provisioner bundle", func() {
+	When("a valid Bundle references the wrong unique provisioner ID", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds-valid",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: "non-existent-class-name",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:valid",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		It("should consistently contain an empty status", func() {
+			Consistently(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					return false
+				}
+				return len(bundle.Status.Conditions) == 0
+			}, 10*time.Second, 1*time.Second).Should(BeTrue())
+		})
+	})
 	When("a valid Bundle referencing a remote container image is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
