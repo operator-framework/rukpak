@@ -100,12 +100,16 @@ kind-cluster-cleanup: kind ## Delete the kind cluster
 ###################
 # Install and Run #
 ###################
-.PHONY: install run cert-mgr
+.PHONY: install install-manifests wait run cert-mgr uninstall
 
 ##@ install/run:
 
-install: generate cert-mgr ## Install rukpak
+install: generate cert-mgr install-manifests wait ## Install rukpak
+
+install-manifests:
 	kubectl apply -k manifests
+
+wait:
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/plain-provisioner --timeout=60s
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
