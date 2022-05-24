@@ -37,8 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
-	"github.com/operator-framework/rukpak/internal/provisioner/plain/finalizer"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
