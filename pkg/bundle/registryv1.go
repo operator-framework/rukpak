@@ -1,34 +1,141 @@
-package convert
+package bundle
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"hash"
 	"hash/fnv"
+	"io"
+	"io/fs"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var _ Bundle = RegistryV1{}
+
 // RegistryV1 holds the contents of a registry+v1 bundle.
 type RegistryV1 struct {
-	CSV    v1alpha1.ClusterServiceVersion
-	CRDs   []apiextensionsv1.CustomResourceDefinition
-	Others []client.Object
+	files  map[string]ManifestFile
+	csv    operatorsv1alpha1.ClusterServiceVersion
+	crds   []apiextensionsv1.CustomResourceDefinition
+	others []client.Object
+}
 
-	overrides struct {
-		installNamespace string
-		targetNamespaces []string
+// NewRegistryV1 converts a filesystem to a registry+v1 bundle
+func NewRegistryV1(fsys fs.FS) (*RegistryV1, error) {
+	entries, err := fs.ReadDir(fsys, manifestsDir)
+	if err != nil {
+		return nil, err
 	}
+
+	bundle := RegistryV1{files: make(map[string]ManifestFile, len(entries))}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			return nil, fmt.Errorf("subdirectories not allowed within manifests directory, found: %q", entry.Name())
+		}
+		path := filepath.Join(manifestsDir, entry.Name())
+		if err := bundle.addObjectsFromFile(fsys, path); err != nil {
+			return nil, err
+		}
+	}
+
+	return &bundle, nil
+}
+
+func (b RegistryV1) addObjectsFromFile(fsys fs.FS, path string) error {
+	objs, err := b.slurpManifestFile(fsys, path)
+	if err != nil {
+		return fmt.Errorf("unable to read manifest file: %q: %s", path, err.Error())
+	}
+
+	objsForFile := make([]*client.Object, len(objs))
+	for i, obj := range objs {
+		objsForFile[i] = &obj
+		switch typedObj := obj.(type) {
+		case *operatorsv1alpha1.ClusterServiceVersion:
+			b.csv = *typedObj
+		case *apiextensionsv1.CustomResourceDefinition:
+			b.crds = append(b.crds, *typedObj)
+		default:
+			b.others = append(b.others, obj)
+		}
+	}
+
+	return nil
+}
+
+func (b RegistryV1) slurpManifestFile(fsys fs.FS, path string) ([]client.Object, error) {
+	f, err := fsys.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	objs := make([]client.Object, 0, 1)
+	dec := yaml.NewYAMLOrJSONDecoder(f, 1024)
+	for {
+		var unstructuredObj unstructured.Unstructured
+		if err := dec.Decode(&unstructuredObj); errors.Is(err, io.EOF) {
+			return objs, nil
+		} else if err != nil {
+			return nil, err
+		}
+		obj, err := scheme.New(unstructuredObj.GroupVersionKind())
+		if err != nil {
+			return nil, err
+		}
+		if err := scheme.Convert(unstructuredObj, &obj, nil); err != nil {
+			return nil, err
+		}
+		objs = append(objs, obj.(client.Object))
+	}
+}
+
+// Open returns a file pointing at the manifest identified by the filepath.
+func (r RegistryV1) Open(name string) (fs.File, error) {
+	file, ok := r.files[name]
+	if !ok {
+		return nil, fs.ErrNotExist
+	}
+
+	return &openManifestFile{
+		path: name,
+		r:    bytes.NewReader([]byte{}),
+		manifestFileInfo: manifestFileInfo{
+			name:         filepath.Base(name),
+			ManifestFile: file,
+		},
+	}, nil
+}
+
+// CSV returns the ClusterServiceVersion manifest.
+func (r RegistryV1) CSV() *operatorsv1alpha1.ClusterServiceVersion {
+	return &r.csv
+}
+
+// CSV returns the ClusterServiceVersion manifest.
+func (r RegistryV1) CRDs() []apiextensionsv1.CustomResourceDefinition {
+	return r.crds
+}
+
+// Others returns all other manifest files.
+func (r RegistryV1) Others() []client.Object {
+	return r.others
 }
 
 // FromRegistryV1 converts a registry+v1 bundle to a plain+v1 list of objects.

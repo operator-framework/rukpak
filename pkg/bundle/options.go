@@ -1,4 +1,4 @@
-package convert
+package bundle
 
 // RegistryV1Option is an option that can configure the conversion of a registry+v1 bundle.
 type Option interface {
