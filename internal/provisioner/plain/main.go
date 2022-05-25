@@ -134,10 +134,18 @@ func main() {
 		setupLog.Error(err, "unable to parse bundle content server URL")
 		os.Exit(1)
 	}
-	bundleStorage := &storage.LocalDirectory{
+
+	localStorage := &storage.LocalDirectory{
 		RootDirectory: storageDirectory,
 		URL:           *storageURL,
 	}
+	httpLoader := storage.NewHTTP(
+		// TODO: Use a trusted CA to connect to bundle content URLs.
+		storage.WithInsecureSkipVerify(true),
+		storage.WithBearerToken(cfg.BearerToken),
+	)
+	bundleStorage := storage.WithFallbackLoader(localStorage, httpLoader)
+
 	// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
 	// whatever handlers we want on the existing webserver that
 	// controller-runtime runs when MetricsBindAddress is configured on the
