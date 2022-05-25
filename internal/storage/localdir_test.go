@@ -1,4 +1,4 @@
-package storage_test
+package storage
 
 import (
 	"context"
@@ -18,14 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/storage"
 )
 
 var _ = Describe("LocalDirectory", func() {
 	var (
 		ctx    context.Context
 		owner  *rukpakv1alpha1.Bundle
-		store  storage.LocalDirectory
+		store  LocalDirectory
 		testFS fs.FS
 	)
 
@@ -37,7 +36,7 @@ var _ = Describe("LocalDirectory", func() {
 				UID:  types.UID(rand.String(8)),
 			},
 		}
-		store = storage.LocalDirectory{RootDirectory: GinkgoT().TempDir()}
+		store = LocalDirectory{RootDirectory: GinkgoT().TempDir()}
 		testFS = generateFS()
 	})
 	When("a bundle is not stored", func() {
@@ -133,7 +132,7 @@ func fsEqual(a, b fs.FS) (bool, error) {
 			m[path] = &fstest.MapFile{
 				Data:    data,
 				Mode:    d.Type(),
-				ModTime: info.ModTime(),
+				ModTime: info.ModTime().UTC(),
 			}
 			return nil
 		}

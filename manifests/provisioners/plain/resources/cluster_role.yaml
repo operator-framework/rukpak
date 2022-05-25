@@ -6,6 +6,10 @@ metadata:
   creationTimestamp: null
   name: plain-provisioner-admin
 rules:
+- nonResourceURLs:
+  - /bundles/*
+  verbs:
+  - get
 - apiGroups:
   - '*'
   resources:
