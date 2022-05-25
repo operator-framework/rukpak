@@ -123,6 +123,10 @@ type Bundle struct {
 	Status BundleStatus `json:"status,omitempty"`
 }
 
+func (b *Bundle) ProvisionerClassName() string {
+	return b.Spec.ProvisionerClassName
+}
+
 //+kubebuilder:object:root=true
 
 // BundleList contains a list of Bundle

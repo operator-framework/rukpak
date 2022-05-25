@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
@@ -262,6 +263,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	l := mgr.GetLogger().WithName("controller.bundle")
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
 			util.BundleProvisionerFilter(plain.ProvisionerID),
@@ -269,7 +271,6 @@ func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// The default unpacker creates Pod's ownerref'd to its bundle, so
 		// we need to watch pods to ensure we reconcile events coming from these
 		// pods.
-		// TODO: Update provisioner pod handler to correctly check provisioner class mapping
-		Owns(&corev1.Pod{}).
+		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.TODO(), mgr.GetClient(), l, plain.ProvisionerID, &rukpakv1alpha1.Bundle{})).
 		Complete(r)
 }
