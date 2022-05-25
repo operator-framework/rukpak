@@ -30,9 +30,9 @@ import (
 // log is for logging in this package.
 var bundlelog = logf.Log.WithName("bundle-resource")
 
-func (r *Bundle) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (b *Bundle) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(b).
 		Complete()
 }
 
@@ -41,27 +41,27 @@ func (r *Bundle) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Bundle{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Bundle) ValidateCreate() error {
-	bundlelog.V(1).Info("validate create", "name", r.Name)
+func (b *Bundle) ValidateCreate() error {
+	bundlelog.V(1).Info("validate create", "name", b.Name)
 
-	return checkBundleSource(r)
+	return checkBundleSource(b)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Bundle) ValidateUpdate(old runtime.Object) error {
-	bundlelog.V(1).Info("validate update", "name", r.Name)
+func (b *Bundle) ValidateUpdate(old runtime.Object) error {
+	bundlelog.V(1).Info("validate update", "name", b.Name)
 
 	oldBundle := old.(*Bundle)
-	if err := checkImmutableSpec(oldBundle, r); err != nil {
+	if err := checkImmutableSpec(oldBundle, b); err != nil {
 		return err
 	}
 
-	return checkBundleSource(r)
+	return checkBundleSource(b)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Bundle) ValidateDelete() error {
-	bundlelog.V(1).Info("validate delete", "name", r.Name)
+func (b *Bundle) ValidateDelete() error {
+	bundlelog.V(1).Info("validate delete", "name", b.Name)
 
 	return nil
 }
