@@ -56,8 +56,8 @@ spec:
       provisionerClassName: core.rukpak.io/plain
 ```
 
-> Note: the generated Bundle will contain the BundleInstance's metadata.Name as a prefix, following
-> a randomized value to prevent collisions with other Bundle resources.
+> Note: the generated Bundle will contain the BundleInstance's metadata.Name as a prefix, followed by
+> the hash of the provided template.
 
 First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
 
@@ -196,8 +196,8 @@ Eventually the Bundle should show up as Unpacked:
 
 ```console
 $ kubectl get bundle -l app=combo
-NAME          TYPE   PHASE      AGE
-combo-9njsj   image  Unpacked   10s
+NAME               TYPE    PHASE      AGE
+combo-7cdc7d7d6d   image   Unpacked   10s
 ```
 
 Check the BundleInstance status to ensure that the installation was successful:
@@ -211,7 +211,7 @@ A successful installation will show InstallationSucceeded as the `INSTALL STATE`
 ```console
 $ kubectl get bundleinstance combo
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-9njsj        InstallationSucceeded   10s
+combo   combo-7cdc7d7d6d   InstallationSucceeded   10s
 ```
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster:
@@ -288,20 +288,18 @@ spec:
 EOF
 ```
 
-Once the newly generated Bundle (in this example, `combo-xzfxv`, your bundle may be named differently)
-is reporting an Unpacked status, the BundleInstance `combo` resource should now
-point to the new Bundle version. The combo-operator deployment
-in the combo namespace should also be healthy and contain a new container image:
+Once the newly generated Bundle is reporting an Unpacked status, the BundleInstance `combo` resource should now
+point to the new Bundle (now named `combo-7ddfd9fcd5` instead of `combo-7cdc7d7d6d` previously). The combo-operator
+deployment in the combo namespace should also be healthy and contain a new container image:
 
 ```console
 $ kubectl get bundles -l app=combo
-NAME           TYPE    PHASE      AGE
-combo-9njsj    image   Unpacked   30s
-combo-xzfxv    image   Unpacked   10s
+NAME               TYPE    PHASE      AGE
+combo-7ddfd9fcd5   image   Unpacked   10s
 
 $ kubectl get bundleinstance combo
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-xzfxv        InstallationSucceeded   10s
+combo   combo-7ddfd9fcd5   InstallationSucceeded   10s
 
 $ kubectl -n combo get deployment
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
