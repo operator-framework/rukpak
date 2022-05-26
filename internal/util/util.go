@@ -2,9 +2,12 @@ package util
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
+	"os"
 	"sort"
 	"time"
 
@@ -314,4 +317,23 @@ func MergeMaps(maps ...map[string]string) map[string]string {
 		}
 	}
 	return out
+}
+
+func LoadCertPool(certFile string) (*x509.CertPool, error) {
+	rootCAPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		return nil, err
+	}
+	certPool := x509.NewCertPool()
+	for block, rest := pem.Decode(rootCAPEM); block != nil; block, rest = pem.Decode(rest) {
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		certPool.AddCert(cert)
+	}
+	return certPool, nil
 }

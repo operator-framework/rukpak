@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"net/url"
@@ -61,6 +62,7 @@ func main() {
 	var (
 		httpBindAddr         string
 		httpExternalAddr     string
+		bundleCAFile         string
 		enableLeaderElection bool
 		probeAddr            string
 		systemNamespace      string
@@ -71,6 +73,7 @@ func main() {
 	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
 	flag.StringVar(&httpExternalAddr, "http-external-address", "http://localhost:8080", "The external address at which the http server is reachable.")
+	flag.StringVar(&bundleCAFile, "bundle-ca-file", "", "The file containing the certificate authority for connecting to bundle content servers.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources.")
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:latest", "Configures the container image that gets used to unpack Bundle contents.")
@@ -139,9 +142,18 @@ func main() {
 		RootDirectory: storageDirectory,
 		URL:           *storageURL,
 	}
+
+	var rootCAs *x509.CertPool
+	if bundleCAFile != "" {
+		var err error
+		if rootCAs, err = util.LoadCertPool(bundleCAFile); err != nil {
+			setupLog.Error(err, "unable to parse bundle certificate authority file")
+			os.Exit(1)
+		}
+	}
+
 	httpLoader := storage.NewHTTP(
-		// TODO: Use a trusted CA to connect to bundle content URLs.
-		storage.WithInsecureSkipVerify(true),
+		storage.WithRootCAs(rootCAs),
 		storage.WithBearerToken(cfg.BearerToken),
 	)
 	bundleStorage := storage.WithFallbackLoader(localStorage, httpLoader)
