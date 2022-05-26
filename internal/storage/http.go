@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -29,6 +30,16 @@ func WithInsecureSkipVerify(v bool) HTTPOption {
 			tr.TLSClientConfig = &tls.Config{}
 		}
 		tr.TLSClientConfig.InsecureSkipVerify = v
+	}
+}
+
+func WithRootCAs(rootCAs *x509.CertPool) HTTPOption {
+	return func(s *HTTP) {
+		tr := s.client.Transport.(*http.Transport)
+		if tr.TLSClientConfig == nil {
+			tr.TLSClientConfig = &tls.Config{}
+		}
+		tr.TLSClientConfig.RootCAs = rootCAs
 	}
 }
 

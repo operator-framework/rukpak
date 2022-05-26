@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -78,6 +79,49 @@ var _ = Describe("HTTP", func() {
 		var opts []HTTPOption
 		BeforeEach(func() {
 			opts = append(opts, WithInsecureSkipVerify(true))
+		})
+		Context("with correct bearer token", func() {
+			BeforeEach(func() {
+				opts = append(opts, WithBearerToken("abc123"))
+			})
+			Context("with existing bundle", func() {
+				It("should succeed", func() {
+					store := NewHTTP(opts...)
+					loadedTestFS, err := store.Load(ctx, bundle)
+					Expect(fsEqual(testFS, loadedTestFS)).To(BeTrue())
+					Expect(err).To(BeNil())
+				})
+			})
+			Context("with non-existing bundle", func() {
+				BeforeEach(func() {
+					bundle.Status.ContentURL += "foobar"
+				})
+				It("should get 404 not found error", func() {
+					store := NewHTTP(opts...)
+					loadedTestFS, err := store.Load(ctx, bundle)
+					Expect(loadedTestFS).To(BeNil())
+					Expect(err).To(MatchError(ContainSubstring("404 Not Found")))
+				})
+			})
+		})
+		Context("with incorrect bearer token", func() {
+			BeforeEach(func() {
+				opts = append(opts, WithBearerToken("xyz789"))
+			})
+			It("should get a 401 Unauthorized error", func() {
+				store := NewHTTP(opts...)
+				loadedTestFS, err := store.Load(ctx, bundle)
+				Expect(loadedTestFS).To(BeNil())
+				Expect(err).To(MatchError(ContainSubstring("401 Unauthorized")))
+			})
+		})
+	})
+	Context("with a valid root CA chain", func() {
+		var opts []HTTPOption
+		BeforeEach(func() {
+			certPool := x509.NewCertPool()
+			certPool.AddCert(server.Certificate())
+			opts = append(opts, WithRootCAs(certPool))
 		})
 		Context("with correct bearer token", func() {
 			BeforeEach(func() {
