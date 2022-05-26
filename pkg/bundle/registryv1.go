@@ -1,28 +1,24 @@
 package bundle
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"hash"
 	"hash/fnv"
-	"io"
 	"io/fs"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/manifest"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,97 +26,42 @@ var _ Bundle = RegistryV1{}
 
 // RegistryV1 holds the contents of a registry+v1 bundle.
 type RegistryV1 struct {
-	files  map[string]ManifestFile
+	manifest.FS
 	csv    operatorsv1alpha1.ClusterServiceVersion
 	crds   []apiextensionsv1.CustomResourceDefinition
 	others []client.Object
 }
 
 // NewRegistryV1 converts a filesystem to a registry+v1 bundle
+// TODO(ryantking): Each manifest will be stored twice. One should be turned to pointers.
+// Ihe easier way would be to make the underlying `manifest.FS` use pointers, but that seems incorrect since that would
+// mean a consumer of the library is influencing its implementation. Pointers in the `RegistryV1` make more sense, but
+// the functions that return the CSV, CRDs, and others will duplicate the values at call time.
 func NewRegistryV1(fsys fs.FS) (*RegistryV1, error) {
-	entries, err := fs.ReadDir(fsys, manifestsDir)
+	subFS, err := fs.Sub(fsys, manifestsDir)
+	if err != nil {
+		return nil, err
+	}
+	manifestFS, err := manifest.NewFS(subFS)
 	if err != nil {
 		return nil, err
 	}
 
-	bundle := RegistryV1{files: make(map[string]ManifestFile, len(entries))}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			return nil, fmt.Errorf("subdirectories not allowed within manifests directory, found: %q", entry.Name())
-		}
-		path := filepath.Join(manifestsDir, entry.Name())
-		if err := bundle.addObjectsFromFile(fsys, path); err != nil {
-			return nil, err
+	bundle := RegistryV1{FS: manifestFS}
+	for _, file := range manifestFS {
+		for _, obj := range file.Objects {
+			switch typedObj := obj.(type) {
+			case *operatorsv1alpha1.ClusterServiceVersion:
+				bundle.csv = *typedObj
+			case *apiextensionsv1.CustomResourceDefinition:
+				bundle.crds = append(bundle.crds, *typedObj)
+			default:
+				bundle.others = append(bundle.others, obj)
+			}
 		}
 	}
 
 	return &bundle, nil
-}
-
-func (b RegistryV1) addObjectsFromFile(fsys fs.FS, path string) error {
-	objs, err := b.slurpManifestFile(fsys, path)
-	if err != nil {
-		return fmt.Errorf("unable to read manifest file: %q: %s", path, err.Error())
-	}
-
-	objsForFile := make([]*client.Object, len(objs))
-	for i, obj := range objs {
-		objsForFile[i] = &obj
-		switch typedObj := obj.(type) {
-		case *operatorsv1alpha1.ClusterServiceVersion:
-			b.csv = *typedObj
-		case *apiextensionsv1.CustomResourceDefinition:
-			b.crds = append(b.crds, *typedObj)
-		default:
-			b.others = append(b.others, obj)
-		}
-	}
-
-	return nil
-}
-
-func (b RegistryV1) slurpManifestFile(fsys fs.FS, path string) ([]client.Object, error) {
-	f, err := fsys.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	objs := make([]client.Object, 0, 1)
-	dec := yaml.NewYAMLOrJSONDecoder(f, 1024)
-	for {
-		var unstructuredObj unstructured.Unstructured
-		if err := dec.Decode(&unstructuredObj); errors.Is(err, io.EOF) {
-			return objs, nil
-		} else if err != nil {
-			return nil, err
-		}
-		obj, err := scheme.New(unstructuredObj.GroupVersionKind())
-		if err != nil {
-			return nil, err
-		}
-		if err := scheme.Convert(unstructuredObj, &obj, nil); err != nil {
-			return nil, err
-		}
-		objs = append(objs, obj.(client.Object))
-	}
-}
-
-// Open returns a file pointing at the manifest identified by the filepath.
-func (r RegistryV1) Open(name string) (fs.File, error) {
-	file, ok := r.files[name]
-	if !ok {
-		return nil, fs.ErrNotExist
-	}
-
-	return &openManifestFile{
-		path: name,
-		r:    bytes.NewReader([]byte{}),
-		manifestFileInfo: manifestFileInfo{
-			name:         filepath.Base(name),
-			ManifestFile: file,
-		},
-	}, nil
 }
 
 // CSV returns the ClusterServiceVersion manifest.

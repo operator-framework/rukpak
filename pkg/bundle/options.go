@@ -2,12 +2,12 @@ package bundle
 
 // RegistryV1Option is an option that can configure the conversion of a registry+v1 bundle.
 type Option interface {
-	apply(r *RegistryV1)
+	applyToPlainV1(r *RegistryV1)
 }
 
 type optionFunc func(*RegistryV1)
 
-func (f optionFunc) apply(r *RegistryV1) {
+func (f optionFunc) applyToPlainV1(r *RegistryV1) {
 	f(r)
 }
 
