@@ -1,38 +1,43 @@
 package bundle
 
 import (
+	"fmt"
 	"io/fs"
+	"path/filepath"
 
-	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/operator-framework/rukpak/pkg/manifest"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-const manifestsDir = "manifests"
 
 var scheme = runtime.NewScheme()
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(operatorsv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
-	utilruntime.Must(rukpakv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(rbacv1.AddToScheme(scheme))
 }
 
-// Bundle represents a rukpak bundle.
-type Bundle interface {
-	fs.FS
+func newManifestFS(baseFS fs.FS) (manifest.FS, error) {
+	const manifestDir = "manifests"
+	subFS, err := fs.Sub(baseFS, manifestDir)
+	if err != nil {
+		return nil, err
+	}
+	fsys, err := manifest.NewFS(subFS)
+	if err != nil {
+		return nil, err
+	}
 
-	// CSV returns the ClusterServiceVersion manifest that defines this bundle.
-	CSV() *operatorsv1alpha1.ClusterServiceVersion
+	// verify the directory structure is flat pre the registry+v1 spec
+	for path := range fsys {
+		if len(filepath.SplitList(path)) > 2 {
+			return nil, fmt.Errorf("manifest directory cannot have subdirectories, found: %q", filepath.Dir(path))
+		}
+	}
 
-	// CRDs returns all the CRDs that this bundle
-	CRDs() []apiextensionsv1.CustomResourceDefinition
-
-	// Others returns all other manifests contained by this bundle.
-	Others() []client.Object
+	return fsys, nil
 }
