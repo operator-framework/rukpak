@@ -22,6 +22,8 @@ import (
 // PlainV0 holds a plain v1 bundle.
 type PlainV0 struct {
 	manifest.FS
+
+	// TODO(ryantking): Do we need this breakdown? Or can we just store them as a single []client.Object
 	deployments         []*appsv1.Deployment
 	serviceAccounts     map[string]*corev1.ServiceAccount
 	roles               []*rbacv1.Role
@@ -124,6 +126,8 @@ func (b *PlainV0) setDefaultOptions(srcBundle RegistryV1, opts *options) {
 		opts.installNamespace = srcBundle.CSV().Annotations["operatorframework.io/suggested-namespace"]
 	}
 	if opts.installNamespace == "" {
+		// TODO(ryantking): Does srcBundle.CSV().GetName() give us package name
+		// per @joelanford's install namespace detection suggestion?
 		opts.installNamespace = fmt.Sprintf("%s-system", srcBundle.csv.GetName())
 	}
 
@@ -160,7 +164,10 @@ func (b PlainV0) validateTargetNamespaces(srcBundle RegistryV1, opts options) er
 		return nil
 	}
 
-	return fmt.Errorf("supported install modes %v do not support target namespaces %v", supportedInstallModes.List(), opts.targetNamespaces)
+	return fmt.Errorf(
+		"supported install modes %v do not support target namespaces %v",
+		supportedInstallModes.List(), opts.targetNamespaces,
+	)
 }
 
 func (b PlainV0) supportedInstallModes(srcBundle RegistryV1) sets.String {

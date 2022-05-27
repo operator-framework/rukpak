@@ -32,7 +32,7 @@ func newManifestFS(baseFS fs.FS) (manifest.FS, error) {
 		return nil, err
 	}
 
-	// verify the directory structure is flat pre the registry+v1 spec
+	// verify the directory structure is flat per the registry+v1 spec
 	for path := range fsys {
 		if len(filepath.SplitList(path)) > 2 {
 			return nil, fmt.Errorf("manifest directory cannot have subdirectories, found: %q", filepath.Dir(path))
