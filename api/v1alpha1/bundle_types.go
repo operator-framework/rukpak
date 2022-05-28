@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -81,6 +82,8 @@ type GitSource struct {
 	// is required. Setting more than one field or zero fields will result in an
 	// error.
 	Ref GitRef `json:"ref"`
+	// Auth configures the authorization method if necessary.
+	Auth Authorization `json:"auth,omitempty"`
 }
 
 type GitRef struct {
@@ -93,6 +96,18 @@ type GitRef struct {
 	// Commit refers to the commit to checkout from the repository.
 	// The Commit should contain the bundle manifests in the specified directory.
 	Commit string `json:"commit,omitempty"`
+}
+
+type Authorization struct {
+	// Secret contains reference to the secret that has authorization information for HTTPS protocol and is in the namespace that the provisioner is deployed.
+	// The secret is expected to contain `data.username` and `data.password` for the username and password, respectively.
+	Secret corev1.LocalObjectReference `json:"secret,omitempty"`
+	// InsecureSkipVerify controls whether a client verifies the server's certificate chain and host name. This
+	// configuration is used only when cloning git repositories that use the "https" scheme. If InsecureSkipVerify
+	// is true, the clone operation will accept any certificate presented by the server and any host name in that
+	// certificate. In this mode, TLS is susceptible to machine-in-the-middle attacks unless custom verification is
+	// used. This should be used only for testing.
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
 type ProvisionerID string
