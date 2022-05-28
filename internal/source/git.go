@@ -14,12 +14,17 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
 type Git struct {
+	client.Reader
+	SecretNamespace string
 }
 
 func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
@@ -38,9 +43,18 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	// Set options for clone
 	progress := bytes.Buffer{}
 	cloneOpts := git.CloneOptions{
-		URL:      gitsource.Repository,
-		Progress: &progress,
-		Tags:     git.NoTags,
+		URL:             gitsource.Repository,
+		Progress:        &progress,
+		Tags:            git.NoTags,
+		InsecureSkipTLS: bundle.Spec.Source.Git.Auth.InsecureSkipVerify,
+	}
+
+	if bundle.Spec.Source.Git.Auth.Secret.Name != "" {
+		userName, password, err := r.getCredentials(ctx, bundle)
+		if err != nil {
+			return nil, err
+		}
+		cloneOpts.Auth = &http.BasicAuth{Username: userName, Password: password}
 	}
 
 	if gitsource.Ref.Branch != "" {
@@ -96,6 +110,20 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	}
 
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
+}
+
+// getCredentials reads credentials from the secret specified in the bundle
+// It returns the username ane password when they are in the secret
+func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (string, string, error) {
+	secret := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: bundle.Spec.Source.Git.Auth.Secret.Name}, secret)
+	if err != nil {
+		return "", "", err
+	}
+	userName := string(secret.Data["username"])
+	password := string(secret.Data["password"])
+
+	return userName, password, nil
 }
 
 // billy.Filesysten -> fs.FS

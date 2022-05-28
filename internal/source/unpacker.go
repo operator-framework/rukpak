@@ -104,6 +104,9 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImag
 			PodNamespace:    namespace,
 			UnpackImage:     unpackImage,
 		},
-		rukpakv1alpha1.SourceTypeGit: &Git{},
+		rukpakv1alpha1.SourceTypeGit: &Git{
+			Reader:          mgr.GetAPIReader(),
+			SecretNamespace: namespace,
+		},
 	}), nil
 }
