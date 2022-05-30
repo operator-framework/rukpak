@@ -1,6 +1,7 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -35,9 +36,10 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	}
 
 	// Set options for clone
+	progress := bytes.Buffer{}
 	cloneOpts := git.CloneOptions{
 		URL:      gitsource.Repository,
-		Progress: os.Stdout,
+		Progress: &progress,
 		Tags:     git.NoTags,
 	}
 
@@ -54,7 +56,7 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	// Clone
 	repo, err := git.CloneContext(ctx, memory.NewStorage(), memfs.New(), &cloneOpts)
 	if err != nil {
-		return nil, fmt.Errorf("bundle unpack git clone error: %w", err)
+		return nil, fmt.Errorf("bundle unpack git clone error: %w - %s", err, progress.String())
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
