@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,6 +77,9 @@ func checkBundleSource(r *Bundle) error {
 	case SourceTypeGit:
 		if r.Spec.Source.Git == nil {
 			return fmt.Errorf("bundle.spec.source.git must be set for source type \"git\"")
+		}
+		if strings.HasPrefix(filepath.Clean(r.Spec.Source.Git.Directory), "../") {
+			return fmt.Errorf(`bundle.spec.source.git.directory begins with "../": directory must define path within the repository`)
 		}
 	}
 	return nil
