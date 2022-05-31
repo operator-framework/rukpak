@@ -259,35 +259,6 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 		}
 	}
 
-	//oc := &v2.OperatorCondition{
-	//	TypeMeta: metav1.TypeMeta{
-	//		Kind:       "OperatorCondition",
-	//		APIVersion: v2.SchemeGroupVersion.String(),
-	//	},
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Namespace: installNamespace,
-	//		Name:      in.CSV.Name,
-	//	},
-	//	Spec: v2.OperatorConditionSpec{
-	//		ServiceAccounts: keys(serviceAccounts),
-	//		Deployments:     mapSlice(deployments, func(d appsv1.Deployment) string { return d.Name }),
-	//	},
-	//}
-	//for i, dep := range deployments {
-	//	for j, c := range dep.Spec.Template.Spec.Containers {
-	//		deployments[i].Spec.Template.Spec.Containers[j].Env = append(c.Env, corev1.EnvVar{Name: "OPERATOR_CONDITION_NAME", Value: oc.Name})
-	//	}
-	//}
-	//roles = append(roles, newRole(oc.Namespace, oc.Name, []rbacv1.PolicyRule{
-	//	{
-	//		Verbs:         []string{"get", "update", "patch"},
-	//		APIGroups:     []string{"operators.coreos.com"},
-	//		Resources:     []string{"operatorconditions"},
-	//		ResourceNames: []string{oc.Name},
-	//	},
-	//}))
-	//roleBindings = append(roleBindings, newRoleBinding(oc.Namespace, oc.Name, oc.Name, oc.Namespace, oc.Spec.ServiceAccounts...))
-
 	// If we're in AllNamespaces mode, promote the permissions to clusterPermissions
 	if len(targetNamespaces) == 1 && targetNamespaces[0] == "" {
 		for _, p := range permissions {
@@ -462,19 +433,3 @@ func newClusterRoleBinding(name, roleName, saNamespace string, saNames ...string
 		},
 	}
 }
-
-//func keys[Key comparable, Value any](m map[Key]Value) []Key {
-//	out := make([]Key, 0, len(m))
-//	for k := range m {
-//		out = append(out, k)
-//	}
-//	return out
-//}
-//
-//func mapSlice[In, Out any](in []In, f func(In) Out) []Out {
-//	out := make([]Out, 0, len(in))
-//	for _, i := range in {
-//		out = append(out, f(i))
-//	}
-//	return out
-//}
