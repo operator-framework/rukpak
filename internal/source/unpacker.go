@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io/fs"
 
+	"k8s.io/client-go/kubernetes"
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
@@ -82,4 +85,25 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*
 		return nil, fmt.Errorf("source type %q not supported", bundle.Spec.Source.Type)
 	}
 	return source.Unpack(ctx, bundle)
+}
+
+// NewDefaultUnpacker returns a new composite Source that unpacks bundles using
+// a default source mapping with built-in implementations of all of the supported
+// source types.
+func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImage string) (Unpacker, error) {
+	cfg := mgr.GetConfig()
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return NewUnpacker(map[rukpakv1alpha1.SourceType]Unpacker{
+		rukpakv1alpha1.SourceTypeImage: &Image{
+			Client:          mgr.GetClient(),
+			KubeClient:      kubeClient,
+			ProvisionerName: provisionerName,
+			PodNamespace:    namespace,
+			UnpackImage:     unpackImage,
+		},
+		rukpakv1alpha1.SourceTypeGit: &Git{},
+	}), nil
 }
