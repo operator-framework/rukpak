@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -95,25 +94,21 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("starting up the provisioner", "git commit", version.String(), "unpacker image", unpackImage)
 
-	cfg := ctrl.GetConfigOrDie()
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		setupLog.Error(err, "unable to create kubernetes client")
-		os.Exit(1)
-	}
 	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha1.BundleKind, rukpakv1alpha1.BundleInstanceKind})
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
 	}
 	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
+
+	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     httpBindAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "510f803c.olm.operatorframework.io",
+		LeaderElectionID:       "plain.core.rukpak.io",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&rukpakv1alpha1.BundleInstance{}: {},
@@ -185,16 +180,11 @@ func main() {
 	}
 
 	const plainBundleProvisionerName = "plain"
-	unpacker := source.NewUnpacker(map[rukpakv1alpha1.SourceType]source.Unpacker{
-		rukpakv1alpha1.SourceTypeImage: &source.Image{
-			Client:          mgr.GetClient(),
-			KubeClient:      kubeClient,
-			ProvisionerName: plainBundleProvisionerName,
-			PodNamespace:    ns,
-			UnpackImage:     unpackImage,
-		},
-		rukpakv1alpha1.SourceTypeGit: &source.Git{},
-	})
+	unpacker, err := source.NewDefaultUnpacker(mgr, ns, plainBundleProvisionerName, unpackImage)
+	if err != nil {
+		setupLog.Error(err, "unable to setup bundle unpacker")
+		os.Exit(1)
+	}
 
 	if err = (&controllers.BundleReconciler{
 		Client:     mgr.GetClient(),
