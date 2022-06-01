@@ -122,6 +122,9 @@ spec:
   provisionerClassName: core.rukpak.io/plain
 ```
 
+> Note: Bundles are considered immutable once they are created. See the [bundle immutability doc](/docs/bundle-immutability.md)
+> for more information.
+
 ### BundleInstance
 
 > :warning: A BundleInstance changes the state of the Kubernetes cluster by installing and removing objects. It's important
