@@ -14,6 +14,8 @@ require (
 	github.com/operator-framework/helm-operator-plugins v0.0.10
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.1
+	golang.org/x/crypto v0.0.0-20220408190544-5352b0902921
+	gopkg.in/src-d/go-git.v4 v4.13.1
 	helm.sh/helm/v3 v3.9.0
 	k8s.io/api v0.24.1
 	k8s.io/apiextensions-apiserver v0.24.1
@@ -130,6 +132,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/src-d/gcfg v1.4.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
@@ -142,7 +145,6 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
-	golang.org/x/crypto v0.0.0-20220408190544-5352b0902921 // indirect
 	golang.org/x/net v0.0.0-20220407224826-aac1ed45d8e3 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect

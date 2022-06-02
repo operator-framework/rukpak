@@ -9,13 +9,17 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"golang.org/x/crypto/ssh"
+	sshgit "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -50,11 +54,11 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	}
 
 	if bundle.Spec.Source.Git.Auth.Secret.Name != "" {
-		userName, password, err := r.getCredentials(ctx, bundle)
+		auth, err := r.configAuth(ctx, bundle)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("configuring Auth error: %w", err)
 		}
-		cloneOpts.Auth = &http.BasicAuth{Username: userName, Password: password}
+		cloneOpts.Auth = auth
 	}
 
 	if gitsource.Ref.Branch != "" {
@@ -112,6 +116,52 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
 }
 
+func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (transport.AuthMethod, error) {
+	var auth transport.AuthMethod
+	if strings.HasPrefix(bundle.Spec.Source.Git.Repository, "http") {
+		userName, password, err := r.getCredentials(ctx, bundle)
+		if err != nil {
+			return nil, err
+		}
+		return &http.BasicAuth{Username: userName, Password: password}, nil
+	}
+	privatekey, host, err := r.getCertificate(ctx, bundle)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := ssh.ParsePrivateKey(privatekey)
+	if err != nil {
+		return nil, err
+	}
+	auth = &sshgit.PublicKeys{
+		User:   "git",
+		Signer: signer,
+	}
+	if bundle.Spec.Source.Git.Auth.InsecureSkipVerify {
+		auth = &sshgit.PublicKeys{
+			User:   "git",
+			Signer: signer,
+			HostKeyCallbackHelper: sshgit.HostKeyCallbackHelper{
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			},
+		}
+	} else if host != nil {
+		_, _, pubKey, _, _, err := ssh.ParseKnownHosts(host)
+		if err != nil {
+			return nil, err
+		}
+		auth = &sshgit.PublicKeys{
+			User:   "git",
+			Signer: signer,
+			HostKeyCallbackHelper: sshgit.HostKeyCallbackHelper{
+				HostKeyCallback: ssh.FixedHostKey(pubKey),
+			},
+		}
+	}
+	return auth, nil
+}
+
 // getCredentials reads credentials from the secret specified in the bundle
 // It returns the username ane password when they are in the secret
 func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (string, string, error) {
@@ -124,6 +174,17 @@ func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.Bundle)
 	password := string(secret.Data["password"])
 
 	return userName, password, nil
+}
+
+// getCertificate reads certificate from the secret specified in the bundle
+// It returns the privatekey and the entry of the host in known_hosts when they are in the secret
+func (r *Git) getCertificate(ctx context.Context, bundle *rukpakv1alpha1.Bundle) ([]byte, []byte, error) {
+	secret := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: bundle.Spec.Source.Git.Auth.Secret.Name}, secret)
+	if err != nil {
+		return nil, nil, err
+	}
+	return secret.Data["ssh-privatekey"], secret.Data["ssh-knownhosts"], nil
 }
 
 // billy.Filesysten -> fs.FS
