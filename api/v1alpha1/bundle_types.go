@@ -99,11 +99,13 @@ type GitRef struct {
 }
 
 type Authorization struct {
-	// Secret contains reference to the secret that has authorization information for HTTPS protocol and is in the namespace that the provisioner is deployed.
-	// The secret is expected to contain `data.username` and `data.password` for the username and password, respectively.
+	// Secret contains reference to the secret that has authorization information and is in the namespace that the provisioner is deployed.
+	// The secret is expected to contain `data.username` and `data.password` for the username and password, respectively for http(s) scheme.
+	// Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+	// The secret is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts` for the ssh privatekey and the host entry in the known_hosts file respectively for ssh authorization.
+	// Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
 	Secret corev1.LocalObjectReference `json:"secret,omitempty"`
-	// InsecureSkipVerify controls whether a client verifies the server's certificate chain and host name. This
-	// configuration is used only when cloning git repositories that use the "https" scheme. If InsecureSkipVerify
+	// InsecureSkipVerify controls whether a client verifies the server's certificate chain and host name. If InsecureSkipVerify
 	// is true, the clone operation will accept any certificate presented by the server and any host name in that
 	// certificate. In this mode, TLS is susceptible to machine-in-the-middle attacks unless custom verification is
 	// used. This should be used only for testing.
