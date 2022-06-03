@@ -594,6 +594,87 @@ var _ = Describe("plain provisioner bundle", func() {
 				}).Should(BeNil())
 			})
 		})
+
+		When("the bundle is backed by a private repository", func() {
+			var (
+				bundle      *rukpakv1alpha1.Bundle
+				secret      *corev1.Secret
+				privateRepo string
+			)
+			BeforeEach(func() {
+				privateRepo = os.Getenv("PRIVATE_GIT_REPO")
+				username := os.Getenv("PRIVATE_REPO_USERNAME")
+				password := os.Getenv("PRIVATE_REPO_PASSWORD")
+				if privateRepo == "" {
+					Skip("Private repository information is not set.")
+				}
+				Expect(privateRepo[:4] == "http").To(BeTrue())
+
+				secret = &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "gitsecret-",
+						Namespace:    defaultSystemNamespace,
+					},
+					Data: map[string][]byte{"username": []byte(username), "password": []byte(password)},
+					Type: "Opaque",
+				}
+				err := c.Create(ctx, secret)
+				Expect(err).To(BeNil())
+				bundle = &rukpakv1alpha1.Bundle{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "combo-git-branch",
+					},
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plain.ProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeGit,
+							Git: &rukpakv1alpha1.GitSource{
+								Repository: privateRepo,
+								Ref: rukpakv1alpha1.GitRef{
+									Branch: "main",
+								},
+								Auth: rukpakv1alpha1.Authorization{
+									Secret: corev1.LocalObjectReference{
+										Name: secret.Name,
+									},
+								},
+							},
+						},
+					},
+				}
+				err = c.Create(ctx, bundle)
+				Expect(err).To(BeNil())
+			})
+
+			AfterEach(func() {
+				err := c.Delete(ctx, bundle)
+				Expect(err).To(BeNil())
+				err = c.Delete(ctx, secret)
+				Expect(err).To(BeNil())
+			})
+
+			It("Can create and unpack the bundle successfully", func() {
+				Eventually(func() error {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return err
+					}
+					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+						return errors.New("bundle is not unpacked")
+					}
+
+					provisionerPods := &corev1.PodList{}
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+						return err
+					}
+					if len(provisionerPods.Items) != 1 {
+						return errors.New("expected exactly 1 provisioner pod")
+					}
+
+					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+				}).Should(BeNil())
+			})
+		})
+
 	})
 
 	When("a bundle containing nested directory is created", func() {
