@@ -47,5 +47,6 @@ echo IMAGE_PULL_RECRET $IMAGE_PULL_RECRET
 
 # clean up 
 rm -rf /tmp/var/imageregistry/certs
-
+kubectl wait --for=condition=ContainersReady --namespace=rukpak-e2e pod/docker-registry-pod --timeout=60s
+kubectl wait --for=condition=ContainersReady --namespace=rukpak-e2e pod/nerdctl --timeout=60s
 

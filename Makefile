@@ -15,6 +15,10 @@ PKGS = $(shell go list ./...)
 export CERT_MGR_VERSION ?= v1.7.1
 RUKPAK_NAMESPACE ?= rukpak-system
 
+REGISTRY_NAME="docker-registry"
+REGISTRY_NAMESPACE=rukpak-e2e
+DNS_NAME=$(REGISTRY_NAME).$(REGISTRY_NAMESPACE).svc.cluster.local
+
 CONTAINER_RUNTIME ?= docker
 
 # kernel-style V=1 build verbosity
@@ -89,7 +93,7 @@ test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: run image-registry kind-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
+e2e: run image-registry kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
 kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME}
@@ -185,8 +189,9 @@ kind-load-bundles: kind ## Load the e2e testdata container images into a kind cl
 kind-load: kind ## Loads the currently constructed image onto the cluster
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
-registry-load-bundles: kind-load-bundles ## Load the e2e testdata container images into registry
-	./tools/imageregistry/load_test_image.sh
+registry-load-bundles: ## Load selected e2e testdata container images created in kind-load-bundles into registry
+	$(CONTAINER_RUNTIME) tag testdata/bundles/plain-v0:valid $(DNS_NAME):5000/bundles/plain-v0:valid
+	./tools/imageregistry/load_test_image.sh $(KIND) $(KIND_CLUSTER_NAME)
 
 ###########
 # Release #

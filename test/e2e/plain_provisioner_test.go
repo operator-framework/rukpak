@@ -201,6 +201,67 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
+	When("a valid Bundle referencing a remote private container image is created", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds-valid",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref:                 "docker-registry.rukpak-e2e.svc.cluster.local:5000/bundles/plain-v0:valid",
+							ImagePullSecretName: "registrysecret",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+
+		It("should eventually report a successful state", func() {
+			By("eventually reporting an Unpacked phase", func() {
+				Eventually(func() (string, error) {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return "", err
+					}
+					return bundle.Status.Phase, nil
+				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
+			})
+
+			By("eventually writing a non-empty image digest to the status", func() {
+				Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return nil, err
+					}
+					return bundle.Status.ResolvedSource, nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeImage)),
+					WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.ImageSource { return s.Image }, And(
+						Not(BeNil()),
+						WithTransform(func(i *rukpakv1alpha1.ImageSource) string { return i.Ref }, Not(Equal(""))),
+					)),
+				))
+			})
+		})
+	})
+
 	When("an invalid Bundle referencing a remote container image is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
