@@ -120,7 +120,7 @@ func pendingImagePodResult(pod *corev1.Pod) *Result {
 func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 	logs, err := i.getPodLogs(ctx, pod)
 	if err != nil {
-		return fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %w", err)
+		return fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %v", err)
 	}
 	_ = i.Client.Delete(ctx, pod)
 	return fmt.Errorf("unpack failed: %v", string(logs))
@@ -129,12 +129,12 @@ func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Result, error) {
 	bundleFS, err := i.getBundleContents(ctx, pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %w", err)
+		return nil, fmt.Errorf("get bundle contents: %v", err)
 	}
 
 	digest, err := i.getBundleImageDigest(pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle image digest: %w", err)
+		return nil, fmt.Errorf("get bundle image digest: %v", err)
 	}
 
 	resolvedSource := &rukpakv1alpha1.BundleSource{
@@ -148,19 +148,19 @@ func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Resul
 func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
 	bundleData, err := i.getPodLogs(ctx, pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %w", err)
+		return nil, fmt.Errorf("get bundle contents: %v", err)
 	}
 	bd := struct {
 		Content []byte `json:"content"`
 	}{}
 
 	if err := json.Unmarshal(bundleData, &bd); err != nil {
-		return nil, fmt.Errorf("parse bundle data: %w", err)
+		return nil, fmt.Errorf("parse bundle data: %v", err)
 	}
 
 	gzr, err := gzip.NewReader(bytes.NewReader(bd.Content))
 	if err != nil {
-		return nil, fmt.Errorf("read bundle content gzip: %w", err)
+		return nil, fmt.Errorf("read bundle content gzip: %v", err)
 	}
 	return tarfs.New(gzr)
 }
@@ -177,7 +177,7 @@ func (i *Image) getBundleImageDigest(pod *corev1.Pod) (string, error) {
 func (i *Image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
 	logReader, err := i.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get pod logs: %w", err)
+		return nil, fmt.Errorf("get pod logs: %v", err)
 	}
 	defer logReader.Close()
 	buf := &bytes.Buffer{}

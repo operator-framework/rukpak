@@ -70,7 +70,7 @@ type BundleReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reconcileErr error) {
+func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
@@ -137,7 +137,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 
 	unpackResult, err := r.Unpacker.Unpack(ctx, bundle)
 	if err != nil {
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("source bundle content: %w", err))
+		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("source bundle content: %v", err))
 	}
 	switch unpackResult.State {
 	case source.StatePending:
@@ -149,12 +149,12 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 	case source.StateUnpacked:
 		plainFS, err := convert.RegistryV1ToPlain(unpackResult.Bundle)
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %w", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err))
 		}
 
 		objects, err := getObjects(plainFS)
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get objects from bundle manifests: %w", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get objects from bundle manifests: %v", err))
 		}
 		if len(objects) == 0 {
 			return ctrl.Result{}, updateStatusUnpackFailing(&u, errors.New("invalid bundle: found zero objects: "+
@@ -162,18 +162,18 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ c
 		}
 
 		if err := r.Storage.Store(ctx, bundle, plainFS); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("persist bundle objects: %w", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("persist bundle objects: %v", err))
 		}
 
 		contentURL, err := r.Storage.URLFor(ctx, bundle)
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get content URL: %w", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get content URL: %v", err))
 		}
 
 		updateStatusUnpacked(&u, unpackResult, contentURL)
 		return ctrl.Result{}, nil
 	default:
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("unknown unpack state %q: %w", unpackResult.State, err))
+		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
 	}
 }
 
@@ -259,7 +259,7 @@ func getObjects(bundleFS fs.FS) ([]client.Object, error) {
 				break
 			}
 			if err != nil {
-				return nil, fmt.Errorf("read %q: %w", e.Name(), err)
+				return nil, fmt.Errorf("read %q: %v", e.Name(), err)
 			}
 			objects = append(objects, &obj)
 		}
