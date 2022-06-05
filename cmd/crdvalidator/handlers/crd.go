@@ -54,7 +54,7 @@ func (cv *CrdValidator) Handle(ctx context.Context, req admission.Request) admis
 	if err := cv.decoder.Decode(req, incomingCrd); err != nil {
 		message := fmt.Sprintf("failed to decode CRD %q", req.Name)
 		cv.log.V(0).Error(err, message)
-		return admission.Errored(http.StatusBadRequest, fmt.Errorf("%s: %w", message, err))
+		return admission.Errored(http.StatusBadRequest, fmt.Errorf("%s: %v", message, err))
 	}
 
 	// Check if the request should get validated

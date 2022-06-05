@@ -426,12 +426,12 @@ func (r *BundleInstanceReconciler) getReleaseState(cl helmclient.ActionInterface
 func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bundle *rukpakv1alpha1.Bundle, biName string) ([]client.Object, error) {
 	bundleFS, err := r.BundleStorage.Load(ctx, bundle)
 	if err != nil {
-		return nil, fmt.Errorf("load bundle: %w", err)
+		return nil, fmt.Errorf("load bundle: %v", err)
 	}
 
 	objects, err := getObjects(bundleFS)
 	if err != nil {
-		return nil, fmt.Errorf("read bundle objects from bundle: %w", err)
+		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
 	}
 
 	objs := make([]client.Object, 0, len(objects))

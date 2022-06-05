@@ -19,15 +19,14 @@ import (
 	"reflect"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/validation"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Validate is a wrapper for doing four things:
@@ -49,16 +48,16 @@ func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.Cus
 	}
 
 	if err := validateCRDCompatibility(ctx, cl, oldCRD, newCrd); err != nil {
-		return fmt.Errorf("error validating existing CRs against new CRD's schema for %q: %w", newCrd.Name, err)
+		return fmt.Errorf("error validating existing CRs against new CRD's schema for %q: %v", newCrd.Name, err)
 	}
 
 	// check to see if stored versions changed and whether the upgrade could cause potential data loss
 	safe, err := safeStorageVersionUpgrade(oldCRD, newCrd)
 	if !safe {
-		return fmt.Errorf("risk of data loss updating %q: %w", newCrd.Name, err)
+		return fmt.Errorf("risk of data loss updating %q: %v", newCrd.Name, err)
 	}
 	if err != nil {
-		return fmt.Errorf("checking CRD for potential data loss updating %q: %w", newCrd.Name, err)
+		return fmt.Errorf("checking CRD for potential data loss updating %q: %v", newCrd.Name, err)
 	}
 
 	return nil
@@ -145,16 +144,16 @@ func validateExistingCRs(ctx context.Context, dynamicClient client.Client, listG
 	crList := &unstructured.UnstructuredList{}
 	crList.SetGroupVersionKind(listGVK)
 	if err := dynamicClient.List(ctx, crList); err != nil {
-		return fmt.Errorf("error listing objects for %s: %w", listGVK, err)
+		return fmt.Errorf("error listing objects for %s: %v", listGVK, err)
 	}
 	for _, cr := range crList.Items {
 		validator, _, err := validation.NewSchemaValidator(convertedVersion.Schema)
 		if err != nil {
-			return fmt.Errorf("error creating validator for the schema of version %q: %w", newVersion.Name, err)
+			return fmt.Errorf("error creating validator for the schema of version %q: %v", newVersion.Name, err)
 		}
 		err = validation.ValidateCustomResource(field.NewPath(""), cr.UnstructuredContent(), validator).ToAggregate()
 		if err != nil {
-			return fmt.Errorf("existing custom object %s/%s failed validation for new schema version %s: %w", cr.GetNamespace(), cr.GetName(), newVersion.Name, err)
+			return fmt.Errorf("existing custom object %s/%s failed validation for new schema version %s: %v", cr.GetNamespace(), cr.GetName(), newVersion.Name, err)
 		}
 	}
 	return nil

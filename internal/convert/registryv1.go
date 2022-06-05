@@ -77,7 +77,7 @@ func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
 				break
 			}
 			if err != nil {
-				return nil, fmt.Errorf("read %q: %w", e.Name(), err)
+				return nil, fmt.Errorf("read %q: %v", e.Name(), err)
 			}
 			objects = append(objects, &obj)
 		}

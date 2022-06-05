@@ -152,7 +152,7 @@ func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, b
 	if err := c.List(ctx, bundleList, &client.ListOptions{
 		LabelSelector: selector,
 	}); err != nil {
-		return nil, fmt.Errorf("failed to list bundles using the %s selector: %w", selector.String(), err)
+		return nil, fmt.Errorf("failed to list bundles using the %s selector: %v", selector.String(), err)
 	}
 	return bundleList, nil
 }
@@ -277,7 +277,7 @@ func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, 
 		return controllerutil.OperationResultNone, nil
 	}
 
-	if err := wait.PollImmediateUntil(time.Millisecond*5, func() (done bool, err error) {
+	if err := wait.PollImmediateUntil(time.Millisecond*5, func() (bool, error) {
 		if err := cl.Delete(ctx, obj); err != nil {
 			if apierrors.IsNotFound(err) {
 				return true, nil

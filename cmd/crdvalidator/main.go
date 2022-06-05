@@ -19,8 +19,7 @@ package main
 import (
 	"os"
 
-	"github.com/operator-framework/rukpak/cmd/crdvalidator/handlers"
-
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/operator-framework/rukpak/cmd/crdvalidator/handlers"
 )
 
 var (

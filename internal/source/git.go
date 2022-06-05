@@ -70,11 +70,11 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	// Clone
 	repo, err := git.CloneContext(ctx, memory.NewStorage(), memfs.New(), &cloneOpts)
 	if err != nil {
-		return nil, fmt.Errorf("bundle unpack git clone error: %w - %s", err, progress.String())
+		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
-		return nil, fmt.Errorf("bundle unpack error: %w", err)
+		return nil, fmt.Errorf("bundle unpack error: %v", err)
 	}
 
 	// Checkout commit
@@ -84,7 +84,7 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 			Commit: commitHash,
 			Mode:   git.HardReset,
 		}); err != nil {
-			return nil, fmt.Errorf("checkout commit %q: %w", commitHash.String(), err)
+			return nil, fmt.Errorf("checkout commit %q: %v", commitHash.String(), err)
 		}
 	}
 
@@ -98,7 +98,7 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 		}
 		sub, err := wt.Filesystem.Chroot(filepath.Clean(directory))
 		if err != nil {
-			return nil, fmt.Errorf("get subdirectory %q for repository %q: %w", gitsource.Directory, gitsource.Repository, err)
+			return nil, fmt.Errorf("get subdirectory %q for repository %q: %v", gitsource.Directory, gitsource.Repository, err)
 		}
 		bundleFS = &billyFS{sub}
 	}
