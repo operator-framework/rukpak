@@ -24,9 +24,11 @@ type FS map[string]File
 
 // NewFS returns a new FS that has loaded in all the Kubernetes manifests found in the provided base filesystem.
 // This function starts the search at the root of the filesystem and will error if it finds any non-manifest files.
+// TODO(ryantking): Pass in scheme so that way consumers can register their custom types.
+// TODO(ryantking): Add in `strict` bool that will determine if uknown objects should error or be stored as unstructured.
 func NewFS(baseFS fs.FS) (FS, error) {
 	fsys := make(FS)
-	if err := fs.WalkDir(baseFS, "/", func(path string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(baseFS, ".", func(path string, d fs.DirEntry, err error) error {
 		// Directories don't need to be stored.
 		// The FS/File operations know how to detect one exists based on paths.
 		if err != nil || d.IsDir() {
@@ -71,13 +73,21 @@ func (fsys FS) parseObjects(r io.Reader) ([]client.Object, error) {
 		} else if err != nil {
 			return nil, err
 		}
+		// When the object type is not recognized, store the unstructured object
+		if !scheme.Recognizes(unstructuredObj.GroupVersionKind()) {
+			objs = append(objs, &unstructuredObj)
+			continue
+		}
+
+		// When the object is recognized, convert it so its typed
 		obj, err := scheme.New(unstructuredObj.GroupVersionKind())
 		if err != nil {
 			return nil, err
 		}
-		if err := scheme.Convert(unstructuredObj, &obj, nil); err != nil {
+		if err := scheme.Convert(&unstructuredObj, obj, nil); err != nil {
 			return nil, err
 		}
+		obj.GetObjectKind().SetGroupVersionKind(unstructuredObj.GroupVersionKind())
 		objs = append(objs, obj.(client.Object))
 	}
 }
@@ -88,7 +98,6 @@ func (fsys FS) parseObjects(r io.Reader) ([]client.Object, error) {
 func (fsys FS) Open(name string) (fs.File, error) {
 	file, fileExists := fsys[name]
 	if fileExists && !file.IsDirectory {
-		// Normal file
 		return &openFile{fileInfo: fileInfo{filepath.Base(name), file}, path: name}, nil
 	}
 
@@ -138,5 +147,6 @@ func (fsys FS) Open(name string) (fs.File, error) {
 	if !fileExists {
 		file = File{IsDirectory: true}
 	}
+
 	return &dir{fileInfo{elem, file}, name, list, 0}, nil
 }

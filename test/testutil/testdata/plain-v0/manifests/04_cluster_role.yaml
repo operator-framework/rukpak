@@ -1,0 +1,8 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: combo-operator
+rules:
+- apiGroups: ["combo.io"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list", "update"]
