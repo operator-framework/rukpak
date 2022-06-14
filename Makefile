@@ -171,6 +171,7 @@ kind-load-bundles: kind ## Load the e2e testdata container images into a kind cl
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-missing-crds -t testdata/bundles/plain-v0:invalid-missing-crds
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-crds-and-crs -t testdata/bundles/plain-v0:invalid-crds-and-crs
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/subdir -t testdata/bundles/plain-v0:subdir
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/registry/valid -t testdata/bundles/registry:valid
 	$(KIND) load docker-image testdata/bundles/plain-v0:valid --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/plain-v0:dependent --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/plain-v0:provides --name $(KIND_CLUSTER_NAME)
@@ -179,6 +180,7 @@ kind-load-bundles: kind ## Load the e2e testdata container images into a kind cl
 	$(KIND) load docker-image testdata/bundles/plain-v0:invalid-missing-crds --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/plain-v0:subdir --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image testdata/bundles/registry:valid --name $(KIND_CLUSTER_NAME)
 
 kind-load: kind ## Loads the currently constructed image onto the cluster
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
