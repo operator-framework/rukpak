@@ -1,0 +1,78 @@
+package e2e
+
+import (
+	"context"
+	"fmt"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
+	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
+)
+
+var _ = Describe("registry provisioner bundle", func() {
+	When("a BundleInstance targets a registry+v1 Bundle", func() {
+		var (
+			bi  *rukpakv1alpha1.BundleInstance
+			ctx context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bi = &rukpakv1alpha1.BundleInstance{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "prometheus",
+				},
+				Spec: rukpakv1alpha1.BundleInstanceSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Template: &rukpakv1alpha1.BundleTemplate{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app.kubernetes.io/name": "prometheus",
+							},
+						},
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: registry.ProvisionerID,
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeImage,
+								Image: &rukpakv1alpha1.ImageSource{
+									Ref: "testdata/bundles/registry:valid",
+								},
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bi)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing BI resource")
+			Expect(c.Delete(ctx, bi)).To(BeNil())
+		})
+
+		It("should rollout the bundle contents successfully", func() {
+			By("eventually writing a successful installation state back to the bundleinstance status")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					return nil, err
+				}
+				if bi.Status.InstalledBundleName == "" {
+					return nil, fmt.Errorf("waiting for bundle name to be populated")
+				}
+				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("instantiated bundle")),
+			))
+		})
+	})
+})
