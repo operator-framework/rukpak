@@ -343,20 +343,23 @@ func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1al
 	}
 
 	// check whether there's an existing Bundle that matches the desired Bundle template
-	// specified in the BI resource, and if not, generate a new matches the template.
+	// specified in the BI resource, and if not, generate a new Bundle that matches the template.
 	b := util.CheckExistingBundlesMatchesTemplate(existingBundles, bi.Spec.Template)
 	if b == nil {
 		controllerRef := metav1.NewControllerRef(bi, bi.GroupVersionKind())
+		hash := util.GenerateTemplateHash(bi.Spec.Template)
+
 		labels := bi.Spec.Template.Labels
 		if len(labels) == 0 {
 			labels = make(map[string]string)
 		}
 		labels[util.CoreOwnerKindKey] = rukpakv1alpha1.BundleInstanceKind
 		labels[util.CoreOwnerNameKey] = bi.GetName()
+		labels[util.CoreBundleTemplateHashKey] = hash
 
 		b = &rukpakv1alpha1.Bundle{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            util.GenerateBundleName(bi.GetName()),
+				Name:            util.GenerateBundleName(bi.GetName(), hash),
 				OwnerReferences: []metav1.OwnerReference{*controllerRef},
 				Labels:          labels,
 				Annotations:     bi.Spec.Template.Annotations,
@@ -423,12 +426,12 @@ func (r *BundleInstanceReconciler) getReleaseState(cl helmclient.ActionInterface
 func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bundle *rukpakv1alpha1.Bundle, biName string) ([]client.Object, error) {
 	bundleFS, err := r.BundleStorage.Load(ctx, bundle)
 	if err != nil {
-		return nil, fmt.Errorf("load bundle: %w", err)
+		return nil, fmt.Errorf("load bundle: %v", err)
 	}
 
 	objects, err := getObjects(bundleFS)
 	if err != nil {
-		return nil, fmt.Errorf("read bundle objects from bundle: %w", err)
+		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
 	}
 
 	objs := make([]client.Object, 0, len(objects))

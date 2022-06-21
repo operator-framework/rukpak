@@ -12,12 +12,12 @@ func SetupClient() (client.Client, error) {
 
 	config, err := testenv.Start()
 	if err != nil {
-		return nil, fmt.Errorf("failed to start envtest: %w", err)
+		return nil, fmt.Errorf("failed to start envtest: %v", err)
 	}
 
 	kubeclient, err := client.New(config, client.Options{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
+		return nil, fmt.Errorf("failed to create kubeclient: %v", err)
 	}
 
 	return kubeclient, nil

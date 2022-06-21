@@ -12,20 +12,7 @@ content of the bundle available in the cluster. It does so by reconciling `Bundl
 the `spec.provisionerClassName` field set to `core.rukpak.io/plain`. This field must be set to the correct provisioner
 name in order for the `plain` provisioner to see and interact with the bundle.
 
-Below is an example of the provisioner reconciliation flow:
-
-```mermaid
-graph TD
-    C[Provisioner]
-    C -->|Watches| D[Bundle]
-    C -->|Watches| E[BundleInstance]
-    D -->|References| F[Content]
-    E -->|Creates/Manages| F[Content]
-```
-
-## Use cases
-
-### Install and apply a specific version of a bundle
+### Install and apply a specific version of a `plain+v0` bundle
 
 > :warning: Anyone with the ability to create or update BundleInstance objects can become cluster admin. It's important
 > to limit access to this API via RBAC to only those that explicitly require access, as well as audit your bundles to
@@ -56,8 +43,8 @@ spec:
       provisionerClassName: core.rukpak.io/plain
 ```
 
-> Note: the generated Bundle will contain the BundleInstance's metadata.Name as a prefix, following
-> a randomized value to prevent collisions with other Bundle resources.
+> Note: the generated Bundle will contain the BundleInstance's metadata.Name as a prefix, followed by
+> the hash of the provided template.
 
 First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
 
@@ -87,49 +74,6 @@ my-bundle-instance   my-bundle        my-bundle          InstallationSucceeded  
 ```
 
 > Note: Creation of more than one BundleInstance from the same Bundle will likely result in an error.
-
-### Make bundle content available but do not install it
-
-There is a natural separation between sourcing of the content and application of that content via two separate RukPak
-APIs, `Bundle` and `BundleInstance`. A user can specify a particular `Bundle` to be available in the cluster for
-inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, the plain provisioner
-will pull down and unpack the bundle to a tar.gz file that is saved into a bundle cache directory mounted in the
-provisioner pods.
-
-By default, `rukpak-system` is the configured namespace for deploying `plain` provisioner-related system resources.
-
-The content of a bundle can be queried using the `status.contentURL`, assuming you have the necessary
-RBAC permissions to access bundle content.
-
-As an example, a client outside the cluster can view the file contents from a bundle named `my-bundle` by running
-the following script:
-
-```bash
-BUNDLE_NAME=my-bundle
-
-kubectl create sa fetch-bundle -n default
-kubectl create clusterrolebinding fetch-bundle --clusterrole=bundle-reader --serviceaccount=default:fetch-bundle
-export TOKEN=$(kubectl get secret -n default $(kubectl get sa -n default fetch-bundle -o jsonpath='{.secrets[0].name}') -o jsonpath='{.data.token}' | base64 -d)
-export URL=$(kubectl get bundle $BUNDLE_NAME -o jsonpath='{.status.contentURL}')
-kubectl run -qit --rm -n default --restart=Never fetch-bundle --image=curlimages/curl --overrides='{ "spec": { "serviceAccount": "fetch-bundle" }  }' --command -- curl -sSLk -H "Authorization: Bearer $TOKEN" -o - $URL | tar ztv
-kubectl delete clusterrolebinding fetch-bundle
-kubectl delete sa fetch-bundle -n default
-```
-
-Simplifying the process of fetching this bundle content (e.g. via a plugin) is on the RukPak roadmap.
-
-### Pivoting between bundle versions
-
-The `BundleInstance` API is meant to indicate the version of the bundle that should be active within the cluster.
-
-Given an existing BundleInstance resource in the cluster, which contains an embedded Bundle template for the
-`my-bundle-v0.0.1` bundle, you can modify the desired specification and the plain provisioner will automatically generate
-a new `my-bundle-v0.0.2` Bundle matching that template.
-
-When the new Bundle resource has been rolled out successfully, the old `my-bundle-v0.0.1` Bundle will be deleted from the cluster.
-
-The provisioner also continually reconciles the created content via dynamic watches to ensure that all
-resources referenced by the bundle are present on the cluster.
 
 ## Running locally
 
@@ -196,8 +140,8 @@ Eventually the Bundle should show up as Unpacked:
 
 ```console
 $ kubectl get bundle -l app=combo
-NAME          TYPE   PHASE      AGE
-combo-9njsj   image  Unpacked   10s
+NAME               TYPE    PHASE      AGE
+combo-7cdc7d7d6d   image   Unpacked   10s
 ```
 
 Check the BundleInstance status to ensure that the installation was successful:
@@ -211,7 +155,7 @@ A successful installation will show InstallationSucceeded as the `INSTALL STATE`
 ```console
 $ kubectl get bundleinstance combo
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-9njsj        InstallationSucceeded   10s
+combo   combo-7cdc7d7d6d   InstallationSucceeded   10s
 ```
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster:
@@ -288,20 +232,18 @@ spec:
 EOF
 ```
 
-Once the newly generated Bundle (in this example, `combo-xzfxv`, your bundle may be named differently)
-is reporting an Unpacked status, the BundleInstance `combo` resource should now
-point to the new Bundle version. The combo-operator deployment
-in the combo namespace should also be healthy and contain a new container image:
+Once the newly generated Bundle is reporting an Unpacked status, the BundleInstance `combo` resource should now
+point to the new Bundle (now named `combo-7ddfd9fcd5` instead of `combo-7cdc7d7d6d` previously). The combo-operator
+deployment in the combo namespace should also be healthy and contain a new container image:
 
 ```console
 $ kubectl get bundles -l app=combo
-NAME           TYPE    PHASE      AGE
-combo-9njsj    image   Unpacked   30s
-combo-xzfxv    image   Unpacked   10s
+NAME               TYPE    PHASE      AGE
+combo-7ddfd9fcd5   image   Unpacked   10s
 
 $ kubectl get bundleinstance combo
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
-combo   combo-xzfxv        InstallationSucceeded   10s
+combo   combo-7ddfd9fcd5   InstallationSucceeded   10s
 
 $ kubectl -n combo get deployment
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE

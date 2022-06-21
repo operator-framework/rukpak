@@ -43,6 +43,46 @@ func Logf(f string, v ...interface{}) {
 }
 
 var _ = Describe("plain provisioner bundle", func() {
+	When("a valid Bundle references the wrong unique provisioner ID", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-crds-valid",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: "non-existent-class-name",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:valid",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing Bundle resource")
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		It("should consistently contain an empty status", func() {
+			Consistently(func() bool {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					return false
+				}
+				return len(bundle.Status.Conditions) == 0
+			}, 10*time.Second, 1*time.Second).Should(BeTrue())
+		})
+	})
 	When("a valid Bundle referencing a remote container image is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
@@ -684,8 +724,9 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 		It("should generate a Bundle that contains the correct labels", func() {
 			expectedLabels := map[string]string{
-				util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind,
-				util.CoreOwnerNameKey: bi.GetName(),
+				util.CoreOwnerKindKey:          rukpakv1alpha1.BundleInstanceKind,
+				util.CoreOwnerNameKey:          bi.GetName(),
+				util.CoreBundleTemplateHashKey: "54dd864b69",
 			}
 			Eventually(func() (map[string]string, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
@@ -1280,18 +1321,19 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 		It("should result in a new Bundle being generated", func() {
 			var (
-				originalBundleName string
+				originalUUID types.UID
 			)
-			b := &rukpakv1alpha1.Bundle{}
 			By("deleting the test Bundle resource")
 			Eventually(func() error {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
 					return err
 				}
-				originalBundleName = bi.Status.InstalledBundleName
+				originalBundleName := bi.Status.InstalledBundleName
+				b := &rukpakv1alpha1.Bundle{}
 				if err := c.Get(ctx, types.NamespacedName{Name: originalBundleName}, b); err != nil {
 					return err
 				}
+				originalUUID = b.ObjectMeta.UID
 				return c.Delete(ctx, b)
 			}).Should(Succeed())
 
@@ -1300,8 +1342,17 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
 					return false
 				}
+
 				installedBundleName := bi.Status.InstalledBundleName
-				return installedBundleName != "" && installedBundleName != originalBundleName
+				if installedBundleName == "" {
+					return false
+				}
+
+				b := &rukpakv1alpha1.Bundle{}
+				if err := c.Get(ctx, types.NamespacedName{Name: installedBundleName}, b); err != nil {
+					return false
+				}
+				return b.UID != originalUUID
 			}).Should(BeTrue())
 		})
 	})

@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"net/url"
@@ -28,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -61,16 +61,17 @@ func main() {
 	var (
 		httpBindAddr         string
 		httpExternalAddr     string
+		bundleCAFile         string
 		enableLeaderElection bool
 		probeAddr            string
 		systemNamespace      string
 		unpackImage          string
 		rukpakVersion        bool
-		gitClientImage       string
 		storageDirectory     string
 	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
 	flag.StringVar(&httpExternalAddr, "http-external-address", "http://localhost:8080", "The external address at which the http server is reachable.")
+	flag.StringVar(&bundleCAFile, "bundle-ca-file", "", "The file containing the certificate authority for connecting to bundle content servers.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources.")
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:latest", "Configures the container image that gets used to unpack Bundle contents.")
@@ -79,7 +80,6 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	flag.StringVar(&storageDirectory, "storage-dir", storage.DefaultBundleCacheDir, "Configures the directory that is used to store Bundle contents.")
-	flag.StringVar(&gitClientImage, "git-client-image", "alpine/git:v2.32.0", "Configures which git container image to use to clone bundle git repos.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -92,27 +92,23 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	setupLog.Info("starting up the provisioner", "git commit", version.String(), "unpacker image", unpackImage, "git client image", gitClientImage)
+	setupLog.Info("starting up the provisioner", "git commit", version.String(), "unpacker image", unpackImage)
 
-	cfg := ctrl.GetConfigOrDie()
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		setupLog.Error(err, "unable to create kubernetes client")
-		os.Exit(1)
-	}
 	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha1.BundleKind, rukpakv1alpha1.BundleInstanceKind})
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
 	}
 	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
+
+	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     httpBindAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "510f803c.olm.operatorframework.io",
+		LeaderElectionID:       "plain.core.rukpak.io",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&rukpakv1alpha1.BundleInstance{}: {},
@@ -134,10 +130,27 @@ func main() {
 		setupLog.Error(err, "unable to parse bundle content server URL")
 		os.Exit(1)
 	}
-	bundleStorage := &storage.LocalDirectory{
+
+	localStorage := &storage.LocalDirectory{
 		RootDirectory: storageDirectory,
 		URL:           *storageURL,
 	}
+
+	var rootCAs *x509.CertPool
+	if bundleCAFile != "" {
+		var err error
+		if rootCAs, err = util.LoadCertPool(bundleCAFile); err != nil {
+			setupLog.Error(err, "unable to parse bundle certificate authority file")
+			os.Exit(1)
+		}
+	}
+
+	httpLoader := storage.NewHTTP(
+		storage.WithRootCAs(rootCAs),
+		storage.WithBearerToken(cfg.BearerToken),
+	)
+	bundleStorage := storage.WithFallbackLoader(localStorage, httpLoader)
+
 	// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
 	// whatever handlers we want on the existing webserver that
 	// controller-runtime runs when MetricsBindAddress is configured on the
@@ -167,23 +180,11 @@ func main() {
 	}
 
 	const plainBundleProvisionerName = "plain"
-	unpacker := source.NewUnpacker(map[rukpakv1alpha1.SourceType]source.Unpacker{
-		rukpakv1alpha1.SourceTypeImage: &source.Image{
-			Client:          mgr.GetClient(),
-			KubeClient:      kubeClient,
-			ProvisionerName: plainBundleProvisionerName,
-			PodNamespace:    ns,
-			UnpackImage:     unpackImage,
-		},
-		rukpakv1alpha1.SourceTypeGit: &source.Git{
-			Client:          mgr.GetClient(),
-			KubeClient:      kubeClient,
-			ProvisionerName: plainBundleProvisionerName,
-			PodNamespace:    ns,
-			UnpackImage:     unpackImage,
-			GitClientImage:  gitClientImage,
-		},
-	})
+	unpacker, err := source.NewDefaultUnpacker(mgr, ns, plainBundleProvisionerName, unpackImage)
+	if err != nil {
+		setupLog.Error(err, "unable to setup bundle unpacker")
+		os.Exit(1)
+	}
 
 	if err = (&controllers.BundleReconciler{
 		Client:     mgr.GetClient(),

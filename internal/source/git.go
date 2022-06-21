@@ -2,145 +2,107 @@ package source
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"strings"
+	"os"
+	"path/filepath"
 
-	"github.com/nlepage/go-tarfs"
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/storage/memory"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/git"
-	"github.com/operator-framework/rukpak/internal/util"
 )
 
 type Git struct {
-	Client          client.Client
-	KubeClient      kubernetes.Interface
-	ProvisionerName string
-	PodNamespace    string
-	UnpackImage     string
-	GitClientImage  string
+	client.Reader
+	SecretNamespace string
 }
 
-const gitBundleUnpackContainerName = "bundle"
-
-func (g *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeGit {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
 	if bundle.Spec.Source.Git == nil {
 		return nil, fmt.Errorf("bundle source git configuration is unset")
 	}
-
-	pod := &corev1.Pod{}
-	op, err := g.ensureUnpackPod(ctx, bundle, pod)
-	if err != nil {
-		return nil, err
-	}
-	if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
-		return &Result{State: StatePending}, nil
+	gitsource := bundle.Spec.Source.Git
+	if gitsource.Repository == "" {
+		// This should never happen because the validation webhook rejects git bundles without repository
+		return nil, errors.New("missing git source information: repository must be provided")
 	}
 
-	switch phase := pod.Status.Phase; phase {
-	case corev1.PodPending:
-		return pendingGitPodResult(pod), nil
-	case corev1.PodRunning:
-		return &Result{State: StateUnpacking}, nil
-	case corev1.PodFailed:
-		return nil, g.failedPodResult(ctx, pod)
-	case corev1.PodSucceeded:
-		return g.succeededPodResult(ctx, bundle, pod)
-	default:
-		return nil, g.handleUnexpectedPod(ctx, pod)
+	// Set options for clone
+	progress := bytes.Buffer{}
+	cloneOpts := git.CloneOptions{
+		URL:             gitsource.Repository,
+		Progress:        &progress,
+		Tags:            git.NoTags,
+		InsecureSkipTLS: bundle.Spec.Source.Git.Auth.InsecureSkipVerify,
 	}
-}
 
-func (g *Git) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
-	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
-	automountServiceAccountToken := false
-	pod.SetName(util.PodName(g.ProvisionerName, bundle.Name))
-	pod.SetNamespace(g.PodNamespace)
-
-	return util.CreateOrRecreate(ctx, g.Client, pod, func() error {
-		pod.SetLabels(map[string]string{
-			util.CoreOwnerKindKey: bundle.Kind,
-			util.CoreOwnerNameKey: bundle.Name,
-		})
-		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
-		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
-		pod.Spec.RestartPolicy = corev1.RestartPolicyNever
-
-		if len(pod.Spec.InitContainers) != 1 {
-			pod.Spec.InitContainers = make([]corev1.Container, 1)
-		}
-
-		// Note: initContainer so we can ensure the repository has been cloned
-		// at the bundle.Spec.Source.Git.Ref before we unpack the Bundle contents
-		// that are stored in the repository.
-		pod.Spec.InitContainers[0].Name = "clone-repository"
-		// r.GitClientImage configures which git-based container image to use to clone the provided repository
-		// r.GitClientImage currently defaults to alpine/git:v2.32.0
-		pod.Spec.InitContainers[0].Image = g.GitClientImage
-		pod.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
-		cmd, err := git.CloneCommandFor(*bundle.Spec.Source.Git)
+	if bundle.Spec.Source.Git.Auth.Secret.Name != "" {
+		userName, password, err := r.getCredentials(ctx, bundle)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		pod.Spec.InitContainers[0].Command = []string{"/bin/sh", "-c", cmd}
-		pod.Spec.InitContainers[0].VolumeMounts = []corev1.VolumeMount{{Name: "bundle", MountPath: "/bundle"}}
-
-		if len(pod.Spec.Containers) != 1 {
-			pod.Spec.Containers = make([]corev1.Container, 1)
-		}
-
-		pod.Spec.Containers[0].Name = gitBundleUnpackContainerName
-		pod.Spec.Containers[0].Image = g.UnpackImage
-		pod.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
-		pod.Spec.Containers[0].Command = []string{"/unpack", "--bundle-dir", "/bundle"}
-		pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "bundle", MountPath: "/bundle"}}
-
-		pod.Spec.Volumes = []corev1.Volume{
-			{Name: "bundle", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-		}
-		return nil
-	})
-}
-
-func pendingGitPodResult(pod *corev1.Pod) *Result {
-	var messages []string
-	for _, cStatus := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
-		if waiting := cStatus.State.Waiting; waiting != nil {
-			if waiting.Reason == "ErrImagePull" || waiting.Reason == "ImagePullBackOff" {
-				messages = append(messages, waiting.Message)
-			}
-		}
+		cloneOpts.Auth = &http.BasicAuth{Username: userName, Password: password}
 	}
-	return &Result{State: StatePending, Message: strings.Join(messages, "; ")}
-}
 
-func (g *Git) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
-	logs, err := g.getPodLogs(ctx, pod)
+	if gitsource.Ref.Branch != "" {
+		cloneOpts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", gitsource.Ref.Branch))
+		cloneOpts.SingleBranch = true
+		cloneOpts.Depth = 1
+	} else if gitsource.Ref.Tag != "" {
+		cloneOpts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", gitsource.Ref.Tag))
+		cloneOpts.SingleBranch = true
+		cloneOpts.Depth = 1
+	}
+
+	// Clone
+	repo, err := git.CloneContext(ctx, memory.NewStorage(), memfs.New(), &cloneOpts)
 	if err != nil {
-		return fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %w", err)
+		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
 	}
-	_ = g.Client.Delete(ctx, pod)
-	return fmt.Errorf("unpack failed: %v", string(logs))
-}
-
-func (g *Git) succeededPodResult(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (*Result, error) {
-	bundleFS, err := g.getBundleContents(ctx, pod)
+	wt, err := repo.Worktree()
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %w", err)
+		return nil, fmt.Errorf("bundle unpack error: %v", err)
 	}
+
+	// Checkout commit
+	if gitsource.Ref.Commit != "" {
+		commitHash := plumbing.NewHash(gitsource.Ref.Commit)
+		if err := wt.Reset(&git.ResetOptions{
+			Commit: commitHash,
+			Mode:   git.HardReset,
+		}); err != nil {
+			return nil, fmt.Errorf("checkout commit %q: %v", commitHash.String(), err)
+		}
+	}
+
+	var bundleFS fs.FS = &billyFS{wt.Filesystem}
+
+	// Subdirectory
+	if gitsource.Directory != "" {
+		directory := filepath.Clean(gitsource.Directory)
+		if directory[:3] == "../" || directory[0] == '/' {
+			return nil, fmt.Errorf("get subdirectory %q for repository %q: %s", gitsource.Directory, gitsource.Repository, "directory can not start with '../' or '/'")
+		}
+		sub, err := wt.Filesystem.Chroot(filepath.Clean(directory))
+		if err != nil {
+			return nil, fmt.Errorf("get subdirectory %q for repository %q: %v", gitsource.Directory, gitsource.Repository, err)
+		}
+		bundleFS = &billyFS{sub}
+	}
+
 	resolvedSource := &rukpakv1alpha1.BundleSource{
 		Type: rukpakv1alpha1.SourceTypeGit,
 		// TODO: improve git source implementation to return result with commit hash.
@@ -150,40 +112,68 @@ func (g *Git) succeededPodResult(ctx context.Context, bundle *rukpakv1alpha1.Bun
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
 }
 
-func (g *Git) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
-	bundleData, err := g.getPodLogs(ctx, pod)
+// getCredentials reads credentials from the secret specified in the bundle
+// It returns the username ane password when they are in the secret
+func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (string, string, error) {
+	secret := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: bundle.Spec.Source.Git.Auth.Secret.Name}, secret)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %w", err)
+		return "", "", err
 	}
-	bd := struct {
-		Content []byte `json:"content"`
-	}{}
+	userName := string(secret.Data["username"])
+	password := string(secret.Data["password"])
 
-	if err := json.Unmarshal(bundleData, &bd); err != nil {
-		return nil, fmt.Errorf("parse bundle data: %w", err)
-	}
-
-	gzr, err := gzip.NewReader(bytes.NewReader(bd.Content))
-	if err != nil {
-		return nil, fmt.Errorf("read bundle content gzip: %w", err)
-	}
-	return tarfs.New(gzr)
+	return userName, password, nil
 }
 
-func (g *Git) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
-	logReader, err := g.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(ctx)
+// billy.Filesysten -> fs.FS
+var (
+	_ fs.FS         = &billyFS{}
+	_ fs.ReadDirFS  = &billyFS{}
+	_ fs.ReadFileFS = &billyFS{}
+	_ fs.StatFS     = &billyFS{}
+	_ fs.File       = &billyFile{}
+)
+
+type billyFS struct {
+	billy.Filesystem
+}
+
+func (f *billyFS) ReadFile(name string) ([]byte, error) {
+	file, err := f.Filesystem.Open(name)
 	if err != nil {
-		return nil, fmt.Errorf("get pod logs: %w", err)
-	}
-	defer logReader.Close()
-	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, logReader); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return io.ReadAll(file)
 }
 
-func (g *Git) handleUnexpectedPod(ctx context.Context, pod *corev1.Pod) error {
-	_ = g.Client.Delete(ctx, pod)
-	return fmt.Errorf("unexpected pod phase: %v", pod.Status.Phase)
+func (f *billyFS) Open(path string) (fs.File, error) {
+	file, err := f.Filesystem.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	fi, err := f.Filesystem.Stat(path)
+	return &billyFile{file, fi, err}, nil
+}
+
+func (f *billyFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	fis, err := f.Filesystem.ReadDir(name)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]fs.DirEntry, 0, len(fis))
+	for _, fi := range fis {
+		entries = append(entries, fs.FileInfoToDirEntry(fi))
+	}
+	return entries, nil
+}
+
+type billyFile struct {
+	billy.File
+	fi    os.FileInfo
+	fiErr error
+}
+
+func (b billyFile) Stat() (fs.FileInfo, error) {
+	return b.fi, b.fiErr
 }

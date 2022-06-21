@@ -2,8 +2,12 @@ package util
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"hash/fnv"
 	"io/ioutil"
+	"os"
 	"sort"
 	"time"
 
@@ -11,7 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,6 +40,64 @@ func BundleInstanceProvisionerFilter(provisionerClassName string) predicate.Pred
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
 		b := obj.(*rukpakv1alpha1.BundleInstance)
 		return b.Spec.ProvisionerClassName == provisionerClassName
+	})
+}
+
+type ProvisionerClassNameGetter interface {
+	client.Object
+	ProvisionerClassName() string
+}
+
+// MapOwneeToOwnerProvisionerHandler is a handler implementation that finds an owner reference in the event object that
+// references the provided owner. If a reference for the provided owner is found AND that owner's provisioner class name
+// matches the provided provisionerClassName, this handler enqueues a request for that owner to be reconciled.
+func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, log logr.Logger, provisionerClassName string, owner ProvisionerClassNameGetter) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+		gvks, unversioned, err := cl.Scheme().ObjectKinds(owner)
+		if err != nil {
+			log.Error(err, "get GVKs for owner")
+			return nil
+		}
+		if unversioned {
+			log.Error(err, "owner cannot be an unversioned type")
+			return nil
+		}
+
+		type ownerInfo struct {
+			key types.NamespacedName
+			gvk schema.GroupVersionKind
+		}
+		var oi *ownerInfo
+
+	refLoop:
+		for _, ref := range obj.GetOwnerReferences() {
+			gv, err := schema.ParseGroupVersion(ref.APIVersion)
+			if err != nil {
+				log.Error(err, fmt.Sprintf("parse group version %q", ref.APIVersion))
+				return nil
+			}
+			refGVK := gv.WithKind(ref.Kind)
+			for _, gvk := range gvks {
+				if refGVK == gvk && ref.Controller != nil && *ref.Controller {
+					oi = &ownerInfo{
+						key: types.NamespacedName{Name: ref.Name},
+						gvk: gvk,
+					}
+					break refLoop
+				}
+			}
+		}
+		if oi == nil {
+			return nil
+		}
+		if err := cl.Get(ctx, oi.key, owner); err != nil {
+			log.Error(err, "get owner", "kind", oi.gvk, "name", oi.key.Name)
+			return nil
+		}
+		if owner.ProvisionerClassName() != provisionerClassName {
+			return nil
+		}
+		return []reconcile.Request{{NamespacedName: oi.key}}
 	})
 }
 
@@ -88,7 +152,7 @@ func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, b
 	if err := c.List(ctx, bundleList, &client.ListOptions{
 		LabelSelector: selector,
 	}); err != nil {
-		return nil, fmt.Errorf("failed to list bundles using the %s selector: %w", selector.String(), err)
+		return nil, fmt.Errorf("failed to list bundles using the %s selector: %v", selector.String(), err)
 	}
 	return bundleList, nil
 }
@@ -107,23 +171,34 @@ func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleL
 }
 
 // CheckDesiredBundleTemplate is responsible for determining whether the existingBundle
-// parameter is semantically equal to the desiredBundle Bundle template.
+// hash is equal to the desiredBundle Bundle template hash.
 func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle *rukpakv1alpha1.BundleTemplate) bool {
-	// Create a copy of the existingBundle resource and delete the known set of
-	// auto-generated labels that the BI controller injects when comparing the
-	// current and desired set of labels.
-	bundle := existingBundle.DeepCopy()
-	delete(bundle.Labels, CoreOwnerKindKey)
-	delete(bundle.Labels, CoreOwnerNameKey)
-	return equality.Semantic.DeepEqual(bundle.Spec, desiredBundle.Spec) &&
-		equality.Semantic.DeepEqual(existingBundle.Annotations, desiredBundle.Annotations) &&
-		equality.Semantic.DeepEqual(bundle.Labels, desiredBundle.Labels)
+	if len(existingBundle.Labels) == 0 {
+		// Existing Bundle has no labels set, which should never be the case.
+		// Return false so that the Bundle is forced to be recreated with the expected labels.
+		return false
+	}
+
+	existingHash, ok := existingBundle.Labels[CoreBundleTemplateHashKey]
+	if !ok {
+		// Existing Bundle has no template hash associated with it.
+		// Return false so that the Bundle is forced to be recreated with the template hash label.
+		return false
+	}
+
+	// Check whether the hash of the desired bundle template matches the existing bundle on-cluster.
+	desiredHash := GenerateTemplateHash(desiredBundle)
+	return existingHash == desiredHash
 }
 
-// GenerateBundleName is responsible for generating a unique
-// Bundle metadata.Name using the biName parameter as the base.
-func GenerateBundleName(biName string) string {
-	return fmt.Sprintf("%s-%s", biName, rand.String(5))
+func GenerateTemplateHash(template *rukpakv1alpha1.BundleTemplate) string {
+	hasher := fnv.New32a()
+	DeepHashObject(hasher, template)
+	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
+
+func GenerateBundleName(biName, hash string) string {
+	return fmt.Sprintf("%s-%s", biName, hash)
 }
 
 // SortBundlesByCreation sorts a BundleList's items by it's
@@ -202,7 +277,7 @@ func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, 
 		return controllerutil.OperationResultNone, nil
 	}
 
-	if err := wait.PollImmediateUntil(time.Millisecond*5, func() (done bool, err error) {
+	if err := wait.PollImmediateUntil(time.Millisecond*5, func() (bool, error) {
 		if err := cl.Delete(ctx, obj); err != nil {
 			if apierrors.IsNotFound(err) {
 				return true, nil
@@ -242,4 +317,23 @@ func MergeMaps(maps ...map[string]string) map[string]string {
 		}
 	}
 	return out
+}
+
+func LoadCertPool(certFile string) (*x509.CertPool, error) {
+	rootCAPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		return nil, err
+	}
+	certPool := x509.NewCertPool()
+	for block, rest := pem.Decode(rootCAPEM); block != nil; block, rest = pem.Decode(rest) {
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		certPool.AddCert(cert)
+	}
+	return certPool, nil
 }

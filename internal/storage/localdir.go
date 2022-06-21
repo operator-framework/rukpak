@@ -54,12 +54,12 @@ func (s *LocalDirectory) Store(_ context.Context, owner client.Object, bundle fs
 		}
 		info, err := d.Info()
 		if err != nil {
-			return fmt.Errorf("get file info for %q: %w", path, err)
+			return fmt.Errorf("get file info for %q: %v", path, err)
 		}
 
 		h, err := tar.FileInfoHeader(info, "")
 		if err != nil {
-			return fmt.Errorf("build tar file info header for %q: %w", path, err)
+			return fmt.Errorf("build tar file info header for %q: %v", path, err)
 		}
 		h.Uid = 0
 		h.Gid = 0
@@ -68,21 +68,21 @@ func (s *LocalDirectory) Store(_ context.Context, owner client.Object, bundle fs
 		h.Name = path
 
 		if err := tw.WriteHeader(h); err != nil {
-			return fmt.Errorf("write tar header for %q: %w", path, err)
+			return fmt.Errorf("write tar header for %q: %v", path, err)
 		}
 		if d.IsDir() {
 			return nil
 		}
 		f, err := bundle.Open(path)
 		if err != nil {
-			return fmt.Errorf("open file %q: %w", path, err)
+			return fmt.Errorf("open file %q: %v", path, err)
 		}
 		if _, err := io.Copy(tw, f); err != nil {
-			return fmt.Errorf("write tar data for %q: %w", path, err)
+			return fmt.Errorf("write tar data for %q: %v", path, err)
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("generate tar.gz for bundle %q: %w", owner.GetName(), err)
+		return fmt.Errorf("generate tar.gz for bundle %q: %v", owner.GetName(), err)
 	}
 	if err := tw.Close(); err != nil {
 		return err

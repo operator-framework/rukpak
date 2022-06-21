@@ -65,6 +65,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... output:stdout > ./manifests/apis/webhooks/resources/webhook.yaml
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./manifests/provisioners/plain/resources/cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=registry-provisioner-admin paths=./internal/provisioner/registry/... output:stdout > ./manifests/provisioners/registry/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -72,7 +73,7 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 ###########
 # Testing #
 ###########
-.PHONY: test test-unit test-e2e
+.PHONY: test test-unit test-e2e image-registry
 
 ##@ testing:
 
@@ -88,7 +89,7 @@ test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: run kind-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
+e2e: run image-registry kind-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
 kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME}
@@ -96,6 +97,9 @@ kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 
 kind-cluster-cleanup: kind ## Delete the kind cluster
 	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
+
+image-registry: ## Setup in-cluster image registry 
+	./tools/imageregistry/setup_imageregistry.sh ${KIND_CLUSTER_NAME}
 
 ###################
 # Install and Run #
@@ -111,6 +115,7 @@ install-manifests:
 
 wait:
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/plain-provisioner --timeout=60s
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/registry-provisioner --timeout=60s
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
@@ -126,16 +131,19 @@ uninstall: ## Remove all rukpak resources from the cluster
 ##################
 # Build and Load #
 ##################
-.PHONY: build plain unpack core rukpakctl build-container kind-load kind-load-bundles kind-cluster
+.PHONY: build plain unpack core rukpakctl build-container kind-load kind-load-bundles kind-cluster registry-load-bundles
 
 ##@ build/load:
 
 # Binary builds
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: plain unpack core crdvalidator rukpakctl
+build: plain registry unpack core crdvalidator rukpakctl
 
 plain:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/plain
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
+
+registry:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
 
 unpack:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/unpack/...
@@ -174,6 +182,9 @@ kind-load-bundles: kind ## Load the e2e testdata container images into a kind cl
 
 kind-load: kind ## Loads the currently constructed image onto the cluster
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
+
+registry-load-bundles: kind-load-bundles ## Load the e2e testdata container images into registry
+	./tools/imageregistry/load_test_image.sh
 
 ###########
 # Release #

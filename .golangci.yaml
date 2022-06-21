@@ -5,23 +5,30 @@ run:
 linters:
   enable:
   - asciicheck
+  - bodyclose
   - deadcode
   - depguard
   - errorlint
   - gofmt
   - goimports
   - importas
-  - prealloc
-  - nestif
-  - revive
   - misspell
+  - nestif
+  - nonamedreturns
+  - prealloc
+  - revive
   - stylecheck
   - tparallel
   - unconvert
   - unparam
+  - unused
+  - varcheck
   - whitespace
 
 linters-settings:
+  errorlint:
+    errorf: false
+
   importas:
     alias:
     - pkg: k8s.io/api/core/v1
@@ -34,6 +41,7 @@ linters-settings:
       alias: rukpakv1alpha1
   goimports:
     local-prefixes: github.com/operator-framework/rukpak
+
 
 output:
   format: tab
