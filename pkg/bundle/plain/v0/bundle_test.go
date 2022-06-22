@@ -5,12 +5,13 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	plainv0 "github.com/operator-framework/rukpak/pkg/bundle/plain/v0"
-	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
-	"github.com/operator-framework/rukpak/test/testutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+
+	plainv0 "github.com/operator-framework/rukpak/pkg/bundle/plain/v0"
+	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
+	"github.com/operator-framework/rukpak/test/testutil"
 )
 
 var _ = Describe("Bundle", func() {
@@ -69,7 +70,7 @@ var _ = Describe("Bundle", func() {
 			})
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(roles).To(HaveLen(1))
+			Expect(roles).To(HaveLen(0))
 
 			By("extracting the role bindings")
 			roleBindings, err := bundle.Objects(func(obj client.Object) bool {
@@ -78,7 +79,7 @@ var _ = Describe("Bundle", func() {
 			})
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(roleBindings).To(HaveLen(1))
+			Expect(roleBindings).To(HaveLen(0))
 		})
 
 		It("should have all the cluster RBAC from the CSV", func() {
@@ -89,7 +90,7 @@ var _ = Describe("Bundle", func() {
 			})
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(roles).To(HaveLen(2))
+			Expect(roles).To(HaveLen(1))
 
 			By("extracting the cluster role bindings")
 			roleBindings, err := bundle.Objects(func(obj client.Object) bool {
@@ -98,7 +99,7 @@ var _ = Describe("Bundle", func() {
 			})
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(roleBindings).To(HaveLen(1))
+			Expect(roleBindings).To(HaveLen(0))
 		})
 	})
 })

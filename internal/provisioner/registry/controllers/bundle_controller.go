@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 
-	plainv0 "github.com/operator-framework/rukpak/pkg/bundle/plain/v0"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,6 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
+
+	plainv0 "github.com/operator-framework/rukpak/pkg/bundle/plain/v0"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"

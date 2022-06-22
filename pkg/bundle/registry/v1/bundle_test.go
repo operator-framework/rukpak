@@ -6,10 +6,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
-	"github.com/operator-framework/rukpak/test/testutil"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
+	"github.com/operator-framework/rukpak/test/testutil"
 )
 
 var _ = Describe("Bundle", func() {

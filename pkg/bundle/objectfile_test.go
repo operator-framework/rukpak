@@ -6,13 +6,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/pkg/bundle"
-	"github.com/operator-framework/rukpak/test/testutil"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/bundle"
+	"github.com/operator-framework/rukpak/test/testutil"
 )
 
 var _ = Describe("ObjectFile", func() {

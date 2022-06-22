@@ -6,9 +6,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/operator-framework/rukpak/pkg/bundle"
 	"github.com/operator-framework/rukpak/test/testutil"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const csvFname = "manifests/memcached-operator.clusterserviceversion.yaml"

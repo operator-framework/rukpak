@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-// ObjectFile represents a manifest flie that containes one or more Kubernetes objects.
+// ObjectFile represents a manifest flie that contains one or more Kubernetes objects.
 //
 // The objects will be stored as type `T`.
 // If `T` is an interface type, the objects can be cast to their specific structure type.
@@ -46,14 +46,16 @@ func NewObjectFile[T runtime.Object](f fs.File, scheme *runtime.Scheme, strict b
 
 	// If the file was a seeker, seek back to the start
 	if seeker, ok := file.data.(io.Seeker); ok {
-		seeker.Seek(0, 0)
+		if _, err := seeker.Seek(0, 0); err != nil {
+			return nil, err
+		}
 	}
 
 	return &file, nil
 }
 
 // Read bytes from the file.
-func (f ObjectFile[T]) Read(p []byte) (n int, err error) {
+func (f ObjectFile[T]) Read(p []byte) (int, error) {
 	return f.data.Read(p)
 }
 

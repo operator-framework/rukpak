@@ -5,9 +5,10 @@ import (
 	"io/fs"
 
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"github.com/operator-framework/rukpak/pkg/bundle"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/operator-framework/rukpak/pkg/bundle"
 )
 
 // Bundle holds the contents of a registry+v1 bundle.

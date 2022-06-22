@@ -9,13 +9,15 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"github.com/operator-framework/rukpak/pkg/bundle"
-	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/operator-framework/rukpak/pkg/bundle"
+	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
 )
 
 // Bundle holds the contents of a plain+v0 bundle.
@@ -224,7 +226,7 @@ func (b *Bundle) newRoles(
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
-	roles := make([]*rbacv1.Role, 0, len(b.targetNamespaces))
+	roles := make([]client.Object, 0, len(b.targetNamespaces))
 	obj, err := b.Scheme().New(rbacv1.SchemeGroupVersion.WithKind("Role"))
 	if err != nil {
 		return err
@@ -243,7 +245,7 @@ func (b *Bundle) newRoles(
 		roles = append(roles, &role)
 	}
 
-	b.StoreObjects(role.Name+"_generated.yaml", role) // TODO(ryantking): Better name
+	b.StoreObjects(role.Name+"_generated.yaml", roles...) // TODO(ryantking): Better name
 	return nil
 }
 
@@ -251,7 +253,7 @@ func (b *Bundle) newRoleBindings(
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
-	roleBindings := make([]*rbacv1.RoleBinding, 0, len(b.targetNamespaces))
+	roleBindings := make([]client.Object, 0, len(b.targetNamespaces))
 	obj, err := b.Scheme().New(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"))
 	if err != nil {
 		return err
@@ -282,7 +284,7 @@ func (b *Bundle) newRoleBindings(
 		roleBindings = append(roleBindings, &roleBinding)
 	}
 
-	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBinding) // TODO(ryantking): Better name
+	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBindings...) // TODO(ryantking): Better name
 	return nil
 }
 
@@ -290,7 +292,7 @@ func (b *Bundle) newClusterRoles(
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
-	roles := make([]*rbacv1.ClusterRole, 0, len(b.targetNamespaces))
+	roles := make([]client.Object, 0, len(b.targetNamespaces))
 	obj, err := b.Scheme().New(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"))
 	if err != nil {
 		return err
@@ -309,7 +311,7 @@ func (b *Bundle) newClusterRoles(
 		roles = append(roles, &role)
 	}
 
-	b.StoreObjects(role.Name+"_generated.yaml", role) // TODO(ryantking): Better name
+	b.StoreObjects(role.Name+"_generated.yaml", roles...) // TODO(ryantking): Better name
 	return nil
 }
 
@@ -317,7 +319,7 @@ func (b *Bundle) newClusterRoleBindings(
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
-	roleBindings := make([]*rbacv1.ClusterRoleBinding, 0, len(b.targetNamespaces))
+	roleBindings := make([]client.Object, 0, len(b.targetNamespaces))
 	obj, err := b.Scheme().New(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"))
 	if err != nil {
 		return err
@@ -348,7 +350,7 @@ func (b *Bundle) newClusterRoleBindings(
 		roleBindings = append(roleBindings, &roleBinding)
 	}
 
-	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBinding) // TODO(ryantking): Better name
+	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBindings...) // TODO(ryantking): Better name
 	return nil
 }
 

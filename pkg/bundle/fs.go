@@ -3,14 +3,16 @@ package bundle
 import (
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
 // FS is a File System that contains a bundle.
@@ -80,7 +82,7 @@ func WithStrictTypes() func(*FS) {
 }
 
 // Open a file if it exists on the file system.
-// If the file is in a directory that containes manifests and ends in .yaml,
+// If the file is in a directory that contains manifests and ends in .yaml,
 // it will return a `File` with the manifests parsed to their underlying types.
 func (fsys FS) Open(name string) (fs.File, error) {
 	// TODO(ryantking): When we figure out how to store objects, this will change
@@ -113,7 +115,7 @@ func (fsys FS) isManifestFile(name string) bool {
 		return true
 	}
 	for _, dir := range fsys.manifestDirs {
-		if filepath.HasPrefix(name, dir) {
+		if strings.HasPrefix(name, dir) {
 			return true
 		}
 	}
