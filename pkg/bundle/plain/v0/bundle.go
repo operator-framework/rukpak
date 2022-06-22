@@ -25,6 +25,9 @@ type Bundle struct {
 	// external settings
 	installNamespace string
 	targetNamespaces []string
+
+	// Keep track of service accounts to avoid duplicates
+	createdSvcAccs map[string]struct{}
 }
 
 // New creates a new plain+v0 bundle at the root of the given filesystem.
@@ -32,7 +35,7 @@ type Bundle struct {
 // If the file system containse another known bundle format, it will be
 // converted to a plain+v0 bundle.
 func New(fsys fs.FS, opts ...func(*Bundle)) Bundle {
-	var b Bundle
+	b := Bundle{createdSvcAccs: make(map[string]struct{})}
 	for _, opt := range opts {
 		opt(&b)
 	}
@@ -51,7 +54,7 @@ func New(fsys fs.FS, opts ...func(*Bundle)) Bundle {
 // This function removes all files besides the `Dockerfile` and `manifests`
 // directory and creates stand alone manifests from the CSV file.
 func FromRegistryV1(srcBundle registryv1.Bundle, opts ...func(*Bundle)) (*Bundle, error) {
-	b := Bundle{FS: srcBundle.FS}
+	b := Bundle{FS: srcBundle.FS, createdSvcAccs: make(map[string]struct{})}
 	for _, opt := range opts {
 		opt(&b)
 	}
@@ -181,6 +184,10 @@ func (b *Bundle) extractCsvRBAC(csv *operatorsv1alpha1.ClusterServiceVersion) er
 }
 
 func (b *Bundle) newServiceAccount(name string) error {
+	if _, ok := b.createdSvcAccs[name]; ok {
+		return nil
+	}
+
 	obj, err := b.Scheme().New(corev1.SchemeGroupVersion.WithKind("ServiceAccount"))
 	if err != nil {
 		return err
@@ -189,11 +196,10 @@ func (b *Bundle) newServiceAccount(name string) error {
 	svcAcc := obj.(*corev1.ServiceAccount)
 	svcAcc.Namespace = b.installNamespace
 	svcAcc.Name = name
-	return b.StoreObjects(svcAcc.Name+"_generated.yaml", svcAcc) // TODO(ryantking): Better name
-
+	b.StoreObjects(svcAcc.Name+"_generated.yaml", svcAcc) // TODO(ryantking): Better name
+	b.createdSvcAccs[name] = struct{}{}
+	return nil
 }
-
-// TODO Finish moving the StoreCalls to inside of the new* functions
 
 func (b *Bundle) newDeployment(
 	depSpec operatorsv1alpha1.StrategyDeploymentSpec,
@@ -210,7 +216,8 @@ func (b *Bundle) newDeployment(
 	dep.Labels = depSpec.Label
 	dep.Annotations = annotations
 	dep.Spec = depSpec.Spec
-	return b.StoreObjects(dep.Name+"_generated.yaml", dep) // TODO(ryantking): Better name
+	b.StoreObjects(dep.Name+"_generated.yaml", dep) // TODO(ryantking): Better name
+	return nil
 }
 
 func (b *Bundle) newRoles(
@@ -236,7 +243,8 @@ func (b *Bundle) newRoles(
 		roles = append(roles, &role)
 	}
 
-	return b.StoreObjects(role.Name+"_generated.yaml", role) // TODO(ryantking): Better name
+	b.StoreObjects(role.Name+"_generated.yaml", role) // TODO(ryantking): Better name
+	return nil
 }
 
 func (b *Bundle) newRoleBindings(
@@ -274,7 +282,8 @@ func (b *Bundle) newRoleBindings(
 		roleBindings = append(roleBindings, &roleBinding)
 	}
 
-	return b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBinding) // TODO(ryantking): Better name
+	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBinding) // TODO(ryantking): Better name
+	return nil
 }
 
 func (b *Bundle) newClusterRoles(
@@ -300,7 +309,8 @@ func (b *Bundle) newClusterRoles(
 		roles = append(roles, &role)
 	}
 
-	return b.StoreObjects(role.Name+"_generated.yaml", role) // TODO(ryantking): Better name
+	b.StoreObjects(role.Name+"_generated.yaml", role) // TODO(ryantking): Better name
+	return nil
 }
 
 func (b *Bundle) newClusterRoleBindings(
@@ -338,7 +348,8 @@ func (b *Bundle) newClusterRoleBindings(
 		roleBindings = append(roleBindings, &roleBinding)
 	}
 
-	return b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBinding) // TODO(ryantking): Better name
+	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBinding) // TODO(ryantking): Better name
+	return nil
 }
 
 func (b Bundle) generateName(base string, o interface{}) string {

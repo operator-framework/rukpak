@@ -17,20 +17,15 @@ limitations under the License.
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"io/fs"
-	"path/filepath"
 
+	plainv0 "github.com/operator-framework/rukpak/pkg/bundle/plain/v0"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
-	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,7 +34,6 @@ import (
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/convert"
 	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
@@ -147,12 +141,8 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		updateStatusUnpacking(&u, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacked:
-		plainFS, err := convert.RegistryV1ToPlain(unpackResult.Bundle)
-		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err))
-		}
-
-		objects, err := getObjects(plainFS)
+		plainFS := plainv0.New(unpackResult.Bundle)
+		objects, err := plainFS.Objects()
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get objects from bundle manifests: %v", err))
 		}
@@ -232,39 +222,6 @@ func updateStatusUnpackFailing(u *updater.Updater, err error) error {
 		}),
 	)
 	return err
-}
-
-func getObjects(bundleFS fs.FS) ([]client.Object, error) {
-	var objects []client.Object
-	const manifestsDir = "manifests"
-
-	entries, err := fs.ReadDir(bundleFS, manifestsDir)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range entries {
-		if e.IsDir() {
-			return nil, fmt.Errorf("subdirectories are not allowed within the %q directory of the bundle image filesystem: found %q", manifestsDir, filepath.Join(manifestsDir, e.Name()))
-		}
-		fileData, err := fs.ReadFile(bundleFS, filepath.Join(manifestsDir, e.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		dec := apimachyaml.NewYAMLOrJSONDecoder(bytes.NewReader(fileData), 1024)
-		for {
-			obj := unstructured.Unstructured{}
-			err := dec.Decode(&obj)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				return nil, fmt.Errorf("read %q: %v", e.Name(), err)
-			}
-			objects = append(objects, &obj)
-		}
-	}
-	return objects, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

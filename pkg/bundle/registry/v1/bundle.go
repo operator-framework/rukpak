@@ -30,7 +30,7 @@ func New(fsys fs.FS) Bundle {
 func (b Bundle) CSV() (*operatorsv1alpha1.ClusterServiceVersion, error) {
 	csvs, err := b.Objects(func(obj client.Object) bool {
 		_, ok := obj.(*operatorsv1alpha1.ClusterServiceVersion)
-		return !ok // filter out objects that don't assert to CSV
+		return ok // filter out objects that don't assert to CSV
 	})
 
 	if err != nil {
@@ -38,7 +38,7 @@ func (b Bundle) CSV() (*operatorsv1alpha1.ClusterServiceVersion, error) {
 	} else if len(csvs) == 0 {
 		return nil, errors.New("no CSV found")
 	} else if len(csvs) > 1 {
-		return nil, errors.New("more than one CSV fuond")
+		return nil, errors.New("more than one CSV found")
 	}
 
 	return csvs[0].DeepCopyObject().(*operatorsv1alpha1.ClusterServiceVersion), nil
@@ -48,7 +48,7 @@ func (b Bundle) CSV() (*operatorsv1alpha1.ClusterServiceVersion, error) {
 func (b Bundle) CRDs() ([]apiextensionsv1.CustomResourceDefinition, error) {
 	objs, err := b.Objects(func(obj client.Object) bool {
 		_, ok := obj.(*apiextensionsv1.CustomResourceDefinition)
-		return !ok // filter out objects that don't assert to CRD
+		return ok // filter out objects that don't assert to CRD
 	})
 	if err != nil {
 		return nil, err
@@ -70,9 +70,9 @@ func (b Bundle) Others() ([]client.Object, error) {
 		switch obj.(type) {
 		case *operatorsv1alpha1.ClusterServiceVersion,
 			*apiextensionsv1.CustomResourceDefinition:
-			return true
-		default:
 			return false
+		default:
+			return true
 		}
 	})
 }

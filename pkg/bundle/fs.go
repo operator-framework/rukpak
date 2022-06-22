@@ -1,7 +1,6 @@
 package bundle
 
 import (
-	"errors"
 	"io/fs"
 	"path/filepath"
 
@@ -23,7 +22,6 @@ import (
 // all file operations.
 //
 // TODO(ryantking): Should we support any other file system abstractions beyond `fs.FS`?
-// TODO(ryantking): How should modifying the bundle work? Currently the consumer has no way of saving any changes since
 // `fs.FS` doesn't support any write operations. They can modify the objects in an `ObjectFile`, but that won't change
 // the byte representation.
 type FS struct {
@@ -31,6 +29,9 @@ type FS struct {
 	manifestDirs []string
 	scheme       *runtime.Scheme
 	strictTypes  bool
+
+	// TODO(ryantking): This is a hack since there is no API for modifying files in an fs.FS
+	storedObjs map[string]ObjectFile[client.Object]
 }
 
 // New returns a new FS wrapped around the given base FS.
@@ -41,7 +42,11 @@ func New(baseFS fs.FS, opts ...func(*FS)) FS {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(rukpakv1alpha1.AddToScheme(scheme))
 
-	fsys := FS{baseFS: baseFS, scheme: scheme}
+	fsys := FS{
+		baseFS:     baseFS,
+		scheme:     scheme,
+		storedObjs: make(map[string]ObjectFile[client.Object]),
+	}
 	for _, opt := range opts {
 		opt(&fsys)
 	}
@@ -78,6 +83,11 @@ func WithStrictTypes() func(*FS) {
 // If the file is in a directory that containes manifests and ends in .yaml,
 // it will return a `File` with the manifests parsed to their underlying types.
 func (fsys FS) Open(name string) (fs.File, error) {
+	// TODO(ryantking): When we figure out how to store objects, this will change
+	if objFile, ok := fsys.storedObjs[name]; ok {
+		return objFile, nil
+	}
+
 	f, err := fsys.baseFS.Open(name)
 	if err != nil {
 		return nil, err
@@ -122,7 +132,7 @@ func (fsys FS) Objects(filterFns ...func(client.Object) bool) ([]client.Object, 
 	var objs []client.Object
 	filterFn := fsys.mergeFilterFns(filterFns)
 	if err := fs.WalkDir(fsys.baseFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !fsys.isManifestFile(d.Name()) {
+		if err != nil || d.IsDir() || !fsys.isManifestFile(path) {
 			return err
 		}
 
@@ -135,7 +145,7 @@ func (fsys FS) Objects(filterFns ...func(client.Object) bool) ([]client.Object, 
 			return err
 		}
 		for _, obj := range file.Objects {
-			if !filterFn(obj) {
+			if filterFn(obj) {
 				objs = append(objs, obj)
 			}
 		}
@@ -145,32 +155,33 @@ func (fsys FS) Objects(filterFns ...func(client.Object) bool) ([]client.Object, 
 		return nil, err
 	}
 
+	// TODO(ryantking): Remove when the stored objects go away with a better write abstraction
+	for _, f := range fsys.storedObjs {
+		for _, obj := range f.Objects {
+			if filterFn(obj) {
+				objs = append(objs, obj)
+			}
+		}
+	}
+
 	return objs, nil
 }
 
 // StoreObjects adds objects to the name filed.
-func (fsys FS) StoreObjects(name string, objs ...client.Object) error {
-	f, err := fsys.Open(name)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if objFile, ok := f.(*ObjectFile[client.Object]); ok {
-		objFile.Objects = append(objFile.Objects, objs...)
-		return nil
-	}
-
-	return errors.New("unimplemented: cannot create or modify files")
+func (fsys FS) StoreObjects(name string, objs ...client.Object) {
+	objFile := fsys.storedObjs[name]
+	objFile.Objects = append(objFile.Objects, objs...)
+	fsys.storedObjs[name] = objFile
 }
 
 func (fsys FS) mergeFilterFns(filterFns []func(client.Object) bool) func(client.Object) bool {
 	return func(obj client.Object) bool {
 		for _, fn := range filterFns {
-			if fn(obj) {
-				return true
+			if !fn(obj) {
+				return false
 			}
 		}
 
-		return false
+		return true
 	}
 }

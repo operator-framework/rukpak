@@ -85,4 +85,26 @@ var _ = Describe("FS", func() {
 			})
 		})
 	})
+
+	Describe("retrieving objects from the filesystem", func() {
+		var objs []client.Object
+
+		Context("without any filters", func() {
+			BeforeEach(func() {
+				var err error
+				objs, err = fsys.Objects()
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should return every object", func() {
+				Expect(objs).To(HaveLen(7))
+			})
+
+			It("the objects should have data", func() {
+				for _, obj := range objs {
+					Expect(obj).ToNot(BeZero())
+				}
+			})
+		})
+	})
 })
