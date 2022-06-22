@@ -82,7 +82,7 @@ var _ = Describe("bundle api validating webhook", func() {
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the long name bundle creation", func() {
-			Expect(err).To(MatchError(ContainSubstring(fmt.Sprintf("Invalid value: %q: metadata.name in body should be at most 40 chars long", bundle.GetName()))))
+			Expect(err).To(MatchError(ContainSubstring(fmt.Sprintf("Bundle.core.rukpak.io %q is invalid: metadata.name: Too long: may not be longer than 40", bundle.GetName()))))
 		})
 	})
 	When("the bundle source type is git and git properties are not set", func() {
