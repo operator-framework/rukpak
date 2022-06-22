@@ -723,11 +723,6 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 			)
 		})
 		It("should generate a Bundle that contains the correct labels", func() {
-			expectedLabels := map[string]string{
-				util.CoreOwnerKindKey:          rukpakv1alpha1.BundleInstanceKind,
-				util.CoreOwnerNameKey:          bi.GetName(),
-				util.CoreBundleTemplateHashKey: "54dd864b69",
-			}
 			Eventually(func() (map[string]string, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
 					return nil, err
@@ -739,8 +734,9 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				return b.Labels, nil
 			}).Should(And(
 				Not(BeNil()),
-				Equal(expectedLabels)),
-			)
+				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerKindKey] }, Equal(rukpakv1alpha1.BundleInstanceKind)),
+				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerNameKey] }, Equal(bi.GetName())),
+			))
 		})
 		Describe("template is unsuccessfully updated", func() {
 			var (
