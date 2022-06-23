@@ -32,7 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/operator-framework/rukpak/pkg/bundle"
 	plainv0 "github.com/operator-framework/rukpak/pkg/bundle/plain/v0"
+	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
@@ -69,20 +71,20 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	l := log.FromContext(ctx)
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
-	bundle := &rukpakv1alpha1.Bundle{}
-	if err := r.Get(ctx, req.NamespacedName, bundle); err != nil {
+	b := &rukpakv1alpha1.Bundle{}
+	if err := r.Get(ctx, req.NamespacedName, b); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	u := updater.NewBundleUpdater(r.Client)
 	defer func() {
-		if err := u.Apply(ctx, bundle); err != nil {
+		if err := u.Apply(ctx, b); err != nil {
 			l.Error(err, "failed to update status")
 		}
 	}()
-	u.UpdateStatus(updater.EnsureObservedGeneration(bundle.Generation))
+	u.UpdateStatus(updater.EnsureObservedGeneration(b.Generation))
 
-	finalizerResult, err := r.Finalizers.Finalize(ctx, bundle)
+	finalizerResult, err := r.Finalizers.Finalize(ctx, b)
 	if err != nil {
 		u.UpdateStatus(
 			updater.EnsureResolvedSource(nil),
@@ -107,12 +109,12 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// object update to ensure that the status update can be processed before
 	// a potential deletion.
 	if finalizerResult.StatusUpdated {
-		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Status().Update(ctx, bundle))
+		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Status().Update(ctx, b))
 	}
 	if finalizerResult.Updated {
-		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Update(ctx, bundle))
+		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Update(ctx, b))
 	}
-	if finalizerResult.Updated || finalizerResult.StatusUpdated || !bundle.GetDeletionTimestamp().IsZero() {
+	if finalizerResult.Updated || finalizerResult.StatusUpdated || !b.GetDeletionTimestamp().IsZero() {
 		err := apimacherrors.NewAggregate(finalizerUpdateErrs)
 		if err != nil {
 			u.UpdateStatus(
@@ -130,7 +132,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	unpackResult, err := r.Unpacker.Unpack(ctx, bundle)
+	unpackResult, err := r.Unpacker.Unpack(ctx, b)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("source bundle content: %v", err))
 	}
@@ -142,21 +144,28 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		updateStatusUnpacking(&u, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacked:
-		plainFS := plainv0.New(unpackResult.Bundle)
+		plainFS, err := bundle.Convert[registryv1.Bundle, plainv0.Bundle](registryv1.New(unpackResult.Bundle))
+		if err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(
+				&u, fmt.Errorf("converting regstiry+v1 bundle to plain+v0: %v", err),
+			)
+		}
 		objects, err := plainFS.Objects()
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get objects from bundle manifests: %v", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(
+				&u, fmt.Errorf("get objects from bundle manifests: %v", err),
+			)
 		}
 		if len(objects) == 0 {
 			return ctrl.Result{}, updateStatusUnpackFailing(&u, errors.New("invalid bundle: found zero objects: "+
 				"plain+v0 bundles are required to contain at least one object"))
 		}
 
-		if err := r.Storage.Store(ctx, bundle, plainFS); err != nil {
+		if err := r.Storage.Store(ctx, b, plainFS); err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("persist bundle objects: %v", err))
 		}
 
-		contentURL, err := r.Storage.URLFor(ctx, bundle)
+		contentURL, err := r.Storage.URLFor(ctx, b)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get content URL: %v", err))
 		}
