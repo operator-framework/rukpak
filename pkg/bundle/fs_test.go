@@ -25,7 +25,7 @@ var _ = Describe("FS", func() {
 	})
 
 	JustBeforeEach(func() {
-		fsys = bundle.New(baseFS, bundle.WithManifestDir("manifests"))
+		fsys = bundle.New(baseFS, bundle.WithManifestDirs("manifests"))
 	})
 
 	Describe("opening a file", func() {

@@ -1,4 +1,4 @@
-package bundle_test
+package v0_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestV0(t *testing.T) {
+func TestPlainV0(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "V0 Suite")
+	RunSpecs(t, "Plain+v0 Suite")
 }

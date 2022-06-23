@@ -23,11 +23,10 @@ func New(fsys fs.FS) Bundle {
 		return Bundle{bundleFS}
 	}
 
-	return Bundle{bundle.New(fsys, bundle.WithManifestDir("manifests"))}
+	return Bundle{bundle.New(fsys, bundle.WithManifestDirs("manifests"))}
 }
 
 // CSV returns the ClusterServiceVersion manifest if one exists in the bundle.
-// Changeing the CSV on the underlying filesystem
 func (b Bundle) CSV() (*operatorsv1alpha1.ClusterServiceVersion, error) {
 	csvs, err := b.Objects(func(obj client.Object) bool {
 		_, ok := obj.(*operatorsv1alpha1.ClusterServiceVersion)

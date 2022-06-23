@@ -24,6 +24,7 @@ type ObjectFile[T runtime.Object] struct {
 }
 
 // NewObjectFile parses the kubernetes objects contained in the file according to the scheme.
+//
 // If `strict` is enabled, object types the scheme is not aware of will throw an error.
 func NewObjectFile[T runtime.Object](f fs.File, scheme *runtime.Scheme, strict bool) (*ObjectFile[T], error) {
 	var (

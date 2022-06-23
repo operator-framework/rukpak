@@ -56,25 +56,34 @@ func New(baseFS fs.FS, opts ...func(*FS)) FS {
 	return fsys
 }
 
-// WithManifestDir adds a restriction that manifests are contained in a given directory.
+// WithManifestDir returns an option for creating new bundle filesystems.
 //
-// If this option is used multiple times, manifests will be looked for in all
-// of the given directories.
-func WithManifestDir(name string) func(*FS) {
+// This option specifies which directories can contain manifests. If this opion is unset then the filesystem will search
+// in all directories for manifests.
+func WithManifestDirs(dirs ...string) func(*FS) {
 	return func(fsys *FS) {
-		fsys.manifestDirs = append(fsys.manifestDirs, name)
+		fsys.manifestDirs = append(fsys.manifestDirs, dirs...)
 	}
 }
 
-// WithScheme uses the given scheme to add type information to objects.
-func WithScheme(scheme *runtime.Scheme) func(*FS) {
+// WithExtraTypes returns an option for creating new bundle filesystems.
+//
+// This option takes in functions that mutate the scheme. The scheme by default only contains the Kubernetes builtin
+// types and the types required by known bundle formats. The functions provided here will be applied to the scheme to
+// add additional types. The expected usage is to add the `AddToScheme` functions from generated type packages.
+func WithExtraTypes(addToSchemes []func(s *runtime.Scheme) error) func(*FS) {
 	return func(fsys *FS) {
-		fsys.scheme = scheme
+		for _, addToScheme := range addToSchemes {
+			utilruntime.Must(addToScheme(fsys.scheme))
+		}
 	}
 }
 
-// WithStrictTypes will cause an error if `Open` is called on a manifest file
-// that contains object types that the scheme does not recognize.
+// WithStrictTypes returns an option for creating new bundle filesystems.
+//
+// This option enables strict type checking for the created bundle filesystem. When strict type checking is enabled,
+// the filesystem will throw an error when a caller attempts to open a file that has a manifest of a type unknown to the
+// scheme. When strict type checking is disabled, those unknown manifests will be left unstructured.
 func WithStrictTypes() func(*FS) {
 	return func(fsys *FS) {
 		fsys.strictTypes = true
@@ -82,8 +91,9 @@ func WithStrictTypes() func(*FS) {
 }
 
 // Open a file if it exists on the file system.
-// If the file is in a directory that contains manifests and ends in .yaml,
-// it will return a `File` with the manifests parsed to their underlying types.
+//
+// If the file is in a directory that contains manifests and ends in `.yaml` or `.yml` then it will return an
+// `*ObjectFile` with the objects parsed to their concrete go type.
 func (fsys FS) Open(name string) (fs.File, error) {
 	// TODO(ryantking): When we figure out how to store objects, this will change
 	if objFile, ok := fsys.storedObjs[name]; ok {
@@ -108,7 +118,7 @@ func (fsys FS) Open(name string) (fs.File, error) {
 }
 
 func (fsys FS) isManifestFile(name string) bool {
-	if filepath.Ext(name) != ".yaml" {
+	if filepath.Ext(name) != ".yaml" || filepath.Ext(name) == ".yml" {
 		return false
 	}
 	if len(fsys.manifestDirs) == 0 {
@@ -132,7 +142,7 @@ func (fsys FS) Scheme() *runtime.Scheme {
 // Optionally, filter functions can be supplied that will filter out any objects that they return true for.
 func (fsys FS) Objects(filterFns ...func(client.Object) bool) ([]client.Object, error) {
 	var objs []client.Object
-	filterFn := fsys.mergeFilterFns(filterFns)
+	filterFn := fsys.mergeFilterFns(filterFns...)
 	if err := fs.WalkDir(fsys.baseFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !fsys.isManifestFile(path) {
 			return err
@@ -169,14 +179,14 @@ func (fsys FS) Objects(filterFns ...func(client.Object) bool) ([]client.Object, 
 	return objs, nil
 }
 
-// StoreObjects adds objects to the name filed.
+// StoreObjects adds objects to the name file.
 func (fsys FS) StoreObjects(name string, objs ...client.Object) {
 	objFile := fsys.storedObjs[name]
 	objFile.Objects = append(objFile.Objects, objs...)
 	fsys.storedObjs[name] = objFile
 }
 
-func (fsys FS) mergeFilterFns(filterFns []func(client.Object) bool) func(client.Object) bool {
+func (fsys FS) mergeFilterFns(filterFns ...func(client.Object) bool) func(client.Object) bool {
 	return func(obj client.Object) bool {
 		for _, fn := range filterFns {
 			if !fn(obj) {
