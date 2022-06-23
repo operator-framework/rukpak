@@ -34,7 +34,7 @@ type Bundle struct {
 
 // New creates a new plain+v0 bundle at the root of the given filesystem.
 //
-// If the file system containse another known bundle format, it will be
+// If the file system contains another known bundle format, it will be
 // converted to a plain+v0 bundle.
 func New(fsys fs.FS, opts ...func(*Bundle)) Bundle {
 	b := Bundle{createdSvcAccs: make(map[string]struct{})}
