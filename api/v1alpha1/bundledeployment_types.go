@@ -64,14 +64,14 @@ type BundleTemplate struct {
 
 // BundleDeploymentStatus defines the observed state of BundleDeployment
 type BundleDeploymentStatus struct {
-	Conditions          []metav1.Condition `json:"conditions,omitempty"`
-	InstalledBundleName string             `json:"installedBundleName,omitempty"`
+	Conditions   []metav1.Condition `json:"conditions,omitempty"`
+	ActiveBundle string             `json:"activeBundle,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}
-//+kubebuilder:printcolumn:name="Installed Bundle",type=string,JSONPath=`.status.installedBundleName`
+//+kubebuilder:printcolumn:name="Active Bundle",type=string,JSONPath=`.status.activeBundle`
 //+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 

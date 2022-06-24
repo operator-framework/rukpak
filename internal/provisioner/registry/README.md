@@ -76,8 +76,8 @@ InstallationSucceeded Phase if the application of resources to the cluster was s
 
 ```console
 $ kubectl get bundledeployment my-bundle-deployment
-NAME                   DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
-my-bundle-deployment   my-bundle        my-bundle          InstallationSucceeded   11s
+NAME                   ACTIVE BUNDLE      INSTALL STATE           AGE
+my-bundle-deployment   my-bundle          InstallationSucceeded   11s
 ```
 
 > Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
@@ -161,7 +161,7 @@ A successful installation will show InstallationSucceeded as the `INSTALL STATE`
 
 ```console
 $ kubectl get bundledeployment prometheus
-NAME         INSTALLED BUNDLE        INSTALL STATE           AGE
+NAME         ACTIVE BUNDLE           INSTALL STATE           AGE
 prometheus   prometheus-5699cbff6    InstallationSucceeded   10s
 ```
 
@@ -246,10 +246,10 @@ NAME                    TYPE    PHASE      AGE
 prometheus-7f4f468d94   image   Unpacked   2m15s
 
 $ kubectl get bundledeployment prometheus
-NAME         INSTALLED BUNDLE        INSTALL STATE           AGE
+NAME         ACTIVE BUNDLE           INSTALL STATE           AGE
 prometheus   prometheus-7f4f468d94   InstallationSucceeded   2m47s
 
-$ kubectl -n prometheus-system get BundleDeployment
+$ kubectl -n prometheus-system get bundledeployment
 NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
 prometheus-operator   1/1     1            1           3m6s
 ```

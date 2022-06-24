@@ -23,7 +23,7 @@ var _ = Describe("Updater", func() {
 		u      bundledeployment.Updater
 		obj    *rukpakv1alpha1.BundleDeployment
 		status = &rukpakv1alpha1.BundleDeploymentStatus{
-			InstalledBundleName: "bundle",
+			ActiveBundle: "bundle",
 			Conditions: []metav1.Condition{
 				{
 					Type:               "Working",
@@ -74,7 +74,7 @@ var _ = Describe("Updater", func() {
 				},
 			},
 			Status: rukpakv1alpha1.BundleDeploymentStatus{
-				InstalledBundleName: "bundle",
+				ActiveBundle: "bundle",
 				Conditions: []metav1.Condition{
 					{
 						Type:               "Working",
@@ -170,11 +170,11 @@ var _ = Describe("EnsureInstalledName", func() {
 
 	It("should update the installedBundleName if not set", func() {
 		Expect(bundledeployment.EnsureInstalledName(installedBundleName)(status)).To(BeTrue())
-		Expect(status.InstalledBundleName).To(Equal(installedBundleName))
+		Expect(status.ActiveBundle).To(Equal(installedBundleName))
 	})
 
 	It("should not update the installedBundleName if already set", func() {
-		status = &rukpakv1alpha1.BundleDeploymentStatus{InstalledBundleName: installedBundleName}
+		status = &rukpakv1alpha1.BundleDeploymentStatus{ActiveBundle: installedBundleName}
 		Expect(bundledeployment.EnsureInstalledName(installedBundleName)(status)).To(BeFalse())
 	})
 })

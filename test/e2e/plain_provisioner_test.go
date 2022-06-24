@@ -687,7 +687,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bd.Status.InstalledBundleName == "" {
+				if bd.Status.ActiveBundle == "" {
 					return nil, fmt.Errorf("waiting for bundle name to be populated")
 				}
 				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
@@ -713,7 +713,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					return nil
 				}
 				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, b); err != nil {
+				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, b); err != nil {
 					return nil
 				}
 				return b.GetOwnerReferences()
@@ -728,7 +728,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					return nil, err
 				}
 				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, b); err != nil {
+				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, b); err != nil {
 					return nil, err
 				}
 				return b.Labels, nil
@@ -749,7 +749,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return err
 					}
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, originalBundle); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, originalBundle); err != nil {
 						return err
 					}
 					bd.Spec.Template.Spec = rukpakv1alpha1.BundleSpec{
@@ -792,7 +792,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return nil, err
 					}
-					if bd.Status.InstalledBundleName == "" {
+					if bd.Status.ActiveBundle == "" {
 						return nil, fmt.Errorf("waiting for bundle name to be populated")
 					}
 					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
@@ -835,7 +835,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return err
 					}
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, originalBundle); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, originalBundle); err != nil {
 						return err
 					}
 					if len(bd.Spec.Template.Labels) == 0 {
@@ -851,7 +851,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 						return false
 					}
 					currBundle := &rukpakv1alpha1.Bundle{}
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, currBundle); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, currBundle); err != nil {
 						return false
 					}
 					return util.CheckDesiredBundleTemplate(currBundle, bd.Spec.Template)
@@ -863,7 +863,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return nil, err
 					}
-					if bd.Status.InstalledBundleName == "" {
+					if bd.Status.ActiveBundle == "" {
 						return nil, fmt.Errorf("waiting for bundle name to be populated")
 					}
 					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
@@ -929,7 +929,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bd.Status.InstalledBundleName == "" {
+				if bd.Status.ActiveBundle == "" {
 					return nil, fmt.Errorf("waiting for bundle name to be populated")
 				}
 				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
@@ -989,8 +989,8 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bd.Status.InstalledBundleName != "" {
-					return nil, fmt.Errorf("bd.Status.InstalledBundleName is non-empty (%q)", bd.Status.InstalledBundleName)
+				if bd.Status.ActiveBundle != "" {
+					return nil, fmt.Errorf("bi.Status.ActiveBundle is non-empty (%q)", bd.Status.ActiveBundle)
 				}
 				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
@@ -1112,7 +1112,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBD), dependentBD); err != nil {
 						return nil, err
 					}
-					if dependentBD.Status.InstalledBundleName == "" {
+					if dependentBD.Status.ActiveBundle == "" {
 						return nil, fmt.Errorf("waiting for bundle name to be populated")
 					}
 					return meta.FindStatusCondition(dependentBD.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
@@ -1299,7 +1299,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bd.Status.InstalledBundleName == "" {
+				if bd.Status.ActiveBundle == "" {
 					return nil, fmt.Errorf("waiting for a populated installed bundle name")
 				}
 				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
@@ -1324,7 +1324,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return err
 				}
-				originalBundleName := bd.Status.InstalledBundleName
+				originalBundleName := bd.Status.ActiveBundle
 				b := &rukpakv1alpha1.Bundle{}
 				if err := c.Get(ctx, types.NamespacedName{Name: originalBundleName}, b); err != nil {
 					return err
@@ -1339,7 +1339,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					return false
 				}
 
-				installedBundleName := bd.Status.InstalledBundleName
+				installedBundleName := bd.Status.ActiveBundle
 				if installedBundleName == "" {
 					return false
 				}

@@ -18,13 +18,13 @@ import (
 var _ = Describe("registry provisioner bundle", func() {
 	When("a BundleDeployment targets a registry+v1 Bundle", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bi = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "prometheus",
 				},
@@ -48,24 +48,24 @@ var _ = Describe("registry provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bi)
+			err := c.Create(ctx, bd)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
 			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bi)).To(BeNil())
+			Expect(c.Delete(ctx, bd)).To(BeNil())
 		})
 
 		It("should rollout the bundle contents successfully", func() {
 			By("eventually writing a successful installation state back to the bundledeployment status")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bi.Status.InstalledBundleName == "" {
+				if bd.Status.ActiveBundle == "" {
 					return nil, fmt.Errorf("waiting for bundle name to be populated")
 				}
-				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),

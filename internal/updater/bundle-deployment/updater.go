@@ -62,10 +62,10 @@ func EnsureCondition(condition metav1.Condition) UpdateStatusFunc {
 
 func EnsureInstalledName(bundleName string) UpdateStatusFunc {
 	return func(status *rukpakv1alpha1.BundleDeploymentStatus) bool {
-		if status.InstalledBundleName == bundleName {
+		if status.ActiveBundle == bundleName {
 			return false
 		}
-		status.InstalledBundleName = bundleName
+		status.ActiveBundle = bundleName
 		return true
 	}
 }
