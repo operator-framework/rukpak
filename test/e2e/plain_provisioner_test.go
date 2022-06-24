@@ -651,16 +651,16 @@ var _ = Describe("plain provisioner bundle", func() {
 	})
 })
 
-var _ = Describe("plain provisioner bundleinstance", func() {
+var _ = Describe("plain provisioner bundledeployment", func() {
 	Context("embedded bundle template", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bi = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds",
 				},
@@ -679,18 +679,18 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bi)
+			err := c.Create(ctx, bd)
 			Expect(err).To(BeNil())
 
-			By("waiting until the BI reports a successful installation")
+			By("waiting until the BD reports a successful installation")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bi.Status.InstalledBundleName == "" {
+				if bd.Status.InstalledBundleName == "" {
 					return nil, fmt.Errorf("waiting for bundle name to be populated")
 				}
-				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -700,42 +700,42 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 			))
 		})
 		AfterEach(func() {
-			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bi)).To(BeNil())
+			By("deleting the testing BD resource")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
 		})
 		It("should generate a Bundle that contains an owner reference", func() {
-			// Note: cannot use bi.GroupVersionKind() as the Kind/APIVersion fields
+			// Note: cannot use bd.GroupVersionKind() as the Kind/APIVersion fields
 			// will be empty during the testing suite.
-			biRef := metav1.NewControllerRef(bi, rukpakv1alpha1.BundleDeploymentGVK)
+			bdRef := metav1.NewControllerRef(bd, rukpakv1alpha1.BundleDeploymentGVK)
 
 			Eventually(func() []metav1.OwnerReference {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil
 				}
 				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: bi.Status.InstalledBundleName}, b); err != nil {
+				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, b); err != nil {
 					return nil
 				}
 				return b.GetOwnerReferences()
 			}).Should(And(
 				Not(BeNil()),
-				ContainElement(*biRef)),
+				ContainElement(*bdRef)),
 			)
 		})
 		It("should generate a Bundle that contains the correct labels", func() {
 			Eventually(func() (map[string]string, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
 				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: bi.Status.InstalledBundleName}, b); err != nil {
+				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, b); err != nil {
 					return nil, err
 				}
 				return b.Labels, nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerKindKey] }, Equal(rukpakv1alpha1.BundleDeploymentKind)),
-				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerNameKey] }, Equal(bi.GetName())),
+				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerNameKey] }, Equal(bd.GetName())),
 			))
 		})
 		Describe("template is unsuccessfully updated", func() {
@@ -746,13 +746,13 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				originalBundle = &rukpakv1alpha1.Bundle{}
 
 				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return err
 					}
-					if err := c.Get(ctx, types.NamespacedName{Name: bi.Status.InstalledBundleName}, originalBundle); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, originalBundle); err != nil {
 						return err
 					}
-					bi.Spec.Template.Spec = rukpakv1alpha1.BundleSpec{
+					bd.Spec.Template.Spec = rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
@@ -764,15 +764,15 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 							},
 						},
 					}
-					return c.Update(ctx, bi)
+					return c.Update(ctx, bd)
 				}).Should(Succeed())
 			})
 			It("should generate a new Bundle resource that matches the desired specification", func() {
 				Eventually(func() bool {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return false
 					}
-					existingBundles, err := util.GetBundlesForBundleInstanceSelector(ctx, c, bi)
+					existingBundles, err := util.GetBundlesForBundleDeploymentSelector(ctx, c, bd)
 					if err != nil {
 						return false
 					}
@@ -782,20 +782,20 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					util.SortBundlesByCreation(existingBundles)
 					// Note: existing bundles are sorted by metadata.CreationTimestamp, so select
 					// the Bundle that was generated second to compare to the desired Bundle template.
-					return util.CheckDesiredBundleTemplate(&existingBundles.Items[1], bi.Spec.Template)
+					return util.CheckDesiredBundleTemplate(&existingBundles.Items[1], bd.Spec.Template)
 				}).Should(BeTrue())
 			})
 
 			It("should delete the old Bundle once the newly generated Bundle reports a successful installation state", func() {
-				By("waiting until the BI reports a successful installation")
+				By("waiting until the BD reports a successful installation")
 				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return nil, err
 					}
-					if bi.Status.InstalledBundleName == "" {
+					if bd.Status.InstalledBundleName == "" {
 						return nil, fmt.Errorf("waiting for bundle name to be populated")
 					}
-					return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -804,12 +804,12 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("instantiated bundle")),
 				))
 
-				By("verifying that the BI reports an invalid desired Bundle")
+				By("verifying that the BD reports an invalid desired Bundle")
 				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
@@ -832,41 +832,41 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				originalBundle = &rukpakv1alpha1.Bundle{}
 
 				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return err
 					}
-					if err := c.Get(ctx, types.NamespacedName{Name: bi.Status.InstalledBundleName}, originalBundle); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, originalBundle); err != nil {
 						return err
 					}
-					if len(bi.Spec.Template.Labels) == 0 {
-						bi.Spec.Template.Labels = make(map[string]string)
+					if len(bd.Spec.Template.Labels) == 0 {
+						bd.Spec.Template.Labels = make(map[string]string)
 					}
-					bi.Spec.Template.Labels["e2e-test"] = "stub"
-					return c.Update(ctx, bi)
+					bd.Spec.Template.Labels["e2e-test"] = "stub"
+					return c.Update(ctx, bd)
 				}).Should(Succeed())
 			})
 			It("should generate a new Bundle resource that matches the desired specification", func() {
 				Eventually(func() bool {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return false
 					}
 					currBundle := &rukpakv1alpha1.Bundle{}
-					if err := c.Get(ctx, types.NamespacedName{Name: bi.Status.InstalledBundleName}, currBundle); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.InstalledBundleName}, currBundle); err != nil {
 						return false
 					}
-					return util.CheckDesiredBundleTemplate(currBundle, bi.Spec.Template)
+					return util.CheckDesiredBundleTemplate(currBundle, bd.Spec.Template)
 				}).Should(BeTrue())
 			})
 			It("should delete the old Bundle once the newly generated Bundle reports a successful installation state", func() {
-				By("waiting until the BI reports a successful installation")
+				By("waiting until the BD reports a successful installation")
 				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return nil, err
 					}
-					if bi.Status.InstalledBundleName == "" {
+					if bd.Status.InstalledBundleName == "" {
 						return nil, fmt.Errorf("waiting for bundle name to be populated")
 					}
-					return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -885,13 +885,13 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 	When("a BundleDeployment targets a valid Bundle", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bi = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds",
 				},
@@ -915,24 +915,24 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bi)
+			err := c.Create(ctx, bd)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
-			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bi)).To(BeNil())
+			By("deleting the testing BD resource")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
 		})
 
 		It("should rollout the bundle contents successfully", func() {
-			By("eventually writing a successful installation state back to the bundleinstance status")
+			By("eventually writing a successful installation state back to the bundledeployment status")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bi.Status.InstalledBundleName == "" {
+				if bd.Status.InstalledBundleName == "" {
 					return nil, fmt.Errorf("waiting for bundle name to be populated")
 				}
-				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -945,12 +945,12 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 	When("a BundleDeployment targets an invalid Bundle", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
-			bi = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-apis",
 				},
@@ -974,25 +974,25 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bi)
+			err := c.Create(ctx, bd)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
 			By("deleting the testing BundleDeployment resource")
 			Eventually(func() error {
-				return client.IgnoreNotFound(c.Delete(ctx, bi))
+				return client.IgnoreNotFound(c.Delete(ctx, bd))
 			}).Should(Succeed())
 		})
 
 		It("should project a failed installation state", func() {
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bi.Status.InstalledBundleName != "" {
-					return nil, fmt.Errorf("bi.Status.InstalledBundleName is non-empty (%q)", bi.Status.InstalledBundleName)
+				if bd.Status.InstalledBundleName != "" {
+					return nil, fmt.Errorf("bd.Status.InstalledBundleName is non-empty (%q)", bd.Status.InstalledBundleName)
 				}
-				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -1013,14 +1013,14 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 	When("a BundleDeployment is dependent on another BundleDeployment", func() {
 		var (
 			ctx         context.Context
-			dependentBI *rukpakv1alpha1.BundleDeployment
+			dependentBD *rukpakv1alpha1.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 			By("creating the testing dependent BundleDeployment resource")
-			dependentBI = &rukpakv1alpha1.BundleDeployment{
+			dependentBD = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "e2e-bi-dependent-",
+					GenerateName: "e2e-bd-dependent-",
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
@@ -1042,21 +1042,21 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, dependentBI)
+			err := c.Create(ctx, dependentBD)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
 			By("deleting the testing dependent BundleDeployment resource")
-			Expect(client.IgnoreNotFound(c.Delete(ctx, dependentBI))).To(BeNil())
+			Expect(client.IgnoreNotFound(c.Delete(ctx, dependentBD))).To(BeNil())
 
 		})
 		When("the providing BundleDeployment does not exist", func() {
 			It("should eventually project a failed installation for the dependent BundleDeployment", func() {
 				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBI), dependentBI); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBD), dependentBD); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(dependentBI.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+					return meta.FindStatusCondition(dependentBD.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -1069,15 +1069,15 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 		When("the providing BundleDeployment is created", func() {
 			var (
-				providesBI *rukpakv1alpha1.BundleDeployment
+				providesBD *rukpakv1alpha1.BundleDeployment
 			)
 			BeforeEach(func() {
 				ctx = context.Background()
 
-				By("creating the testing providing BI resource")
-				providesBI = &rukpakv1alpha1.BundleDeployment{
+				By("creating the testing providing BD resource")
+				providesBD = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: "e2e-bi-providing-",
+						GenerateName: "e2e-bd-providing-",
 					},
 					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
@@ -1099,23 +1099,23 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 						},
 					},
 				}
-				err := c.Create(ctx, providesBI)
+				err := c.Create(ctx, providesBD)
 				Expect(err).To(BeNil())
 			})
 			AfterEach(func() {
 				By("deleting the testing providing BundleDeployment resource")
-				Expect(client.IgnoreNotFound(c.Delete(ctx, providesBI))).To(BeNil())
+				Expect(client.IgnoreNotFound(c.Delete(ctx, providesBD))).To(BeNil())
 
 			})
 			It("should eventually project a successful installation for the dependent BundleDeployment", func() {
 				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBI), dependentBI); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBD), dependentBD); err != nil {
 						return nil, err
 					}
-					if dependentBI.Status.InstalledBundleName == "" {
+					if dependentBD.Status.InstalledBundleName == "" {
 						return nil, fmt.Errorf("waiting for bundle name to be populated")
 					}
-					return meta.FindStatusCondition(dependentBI.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+					return meta.FindStatusCondition(dependentBD.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -1129,16 +1129,16 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 
 	When("a BundleDeployment targets a Bundle that contains CRDs and instances of those CRDs", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			By("creating the testing BI resource")
-			bi = &rukpakv1alpha1.BundleDeployment{
+			By("creating the testing BD resource")
+			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "e2e-bi-crds-and-crs-",
+					GenerateName: "e2e-bd-crds-and-crs-",
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
@@ -1160,19 +1160,19 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bi)
+			err := c.Create(ctx, bd)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
-			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bi)).To(BeNil())
+			By("deleting the testing BD resource")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
 		})
 		It("eventually reports a failed installation state due to missing APIs on the cluster", func() {
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -1261,7 +1261,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 	When("an embedded Bundle has been deleted", func() {
 		var (
 			ctx context.Context
-			bi  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha1.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -1270,9 +1270,9 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			}
 
 			By("creating the testing Bundle resource")
-			bi = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "e2e-ownerref-bi-valid",
+					GenerateName: "e2e-ownerref-bd-valid",
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
@@ -1292,17 +1292,17 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					},
 				},
 			}
-			Expect(c.Create(ctx, bi)).To(BeNil())
+			Expect(c.Create(ctx, bd)).To(BeNil())
 
 			By("eventually reporting a successful installation")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				if bi.Status.InstalledBundleName == "" {
+				if bd.Status.InstalledBundleName == "" {
 					return nil, fmt.Errorf("waiting for a populated installed bundle name")
 				}
-				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -1312,8 +1312,8 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			))
 		})
 		AfterEach(func() {
-			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bi)).To(BeNil())
+			By("deleting the testing BD resource")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
 		})
 		It("should result in a new Bundle being generated", func() {
 			var (
@@ -1321,10 +1321,10 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			)
 			By("deleting the test Bundle resource")
 			Eventually(func() error {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return err
 				}
-				originalBundleName := bi.Status.InstalledBundleName
+				originalBundleName := bd.Status.InstalledBundleName
 				b := &rukpakv1alpha1.Bundle{}
 				if err := c.Get(ctx, types.NamespacedName{Name: originalBundleName}, b); err != nil {
 					return err
@@ -1335,11 +1335,11 @@ var _ = Describe("plain provisioner garbage collection", func() {
 
 			By("waiting until a new Bundle gets generated")
 			Eventually(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return false
 				}
 
-				installedBundleName := bi.Status.InstalledBundleName
+				installedBundleName := bd.Status.InstalledBundleName
 				if installedBundleName == "" {
 					return false
 				}
@@ -1356,15 +1356,15 @@ var _ = Describe("plain provisioner garbage collection", func() {
 	When("a BundleDeployment has been deleted", func() {
 		var (
 			ctx context.Context
-			bi  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha1.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			By("creating the testing BI resource")
-			bi = &rukpakv1alpha1.BundleDeployment{
+			By("creating the testing BD resource")
+			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "e2e-ownerref-bi-valid-",
+					GenerateName: "e2e-ownerref-bd-valid-",
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
@@ -1386,14 +1386,14 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					},
 				},
 			}
-			Expect(c.Create(ctx, bi)).To(BeNil())
+			Expect(c.Create(ctx, bd)).To(BeNil())
 
-			By("waiting for the BI to eventually report a successful install status")
+			By("waiting for the BD to eventually report a successful install status")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bi.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
@@ -1403,15 +1403,15 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			))
 		})
 		AfterEach(func() {
-			By("deleting the testing BI resource")
-			Expect(c.Get(ctx, client.ObjectKeyFromObject(bi), &rukpakv1alpha1.BundleDeployment{})).To(WithTransform(apierrors.IsNotFound, BeTrue()))
+			By("deleting the testing BD resource")
+			Expect(c.Get(ctx, client.ObjectKeyFromObject(bd), &rukpakv1alpha1.BundleDeployment{})).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should eventually result in the installed CRDs being deleted", func() {
-			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bi)).To(BeNil())
+			By("deleting the testing BD resource")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
 
 			By("waiting until all the installed CRDs have been deleted")
-			selector := util.NewBundleInstanceLabelSelector(bi)
+			selector := util.NewBundleDeploymentLabelSelector(bd)
 			Eventually(func() bool {
 				crds := &apiextensionsv1.CustomResourceDefinitionList{}
 				if err := c.List(ctx, crds, &client.ListOptions{

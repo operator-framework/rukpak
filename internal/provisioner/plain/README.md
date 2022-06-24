@@ -263,8 +263,8 @@ resources including the deployment, RBAC, and the operator namespace.
 > Note: There's no need to manually clean up the Bundles that were generated from a BundleDeployment resource. The plain provisioner places owner references on any Bundle that's generated from an individual BundleDeployment resource.
 
 ```bash
-# Delete the combo bundledeployment
-kubectl delete BundleDeployments.core.rukpak.io combo
+# Delete the combo BundleDeployment
+kubectl delete bundledeployments.core.rukpak.io combo
 ```
 
 A message should show that the BundleDeployment was deleted and now the cluster state is the same as it was
@@ -272,7 +272,7 @@ prior to installing the operator.
 
 ```console
 $ kubectl delete bundledeployments.core.rukpak.io combo
-BundleDeployment.core.rukpak.io "combo" deleted
+bundledeployment.core.rukpak.io "combo" deleted
 ```
 
 To stop and clean up the kind cluster, delete it:

@@ -20,7 +20,7 @@ webhooks:
         port: 9443
     objectSelector:
       matchLabels:
-        core.rukpak.io/owner-kind: BundleInstance
+        core.rukpak.io/owner-kind: BundleDeployment
     admissionReviewVersions: ["v1"]
     sideEffects: None
 ---

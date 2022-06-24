@@ -31,7 +31,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: BundleDeployment is the Schema for the bundleinstances API
+        description: BundleDeployment is the Schema for the bundledeployments API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -53,7 +53,7 @@ spec:
                   that should reconcile this BundleDeployment.
                 type: string
               template:
-                description: Template describes the generated Bundle that this instance
+                description: Template describes the generated Bundle that this deployment
                   will manage.
                 properties:
                   metadata:

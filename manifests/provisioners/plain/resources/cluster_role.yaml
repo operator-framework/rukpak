@@ -45,20 +45,20 @@ rules:
 - apiGroups:
   - core.rukpak.io
   resources:
-  - bundleinstances
+  - bundledeployments
   verbs:
   - list
   - watch
 - apiGroups:
   - core.rukpak.io
   resources:
-  - bundleinstances/finalizers
+  - bundledeployments/finalizers
   verbs:
   - update
 - apiGroups:
   - core.rukpak.io
   resources:
-  - bundleinstances/status
+  - bundledeployments/status
   verbs:
   - patch
   - update

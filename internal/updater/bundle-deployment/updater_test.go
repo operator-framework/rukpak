@@ -1,4 +1,4 @@
-package bundleinstance_test
+package bundledeployment_test
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
-	bundleinstance "github.com/operator-framework/rukpak/internal/updater/bundle-instance"
+	bundledeployment "github.com/operator-framework/rukpak/internal/updater/bundle-deployment"
 )
 
 var _ = Describe("Updater", func() {
 	var (
 		client pkgclient.Client
-		u      bundleinstance.Updater
+		u      bundledeployment.Updater
 		obj    *rukpakv1alpha1.BundleDeployment
 		status = &rukpakv1alpha1.BundleDeploymentStatus{
 			InstalledBundleName: "bundle",
@@ -54,7 +54,7 @@ var _ = Describe("Updater", func() {
 		Expect(schemeBuilder.AddToScheme(scheme)).ShouldNot(HaveOccurred())
 
 		client = fake.NewClientBuilder().WithScheme(scheme).Build()
-		u = bundleinstance.NewBundleInstanceUpdater(client)
+		u = bundledeployment.NewBundleDeploymentUpdater(client)
 		obj = &rukpakv1alpha1.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "olm-crds",
@@ -101,7 +101,7 @@ var _ = Describe("Updater", func() {
 	When("the object does not exist", func() {
 		It("should fail", func() {
 			Expect(client.Delete(context.Background(), obj)).To(Succeed())
-			u.UpdateStatus(bundleinstance.EnsureCondition(status.Conditions[0]), bundleinstance.EnsureInstalledName("bundle"))
+			u.UpdateStatus(bundledeployment.EnsureCondition(status.Conditions[0]), bundledeployment.EnsureInstalledName("bundle"))
 			err := u.Apply(context.Background(), obj)
 			Expect(err).NotTo(BeNil())
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
@@ -110,7 +110,7 @@ var _ = Describe("Updater", func() {
 
 	When("an update is a change", func() {
 		It("should apply an update status function", func() {
-			u.UpdateStatus(bundleinstance.EnsureCondition(metav1.Condition{
+			u.UpdateStatus(bundledeployment.EnsureCondition(metav1.Condition{
 
 				Type:               "Working",
 				Status:             metav1.ConditionTrue,
@@ -140,20 +140,20 @@ var _ = Describe("EnsureCondition", func() {
 	})
 
 	It("should add Condition if not present", func() {
-		Expect(bundleinstance.EnsureCondition(condition)(status)).To(BeTrue())
+		Expect(bundledeployment.EnsureCondition(condition)(status)).To(BeTrue())
 		status.Conditions[0].LastTransitionTime = metav1.Time{}
 		Expect(status.Conditions[0]).To(Equal(condition))
 	})
 
 	It("should return false for no update", func() {
 		status = &rukpakv1alpha1.BundleDeploymentStatus{Conditions: []metav1.Condition{condition}}
-		Expect(bundleinstance.EnsureCondition(condition)(status)).To(BeFalse())
+		Expect(bundledeployment.EnsureCondition(condition)(status)).To(BeFalse())
 		Expect(status.Conditions[0]).To(Equal(condition))
 	})
 
 	It("should add Condition if same type not present", func() {
 		status = &rukpakv1alpha1.BundleDeploymentStatus{Conditions: []metav1.Condition{condition}}
-		Expect(bundleinstance.EnsureCondition(anotherCondition)(status)).To(BeTrue())
+		Expect(bundledeployment.EnsureCondition(anotherCondition)(status)).To(BeTrue())
 		status.Conditions[1].LastTransitionTime = metav1.Time{}
 		Expect(status.Conditions[1]).To(Equal(anotherCondition))
 	})
@@ -169,12 +169,12 @@ var _ = Describe("EnsureInstalledName", func() {
 	})
 
 	It("should update the installedBundleName if not set", func() {
-		Expect(bundleinstance.EnsureInstalledName(installedBundleName)(status)).To(BeTrue())
+		Expect(bundledeployment.EnsureInstalledName(installedBundleName)(status)).To(BeTrue())
 		Expect(status.InstalledBundleName).To(Equal(installedBundleName))
 	})
 
 	It("should not update the installedBundleName if already set", func() {
 		status = &rukpakv1alpha1.BundleDeploymentStatus{InstalledBundleName: installedBundleName}
-		Expect(bundleinstance.EnsureInstalledName(installedBundleName)(status)).To(BeFalse())
+		Expect(bundledeployment.EnsureInstalledName(installedBundleName)(status)).To(BeFalse())
 	})
 })
