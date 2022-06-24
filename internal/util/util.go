@@ -250,7 +250,7 @@ func NewBundleLabelSelector(bundle *rukpakv1alpha1.Bundle) labels.Selector {
 // NewBundleInstanceLabelSelector is responsible for constructing a label.Selector
 // for any underlying resources that are associated with the BundleDeployment parameter.
 func NewBundleInstanceLabelSelector(bi *rukpakv1alpha1.BundleDeployment) labels.Selector {
-	return newLabelSelector(bi.GetName(), rukpakv1alpha1.BundleInstanceKind)
+	return newLabelSelector(bi.GetName(), rukpakv1alpha1.BundleDeploymentKind)
 }
 
 func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {

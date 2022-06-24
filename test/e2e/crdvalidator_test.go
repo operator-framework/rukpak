@@ -95,7 +95,7 @@ var _ = Describe("crdvalidator", func() {
 						},
 					})
 
-					crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind}
+					crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind}
 
 					return c.Update(ctx, crd)
 				}).Should(Succeed())
@@ -123,7 +123,7 @@ var _ = Describe("crdvalidator", func() {
 					}},
 				)
 
-				crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind}
+				crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind}
 
 				Eventually(func() error {
 					return c.Create(ctx, crd)

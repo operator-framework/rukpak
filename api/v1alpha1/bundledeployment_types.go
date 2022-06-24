@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	BundleInstanceGVK  = SchemeBuilder.GroupVersion.WithKind("BundleDeployment")
-	BundleInstanceKind = BundleInstanceGVK.Kind
+	BundleDeploymentGVK  = SchemeBuilder.GroupVersion.WithKind("BundleDeployment")
+	BundleDeploymentKind = BundleDeploymentGVK.Kind
 )
 
 const (

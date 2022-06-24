@@ -56,7 +56,7 @@ git clone https://github.com/operator-framework/rukpak && cd rukpak
 make run
 ```
 
-> Note: RukPak may take some time to become fully operational while its controllers and webhooks are spinning up during installation. As a result, please allow a few moments before creating Bundles/BundleInstances if you are noticing unexpected failures.
+> Note: RukPak may take some time to become fully operational while its controllers and webhooks are spinning up during installation. As a result, please allow a few moments before creating Bundles/BundleDeployments if you are noticing unexpected failures.
 
 There are currently no other supported ways of installing RukPak, although there are plans to add support for other
 popular packaging formats such as a Helm chart or an OLM bundle.
@@ -77,7 +77,7 @@ see [the plain bundle spec](./docs/plain-bundle-spec.md).
 
 ## Components
 
-RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleInstance](#bundleInstance), as well as the concept
+RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleDeployment](#BundleDeployment), as well as the concept
 of a [Provisioner](#provisioner). These components work together to bring content onto the cluster and install it,
 generating resources within the cluster. Below is a high level diagram depicting the interaction of the RukPak
 components.
@@ -86,13 +86,13 @@ components.
 graph TD
     C[Provisioner]
     C -->|Unpacks| D[Bundle]
-    C -->|Reconciles| E[BundleInstance]
+    C -->|Reconciles| E[BundleDeployment]
     D ---|References| F((Content))
     E -->|Creates/Manages| G([Cluster Resources])
 ```
 
-A provisioner places a watch on both Bundles and BundleInstances that refer to it explicitly. For a given bundle, the
-provisioner unpacks the contents of the Bundle onto the cluster. Then, given a BundleInstance referring to that Bundle,
+A provisioner places a watch on both Bundles and BundleDeployments that refer to it explicitly. For a given bundle, the
+provisioner unpacks the contents of the Bundle onto the cluster. Then, given a BundleDeployment referring to that Bundle,
 the provisioner then installs the bundle contents and is responsible for managing the lifecycle of those resources.
 
 ### Bundle
@@ -125,26 +125,26 @@ spec:
 > Note: Bundles are considered immutable once they are created. See the [bundle immutability doc](/docs/bundle-immutability.md)
 > for more information.
 
-### BundleInstance
+### BundleDeployment
 
-> :warning: A BundleInstance changes the state of the Kubernetes cluster by installing and removing objects. It's important
-> to verify and trust the content that is being installed, and limit access (via RBAC) to the BundleInstance API to only those
+> :warning: A BundleDeployment changes the state of the Kubernetes cluster by installing and removing objects. It's important
+> to verify and trust the content that is being installed, and limit access (via RBAC) to the BundleDeployment API to only those
 > who require those permissions.
 
-The `BundleInstance` API points to a Bundle and indicates that it should be “active”. This includes pivoting from older
-versions of an active bundle.`BundleInstance` may also include an embedded spec for a desired Bundle.
+The `BundleDeployment` API points to a Bundle and indicates that it should be “active”. This includes pivoting from older
+versions of an active bundle.`BundleDeployment` may also include an embedded spec for a desired Bundle.
 
-Much like Pods stamp out instances of container images, `BundleInstances` stamp out an instance of
-Bundles. `BundleInstance` can be seen as a generalization of the Pod concept.
+Much like Pods stamp out instances of container images, `BundleDeployments` stamp out an instance of
+Bundles. `BundleDeployment` can be seen as a generalization of the Pod concept.
 
-The specifics of how an `BundleInstance` makes changes to a cluster based on a referenced `Bundle` is defined by the
-`Provisioner` that is configured to watch that `BundleInstance`.
+The specifics of how an `BundleDeployment` makes changes to a cluster based on a referenced `Bundle` is defined by the
+`Provisioner` that is configured to watch that `BundleDeployment`.
 
-Example BundleInstance configured to work with the [plain provisioner](internal/provisioner/plain/README.md).
+Example BundleDeployment configured to work with the [plain provisioner](internal/provisioner/plain/README.md).
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
-kind: BundleInstance
+kind: BundleDeployment
 metadata:
   name: my-bundle-instance
 spec:
@@ -163,8 +163,8 @@ spec:
 
 ### Provisioner
 
-A Provisioner is a controller that understands `BundleInstance` and `Bundle` APIs and can take action.
-Each `Provisioner` is assigned a unique ID, and is responsible for reconciling a `Bundle` and `BundleInstance` with
+A Provisioner is a controller that understands `BundleDeployment` and `Bundle` APIs and can take action.
+Each `Provisioner` is assigned a unique ID, and is responsible for reconciling a `Bundle` and `BundleDeployment` with
 a `spec.provisionerClassName` that matches that particular ID.
 
 For example, in this repository the [plain](internal/provisioner/plain/README.md) provisioner is implemented.
@@ -178,7 +178,7 @@ If you are interested in implementing your own provisioner, please see the
 
 RukPak comes with a webhook for validating the upgrade of CRDs from `Bundle`s. If a CRD does potentially destructive
 actions to the cluster, it will not allow it to be applied. In the context of RukPak, this will result in a failed
-`BundleInstance` resolution.
+`BundleDeployment` resolution.
 
 To read more about this webhook, and learn how to disable this default behavior, view
 the `crdvalidator` [documentation](cmd/crdvalidator/README.md). The `plain` provisioner is able to unpack a
