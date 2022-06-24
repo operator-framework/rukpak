@@ -47,7 +47,7 @@ const (
 type BundleDeploymentSpec struct {
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
-	// Template describes the generated Bundle that this instance will manage.
+	// Template describes the generated Bundle that this deployment will manage.
 	Template *BundleTemplate `json:"template"`
 }
 
@@ -75,7 +75,7 @@ type BundleDeploymentStatus struct {
 //+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 
-// BundleDeployment is the Schema for the bundleinstances API
+// BundleDeployment is the Schema for the bundledeployments API
 type BundleDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

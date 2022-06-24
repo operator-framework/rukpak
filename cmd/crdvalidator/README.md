@@ -5,7 +5,7 @@
 A part of the core value proposition for RukPak is the safe upgrade of
 a [CustomResourceDefinition](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/) (`CRD`)
 . As a result, this repository comes equipped with a "CRD Validator Webhook" (`crdvalidator`), that will validate
-all `CRD` upgrades created by RukPak. This protects your `BundleInstance` pivots from having potentially dangerous
+all `CRD` upgrades created by RukPak. This protects your `BundleDeployment` pivots from having potentially dangerous
 effects such as data loss.
 
 ### How to use

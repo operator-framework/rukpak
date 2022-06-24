@@ -14,7 +14,7 @@ artifacts, such as Git repositories, Helm charts, OLM bundles, and more onto a K
 then be managed, scaled, and upgraded in a safe way to enable powerful cluster extensions.
 
 At its core, RukPak is a small set of APIs, packaged as Kubernetes CustomResourceDefinitions, and controllers that watch
-for those APIs. These APIs express what content is being installed on-cluster and how to create a running instance of
+for those APIs. These APIs express what content is being installed on-cluster and how to create a running deployment of
 the content.
 
 ## Contributing
@@ -134,7 +134,7 @@ spec:
 The `BundleDeployment` API points to a Bundle and indicates that it should be “active”. This includes pivoting from older
 versions of an active bundle.`BundleDeployment` may also include an embedded spec for a desired Bundle.
 
-Much like Pods stamp out instances of container images, `BundleDeployments` stamp out an instance of
+Much like Pods stamp out instances of container images, `BundleDeployments` stamp out a deployed version of
 Bundles. `BundleDeployment` can be seen as a generalization of the Pod concept.
 
 The specifics of how an `BundleDeployment` makes changes to a cluster based on a referenced `Bundle` is defined by the
@@ -146,7 +146,7 @@ Example BundleDeployment configured to work with the [plain provisioner](interna
 apiVersion: core.rukpak.io/v1alpha1
 kind: BundleDeployment
 metadata:
-  name: my-bundle-instance
+  name: my-bundle-deployment
 spec:
   provisionerClassName: core.rukpak.io/plain
   template:

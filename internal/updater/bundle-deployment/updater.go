@@ -1,4 +1,4 @@
-package bundleinstance
+package bundledeployment
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/updater"
 )
 
-func NewBundleInstanceUpdater(client client.Client) Updater {
+func NewBundleDeploymentUpdater(client client.Client) Updater {
 	return Updater{
 		client: client,
 	}
@@ -24,26 +24,26 @@ type Updater struct {
 	updateStatusFuncs []UpdateStatusFunc
 }
 
-type UpdateStatusFunc func(bi *rukpakv1alpha1.BundleDeploymentStatus) bool
+type UpdateStatusFunc func(bd *rukpakv1alpha1.BundleDeploymentStatus) bool
 
 func (u *Updater) UpdateStatus(fs ...UpdateStatusFunc) {
 	u.updateStatusFuncs = append(u.updateStatusFuncs, fs...)
 }
 
-func (u *Updater) Apply(ctx context.Context, bi *rukpakv1alpha1.BundleDeployment) error {
+func (u *Updater) Apply(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) error {
 	backoff := retry.DefaultRetry
 
 	return retry.RetryOnConflict(backoff, func() error {
-		if err := u.client.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
+		if err := u.client.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 			return err
 		}
 		needsStatusUpdate := false
 		for _, f := range u.updateStatusFuncs {
-			needsStatusUpdate = f(&bi.Status) || needsStatusUpdate
+			needsStatusUpdate = f(&bd.Status) || needsStatusUpdate
 		}
 		if needsStatusUpdate {
 			log.FromContext(ctx).Info("applying status changes")
-			return u.client.Status().Update(ctx, bi)
+			return u.client.Status().Update(ctx, bd)
 		}
 		return nil
 	})

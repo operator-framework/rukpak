@@ -1,4 +1,4 @@
-package bundleinstance
+package bundledeployment
 
 import (
 	"testing"

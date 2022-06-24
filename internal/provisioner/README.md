@@ -26,7 +26,7 @@ Each provisioner has its own custom logic for how it goes about handling content
 apiVersion: core.rukpak.io/v1alpha1
 kind: BundleDeployment
 metadata:
-  name: my-bundle-Deployment
+  name: my-bundle-deployment
 spec:
   provisionerClassName: core.rukpak.io/my-provisioner # <-- Provisioner for the BundleDeployment
   template:

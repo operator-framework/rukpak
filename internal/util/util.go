@@ -36,7 +36,7 @@ func BundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	})
 }
 
-func BundleInstanceProvisionerFilter(provisionerClassName string) predicate.Predicate {
+func BundleDeploymentProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
 		b := obj.(*rukpakv1alpha1.BundleDeployment)
 		return b.Spec.ProvisionerClassName == provisionerClassName
@@ -101,53 +101,53 @@ func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, lo
 	})
 }
 
-func MapBundleInstanceToBundles(ctx context.Context, c client.Client, bi rukpakv1alpha1.BundleDeployment) *rukpakv1alpha1.BundleList {
+func MapBundleDeploymentToBundles(ctx context.Context, c client.Client, bd rukpakv1alpha1.BundleDeployment) *rukpakv1alpha1.BundleList {
 	bundles := &rukpakv1alpha1.BundleList{}
 	if err := c.List(ctx, bundles, &client.ListOptions{
-		LabelSelector: NewBundleInstanceLabelSelector(&bi),
+		LabelSelector: NewBundleDeploymentLabelSelector(&bd),
 	}); err != nil {
 		return nil
 	}
 	return bundles
 }
 
-func MapBundleToBundleInstances(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) []*rukpakv1alpha1.BundleDeployment {
-	bundleInstances := &rukpakv1alpha1.BundleDeploymentList{}
-	if err := c.List(context.Background(), bundleInstances); err != nil {
+func MapBundleToBundleDeployments(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) []*rukpakv1alpha1.BundleDeployment {
+	bundleDeployments := &rukpakv1alpha1.BundleDeploymentList{}
+	if err := c.List(context.Background(), bundleDeployments); err != nil {
 		return nil
 	}
-	var bis []*rukpakv1alpha1.BundleDeployment
-	for _, bi := range bundleInstances.Items {
-		bi := bi
+	var bds []*rukpakv1alpha1.BundleDeployment
+	for _, bd := range bundleDeployments.Items {
+		bd := bd
 
-		bundles := MapBundleInstanceToBundles(ctx, c, bi)
+		bundles := MapBundleDeploymentToBundles(ctx, c, bd)
 		for _, bundle := range bundles.Items {
 			if bundle.GetName() == b.GetName() {
-				bis = append(bis, &bi)
+				bds = append(bds, &bd)
 			}
 		}
 	}
-	return bis
+	return bds
 }
 
-func MapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler.MapFunc {
+func MapBundleToBundleDeploymentHandler(cl client.Client, log logr.Logger) handler.MapFunc {
 	return func(object client.Object) []reconcile.Request {
 		b := object.(*rukpakv1alpha1.Bundle)
 
 		var requests []reconcile.Request
-		matchingBIs := MapBundleToBundleInstances(context.Background(), cl, *b)
-		for _, bi := range matchingBIs {
-			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(bi)})
+		matchingBDs := MapBundleToBundleDeployments(context.Background(), cl, *b)
+		for _, bd := range matchingBDs {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(bd)})
 		}
 		return requests
 	}
 }
 
-// GetBundlesForBundleInstanceSelector is responsible for returning a list of
+// GetBundlesForBundleDeploymentSelector is responsible for returning a list of
 // Bundle resource that exist on cluster that match the label selector specified
-// in the BI parameter's spec.Selector field.
-func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.BundleList, error) {
-	selector := NewBundleInstanceLabelSelector(bi)
+// in the BD parameter's spec.Selector field.
+func GetBundlesForBundleDeploymentSelector(ctx context.Context, c client.Client, bd *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.BundleList, error) {
+	selector := NewBundleDeploymentLabelSelector(bd)
 	bundleList := &rukpakv1alpha1.BundleList{}
 	if err := c.List(ctx, bundleList, &client.ListOptions{
 		LabelSelector: selector,
@@ -197,8 +197,8 @@ func GenerateTemplateHash(template *rukpakv1alpha1.BundleTemplate) string {
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
 }
 
-func GenerateBundleName(biName, hash string) string {
-	return fmt.Sprintf("%s-%s", biName, hash)
+func GenerateBundleName(bdName, hash string) string {
+	return fmt.Sprintf("%s-%s", bdName, hash)
 }
 
 // SortBundlesByCreation sorts a BundleList's items by it's
@@ -247,10 +247,10 @@ func NewBundleLabelSelector(bundle *rukpakv1alpha1.Bundle) labels.Selector {
 	return newLabelSelector(bundle.GetName(), rukpakv1alpha1.BundleKind)
 }
 
-// NewBundleInstanceLabelSelector is responsible for constructing a label.Selector
+// NewBundleDeploymentLabelSelector is responsible for constructing a label.Selector
 // for any underlying resources that are associated with the BundleDeployment parameter.
-func NewBundleInstanceLabelSelector(bi *rukpakv1alpha1.BundleDeployment) labels.Selector {
-	return newLabelSelector(bi.GetName(), rukpakv1alpha1.BundleDeploymentKind)
+func NewBundleDeploymentLabelSelector(bd *rukpakv1alpha1.BundleDeployment) labels.Selector {
+	return newLabelSelector(bd.GetName(), rukpakv1alpha1.BundleDeploymentKind)
 }
 
 func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
