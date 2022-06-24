@@ -5,7 +5,7 @@ import (
 	"io/fs"
 )
 
-var conversionFuncs = map[interface{}]interface{}{}
+var conversionFuncs = map[string]interface{}{}
 
 func conversionKey[IN, OUT fs.FS]() string {
 	var (
@@ -16,7 +16,9 @@ func conversionKey[IN, OUT fs.FS]() string {
 	return fmt.Sprintf("%T->%T", in, out)
 }
 
-// RegisterConversionFunc informs the package how to convert between two bundle formats.
+// RegisterConversionFunc informs the package how to convert from one bundle format to another.
+//
+// This function is best put in the `init` function of packages that define bundle formats.
 func RegisterConversionFunc[IN, OUT fs.FS](f func(bundle IN, opts ...func(*OUT)) (*OUT, error)) {
 	conversionFuncs[conversionKey[IN, OUT]()] = f
 }
