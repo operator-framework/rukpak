@@ -38,7 +38,7 @@ func BundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
 
 func BundleInstanceProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		b := obj.(*rukpakv1alpha1.BundleInstance)
+		b := obj.(*rukpakv1alpha1.BundleDeployment)
 		return b.Spec.ProvisionerClassName == provisionerClassName
 	})
 }
@@ -101,7 +101,7 @@ func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, lo
 	})
 }
 
-func MapBundleInstanceToBundles(ctx context.Context, c client.Client, bi rukpakv1alpha1.BundleInstance) *rukpakv1alpha1.BundleList {
+func MapBundleInstanceToBundles(ctx context.Context, c client.Client, bi rukpakv1alpha1.BundleDeployment) *rukpakv1alpha1.BundleList {
 	bundles := &rukpakv1alpha1.BundleList{}
 	if err := c.List(ctx, bundles, &client.ListOptions{
 		LabelSelector: NewBundleInstanceLabelSelector(&bi),
@@ -111,12 +111,12 @@ func MapBundleInstanceToBundles(ctx context.Context, c client.Client, bi rukpakv
 	return bundles
 }
 
-func MapBundleToBundleInstances(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) []*rukpakv1alpha1.BundleInstance {
-	bundleInstances := &rukpakv1alpha1.BundleInstanceList{}
+func MapBundleToBundleInstances(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) []*rukpakv1alpha1.BundleDeployment {
+	bundleInstances := &rukpakv1alpha1.BundleDeploymentList{}
 	if err := c.List(context.Background(), bundleInstances); err != nil {
 		return nil
 	}
-	var bis []*rukpakv1alpha1.BundleInstance
+	var bis []*rukpakv1alpha1.BundleDeployment
 	for _, bi := range bundleInstances.Items {
 		bi := bi
 
@@ -146,7 +146,7 @@ func MapBundleToBundleInstanceHandler(cl client.Client, log logr.Logger) handler
 // GetBundlesForBundleInstanceSelector is responsible for returning a list of
 // Bundle resource that exist on cluster that match the label selector specified
 // in the BI parameter's spec.Selector field.
-func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) (*rukpakv1alpha1.BundleList, error) {
+func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.BundleList, error) {
 	selector := NewBundleInstanceLabelSelector(bi)
 	bundleList := &rukpakv1alpha1.BundleList{}
 	if err := c.List(ctx, bundleList, &client.ListOptions{
@@ -158,7 +158,7 @@ func GetBundlesForBundleInstanceSelector(ctx context.Context, c client.Client, b
 }
 
 // CheckExistingBundlesMatchesTemplate evaluates whether the existing list of Bundle objects
-// match the desired Bundle template that's specified in a BundleInstance object. If a match
+// match the desired Bundle template that's specified in a BundleDeployment object. If a match
 // is found, that Bundle object is returned, so callers are responsible for nil checking the result.
 func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate *rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
 	for _, bundle := range existingBundles.Items {
@@ -248,8 +248,8 @@ func NewBundleLabelSelector(bundle *rukpakv1alpha1.Bundle) labels.Selector {
 }
 
 // NewBundleInstanceLabelSelector is responsible for constructing a label.Selector
-// for any underlying resources that are associated with the BundleInstance parameter.
-func NewBundleInstanceLabelSelector(bi *rukpakv1alpha1.BundleInstance) labels.Selector {
+// for any underlying resources that are associated with the BundleDeployment parameter.
+func NewBundleInstanceLabelSelector(bi *rukpakv1alpha1.BundleDeployment) labels.Selector {
 	return newLabelSelector(bi.GetName(), rukpakv1alpha1.BundleInstanceKind)
 }
 

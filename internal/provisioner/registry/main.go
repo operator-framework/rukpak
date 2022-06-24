@@ -110,8 +110,8 @@ func main() {
 		LeaderElectionID:       "registry.core.rukpak.io",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
-				&rukpakv1alpha1.BundleInstance{}: {},
-				&rukpakv1alpha1.Bundle{}:         {},
+				&rukpakv1alpha1.BundleDeployment{}: {},
+				&rukpakv1alpha1.Bundle{}:           {},
 			},
 			DefaultSelector: cache.ObjectSelector{
 				Label: dependentSelector,

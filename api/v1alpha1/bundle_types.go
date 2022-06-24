@@ -48,7 +48,7 @@ const (
 
 // BundleSpec defines the desired state of Bundle
 type BundleSpec struct {
-	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
+	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Source defines the configuration for the underlying Bundle content.
 	Source BundleSource `json:"source"`
