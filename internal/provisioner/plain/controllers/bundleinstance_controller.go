@@ -58,13 +58,13 @@ const (
 )
 
 var (
-	// ErrMaxGeneratedLimit is the error returned by the BundleInstance controller
+	// ErrMaxGeneratedLimit is the error returned by the BundleDeployment controller
 	// when the configured maximum number of Bundles that match a label selector
 	// has been reached.
 	ErrMaxGeneratedLimit = errors.New("reached the maximum generated Bundle limit")
 )
 
-// BundleInstanceReconciler reconciles a BundleInstance object
+// BundleInstanceReconciler reconciles a BundleDeployment object
 type BundleInstanceReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
@@ -93,7 +93,7 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
 
-	bi := &rukpakv1alpha1.BundleInstance{}
+	bi := &rukpakv1alpha1.BundleDeployment{}
 	if err := r.Get(ctx, req.NamespacedName, bi); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -323,10 +323,10 @@ func (r *BundleInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 // reconcileDesiredBundle is responsible for checking whether the desired
-// Bundle resource that's specified in the BundleInstance parameter's
+// Bundle resource that's specified in the BundleDeployment parameter's
 // spec.Template configuration is present on cluster, and if not, creates
 // a new Bundle resource matching that desired specification.
-func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleInstance) (*rukpakv1alpha1.Bundle, *rukpakv1alpha1.BundleList, error) {
+func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.Bundle, *rukpakv1alpha1.BundleList, error) {
 	// get the set of Bundle resources that already exist on cluster, and sort
 	// by metadata.CreationTimestamp in the case there's multiple Bundles
 	// that match the label selector.
@@ -480,7 +480,7 @@ func isResourceNotFoundErr(err error) bool {
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&rukpakv1alpha1.BundleInstance{}, builder.WithPredicates(util.BundleInstanceProvisionerFilter(plain.ProvisionerID))).
+		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(util.BundleInstanceProvisionerFilter(plain.ProvisionerID))).
 		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(util.MapBundleToBundleInstanceHandler(mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {

@@ -24,13 +24,13 @@ type Updater struct {
 	updateStatusFuncs []UpdateStatusFunc
 }
 
-type UpdateStatusFunc func(bi *rukpakv1alpha1.BundleInstanceStatus) bool
+type UpdateStatusFunc func(bi *rukpakv1alpha1.BundleDeploymentStatus) bool
 
 func (u *Updater) UpdateStatus(fs ...UpdateStatusFunc) {
 	u.updateStatusFuncs = append(u.updateStatusFuncs, fs...)
 }
 
-func (u *Updater) Apply(ctx context.Context, bi *rukpakv1alpha1.BundleInstance) error {
+func (u *Updater) Apply(ctx context.Context, bi *rukpakv1alpha1.BundleDeployment) error {
 	backoff := retry.DefaultRetry
 
 	return retry.RetryOnConflict(backoff, func() error {
@@ -50,7 +50,7 @@ func (u *Updater) Apply(ctx context.Context, bi *rukpakv1alpha1.BundleInstance) 
 }
 
 func EnsureCondition(condition metav1.Condition) UpdateStatusFunc {
-	return func(status *rukpakv1alpha1.BundleInstanceStatus) bool {
+	return func(status *rukpakv1alpha1.BundleDeploymentStatus) bool {
 		existing := meta.FindStatusCondition(status.Conditions, condition.Type)
 		if existing == nil || !updater.ConditionsSemanticallyEqual(*existing, condition) {
 			meta.SetStatusCondition(&status.Conditions, condition)
@@ -61,7 +61,7 @@ func EnsureCondition(condition metav1.Condition) UpdateStatusFunc {
 }
 
 func EnsureInstalledName(bundleName string) UpdateStatusFunc {
-	return func(status *rukpakv1alpha1.BundleInstanceStatus) bool {
+	return func(status *rukpakv1alpha1.BundleDeploymentStatus) bool {
 		if status.InstalledBundleName == bundleName {
 			return false
 		}

@@ -5,17 +5,17 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: bundleinstances.core.rukpak.io
+  name: bundledeployments.core.rukpak.io
 spec:
   group: core.rukpak.io
   names:
-    kind: BundleInstance
-    listKind: BundleInstanceList
-    plural: bundleinstances
+    kind: BundleDeployment
+    listKind: BundleDeploymentList
+    plural: bundledeployments
     shortNames:
-    - bi
-    - bis
-    singular: bundleinstance
+    - bd
+    - bds
+    singular: bundledeployment
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -31,7 +31,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: BundleInstance is the Schema for the bundleinstances API
+        description: BundleDeployment is the Schema for the bundleinstances API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -46,11 +46,11 @@ spec:
           metadata:
             type: object
           spec:
-            description: BundleDeploymentSpec defines the desired state of BundleInstance
+            description: BundleDeploymentSpec defines the desired state of BundleDeployment
             properties:
               provisionerClassName:
                 description: ProvisionerClassName sets the name of the provisioner
-                  that should reconcile this BundleInstance.
+                  that should reconcile this BundleDeployment.
                 type: string
               template:
                 description: Template describes the generated Bundle that this instance
@@ -82,7 +82,7 @@ spec:
                     properties:
                       provisionerClassName:
                         description: ProvisionerClassName sets the name of the provisioner
-                          that should reconcile this BundleInstance.
+                          that should reconcile this BundleDeployment.
                         type: string
                       source:
                         description: Source defines the configuration for the underlying
@@ -196,7 +196,7 @@ spec:
             - template
             type: object
           status:
-            description: BundleDeploymentStatus defines the observed state of BundleInstance
+            description: BundleDeploymentStatus defines the observed state of BundleDeployment
             properties:
               conditions:
                 items:

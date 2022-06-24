@@ -21,8 +21,8 @@ var _ = Describe("Updater", func() {
 	var (
 		client pkgclient.Client
 		u      bundleinstance.Updater
-		obj    *rukpakv1alpha1.BundleInstance
-		status = &rukpakv1alpha1.BundleInstanceStatus{
+		obj    *rukpakv1alpha1.BundleDeployment
+		status = &rukpakv1alpha1.BundleDeploymentStatus{
 			InstalledBundleName: "bundle",
 			Conditions: []metav1.Condition{
 				{
@@ -55,11 +55,11 @@ var _ = Describe("Updater", func() {
 
 		client = fake.NewClientBuilder().WithScheme(scheme).Build()
 		u = bundleinstance.NewBundleInstanceUpdater(client)
-		obj = &rukpakv1alpha1.BundleInstance{
+		obj = &rukpakv1alpha1.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "olm-crds",
 			},
-			Spec: rukpakv1alpha1.BundleInstanceSpec{
+			Spec: rukpakv1alpha1.BundleDeploymentSpec{
 				ProvisionerClassName: plain.ProvisionerID,
 				Template: &rukpakv1alpha1.BundleTemplate{
 					Spec: rukpakv1alpha1.BundleSpec{
@@ -73,7 +73,7 @@ var _ = Describe("Updater", func() {
 					},
 				},
 			},
-			Status: rukpakv1alpha1.BundleInstanceStatus{
+			Status: rukpakv1alpha1.BundleDeploymentStatus{
 				InstalledBundleName: "bundle",
 				Conditions: []metav1.Condition{
 					{
@@ -130,11 +130,11 @@ var _ = Describe("Updater", func() {
 })
 
 var _ = Describe("EnsureCondition", func() {
-	var status *rukpakv1alpha1.BundleInstanceStatus
+	var status *rukpakv1alpha1.BundleDeploymentStatus
 	var condition, anotherCondition metav1.Condition
 
 	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleInstanceStatus{}
+		status = &rukpakv1alpha1.BundleDeploymentStatus{}
 		condition = metav1.Condition{Type: "Working"}
 		anotherCondition = metav1.Condition{Type: "Completed"}
 	})
@@ -146,13 +146,13 @@ var _ = Describe("EnsureCondition", func() {
 	})
 
 	It("should return false for no update", func() {
-		status = &rukpakv1alpha1.BundleInstanceStatus{Conditions: []metav1.Condition{condition}}
+		status = &rukpakv1alpha1.BundleDeploymentStatus{Conditions: []metav1.Condition{condition}}
 		Expect(bundleinstance.EnsureCondition(condition)(status)).To(BeFalse())
 		Expect(status.Conditions[0]).To(Equal(condition))
 	})
 
 	It("should add Condition if same type not present", func() {
-		status = &rukpakv1alpha1.BundleInstanceStatus{Conditions: []metav1.Condition{condition}}
+		status = &rukpakv1alpha1.BundleDeploymentStatus{Conditions: []metav1.Condition{condition}}
 		Expect(bundleinstance.EnsureCondition(anotherCondition)(status)).To(BeTrue())
 		status.Conditions[1].LastTransitionTime = metav1.Time{}
 		Expect(status.Conditions[1]).To(Equal(anotherCondition))
@@ -160,11 +160,11 @@ var _ = Describe("EnsureCondition", func() {
 })
 
 var _ = Describe("EnsureInstalledName", func() {
-	var status *rukpakv1alpha1.BundleInstanceStatus
+	var status *rukpakv1alpha1.BundleDeploymentStatus
 	var installedBundleName string
 
 	BeforeEach(func() {
-		status = &rukpakv1alpha1.BundleInstanceStatus{}
+		status = &rukpakv1alpha1.BundleDeploymentStatus{}
 		installedBundleName = "bundle"
 	})
 
@@ -174,7 +174,7 @@ var _ = Describe("EnsureInstalledName", func() {
 	})
 
 	It("should not update the installedBundleName if already set", func() {
-		status = &rukpakv1alpha1.BundleInstanceStatus{InstalledBundleName: installedBundleName}
+		status = &rukpakv1alpha1.BundleDeploymentStatus{InstalledBundleName: installedBundleName}
 		Expect(bundleinstance.EnsureInstalledName(installedBundleName)(status)).To(BeFalse())
 	})
 })

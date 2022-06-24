@@ -51,7 +51,7 @@ spec:
             properties:
               provisionerClassName:
                 description: ProvisionerClassName sets the name of the provisioner
-                  that should reconcile this BundleInstance.
+                  that should reconcile this BundleDeployment.
                 type: string
               source:
                 description: Source defines the configuration for the underlying Bundle

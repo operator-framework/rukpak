@@ -654,17 +654,17 @@ var _ = Describe("plain provisioner bundle", func() {
 var _ = Describe("plain provisioner bundleinstance", func() {
 	Context("embedded bundle template", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleInstance
+			bi  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bi = &rukpakv1alpha1.BundleInstance{
+			bi = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
@@ -883,19 +883,19 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 	})
 
-	When("a BundleInstance targets a valid Bundle", func() {
+	When("a BundleDeployment targets a valid Bundle", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleInstance
+			bi  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bi = &rukpakv1alpha1.BundleInstance{
+			bi = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
@@ -943,18 +943,18 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 	})
 
-	When("a BundleInstance targets an invalid Bundle", func() {
+	When("a BundleDeployment targets an invalid Bundle", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleInstance
+			bi  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
-			bi = &rukpakv1alpha1.BundleInstance{
+			bi = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-apis",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
@@ -978,7 +978,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
-			By("deleting the testing BundleInstance resource")
+			By("deleting the testing BundleDeployment resource")
 			Eventually(func() error {
 				return client.IgnoreNotFound(c.Delete(ctx, bi))
 			}).Should(Succeed())
@@ -1010,19 +1010,19 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 	})
 
-	When("a BundleInstance is dependent on another BundleInstance", func() {
+	When("a BundleDeployment is dependent on another BundleDeployment", func() {
 		var (
 			ctx         context.Context
-			dependentBI *rukpakv1alpha1.BundleInstance
+			dependentBI *rukpakv1alpha1.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
-			By("creating the testing dependent BundleInstance resource")
-			dependentBI = &rukpakv1alpha1.BundleInstance{
+			By("creating the testing dependent BundleDeployment resource")
+			dependentBI = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "e2e-bi-dependent-",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1046,12 +1046,12 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
-			By("deleting the testing dependent BundleInstance resource")
+			By("deleting the testing dependent BundleDeployment resource")
 			Expect(client.IgnoreNotFound(c.Delete(ctx, dependentBI))).To(BeNil())
 
 		})
-		When("the providing BundleInstance does not exist", func() {
-			It("should eventually project a failed installation for the dependent BundleInstance", func() {
+		When("the providing BundleDeployment does not exist", func() {
+			It("should eventually project a failed installation for the dependent BundleDeployment", func() {
 				Eventually(func() (*metav1.Condition, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBI), dependentBI); err != nil {
 						return nil, err
@@ -1067,19 +1067,19 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				))
 			})
 		})
-		When("the providing BundleInstance is created", func() {
+		When("the providing BundleDeployment is created", func() {
 			var (
-				providesBI *rukpakv1alpha1.BundleInstance
+				providesBI *rukpakv1alpha1.BundleDeployment
 			)
 			BeforeEach(func() {
 				ctx = context.Background()
 
 				By("creating the testing providing BI resource")
-				providesBI = &rukpakv1alpha1.BundleInstance{
+				providesBI = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "e2e-bi-providing-",
 					},
-					Spec: rukpakv1alpha1.BundleInstanceSpec{
+					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Template: &rukpakv1alpha1.BundleTemplate{
 							ObjectMeta: metav1.ObjectMeta{
@@ -1103,11 +1103,11 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				Expect(err).To(BeNil())
 			})
 			AfterEach(func() {
-				By("deleting the testing providing BundleInstance resource")
+				By("deleting the testing providing BundleDeployment resource")
 				Expect(client.IgnoreNotFound(c.Delete(ctx, providesBI))).To(BeNil())
 
 			})
-			It("should eventually project a successful installation for the dependent BundleInstance", func() {
+			It("should eventually project a successful installation for the dependent BundleDeployment", func() {
 				Eventually(func() (*metav1.Condition, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBI), dependentBI); err != nil {
 						return nil, err
@@ -1127,20 +1127,20 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		})
 	})
 
-	When("a BundleInstance targets a Bundle that contains CRDs and instances of those CRDs", func() {
+	When("a BundleDeployment targets a Bundle that contains CRDs and instances of those CRDs", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleInstance
+			bi  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing BI resource")
-			bi = &rukpakv1alpha1.BundleInstance{
+			bi = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "e2e-bi-crds-and-crs-",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1261,7 +1261,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 	When("an embedded Bundle has been deleted", func() {
 		var (
 			ctx context.Context
-			bi  *rukpakv1alpha1.BundleInstance
+			bi  *rukpakv1alpha1.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -1270,11 +1270,11 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			}
 
 			By("creating the testing Bundle resource")
-			bi = &rukpakv1alpha1.BundleInstance{
+			bi = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "e2e-ownerref-bi-valid",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1353,20 +1353,20 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 	})
 
-	When("a BundleInstance has been deleted", func() {
+	When("a BundleDeployment has been deleted", func() {
 		var (
 			ctx context.Context
-			bi  *rukpakv1alpha1.BundleInstance
+			bi  *rukpakv1alpha1.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing BI resource")
-			bi = &rukpakv1alpha1.BundleInstance{
+			bi = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "e2e-ownerref-bi-valid-",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1404,7 +1404,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 		AfterEach(func() {
 			By("deleting the testing BI resource")
-			Expect(c.Get(ctx, client.ObjectKeyFromObject(bi), &rukpakv1alpha1.BundleInstance{})).To(WithTransform(apierrors.IsNotFound, BeTrue()))
+			Expect(c.Get(ctx, client.ObjectKeyFromObject(bi), &rukpakv1alpha1.BundleDeployment{})).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should eventually result in the installed CRDs being deleted", func() {
 			By("deleting the testing BI resource")

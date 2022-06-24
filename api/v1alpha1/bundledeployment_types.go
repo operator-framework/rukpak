@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	BundleInstanceGVK  = SchemeBuilder.GroupVersion.WithKind("BundleInstance")
+	BundleInstanceGVK  = SchemeBuilder.GroupVersion.WithKind("BundleDeployment")
 	BundleInstanceKind = BundleInstanceGVK.Kind
 )
 
@@ -43,9 +43,9 @@ const (
 	ReasonMaxGeneratedBundlesReached = "MaxGenerationReached"
 )
 
-// BundleInstanceSpec defines the desired state of BundleInstance
-type BundleInstanceSpec struct {
-	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleInstance.
+// BundleDeploymentSpec defines the desired state of BundleDeployment
+type BundleDeploymentSpec struct {
+	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Template describes the generated Bundle that this instance will manage.
 	Template *BundleTemplate `json:"template"`
@@ -62,37 +62,37 @@ type BundleTemplate struct {
 	Spec BundleSpec `json:"spec"`
 }
 
-// BundleInstanceStatus defines the observed state of BundleInstance
-type BundleInstanceStatus struct {
+// BundleDeploymentStatus defines the observed state of BundleDeployment
+type BundleDeploymentStatus struct {
 	Conditions          []metav1.Condition `json:"conditions,omitempty"`
 	InstalledBundleName string             `json:"installedBundleName,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster,shortName={"bi","bis"}
+//+kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}
 //+kubebuilder:printcolumn:name="Installed Bundle",type=string,JSONPath=`.status.installedBundleName`
 //+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 
-// BundleInstance is the Schema for the bundleinstances API
-type BundleInstance struct {
+// BundleDeployment is the Schema for the bundleinstances API
+type BundleDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BundleInstanceSpec   `json:"spec"`
-	Status BundleInstanceStatus `json:"status,omitempty"`
+	Spec   BundleDeploymentSpec   `json:"spec"`
+	Status BundleDeploymentStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// BundleInstanceList contains a list of BundleInstance
-type BundleInstanceList struct {
+// BundleDeploymentList contains a list of BundleDeployment
+type BundleDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []BundleInstance `json:"items"`
+	Items           []BundleDeployment `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&BundleInstance{}, &BundleInstanceList{})
+	SchemeBuilder.Register(&BundleDeployment{}, &BundleDeploymentList{})
 }
