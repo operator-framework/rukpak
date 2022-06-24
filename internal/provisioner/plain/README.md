@@ -69,8 +69,8 @@ InstallationSucceeded Phase if the application of resources to the cluster was s
 
 ```console
 $ kubectl get bundledeployment my-bundle-deployment
-NAME                 DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
-my-bundle-deployment   my-bundle        my-bundle          InstallationSucceeded   11s
+NAME                   ACTIVE BUNDLE    INSTALL STATE           AGE
+my-bundle-deployment   my-bundle        InstallationSucceeded   11s
 ```
 
 > Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
@@ -154,7 +154,7 @@ A successful installation will show InstallationSucceeded as the `INSTALL STATE`
 
 ```console
 $ kubectl get bundledeployment combo
-NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
+NAME    ACTIVE BUNDLE      INSTALL STATE           AGE
 combo   combo-7cdc7d7d6d   InstallationSucceeded   10s
 ```
 
@@ -242,7 +242,7 @@ NAME               TYPE    PHASE      AGE
 combo-7ddfd9fcd5   image   Unpacked   10s
 
 $ kubectl get bundledeployment combo
-NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
+NAME    ACTIVE BUNDLE      INSTALL STATE           AGE
 combo   combo-7ddfd9fcd5   InstallationSucceeded   10s
 
 $ kubectl -n combo get deployment

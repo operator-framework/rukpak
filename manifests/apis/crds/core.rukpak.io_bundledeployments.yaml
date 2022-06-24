@@ -19,8 +19,8 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.installedBundleName
-      name: Installed Bundle
+    - jsonPath: .status.activeBundle
+      name: Active Bundle
       type: string
     - jsonPath: .status.conditions[?(.type=="Installed")].reason
       name: Install State
@@ -198,6 +198,8 @@ spec:
           status:
             description: BundleDeploymentStatus defines the observed state of BundleDeployment
             properties:
+              activeBundle:
+                type: string
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
@@ -266,8 +268,6 @@ spec:
                   - type
                   type: object
                 type: array
-              installedBundleName:
-                type: string
             type: object
         required:
         - spec
