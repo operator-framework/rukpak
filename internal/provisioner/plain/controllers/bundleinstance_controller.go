@@ -353,7 +353,7 @@ func reconcileDesiredBundle(ctx context.Context, c client.Client, bi *rukpakv1al
 		if len(labels) == 0 {
 			labels = make(map[string]string)
 		}
-		labels[util.CoreOwnerKindKey] = rukpakv1alpha1.BundleInstanceKind
+		labels[util.CoreOwnerKindKey] = rukpakv1alpha1.BundleDeploymentKind
 		labels[util.CoreOwnerNameKey] = bi.GetName()
 		labels[util.CoreBundleTemplateHashKey] = hash
 
@@ -438,7 +438,7 @@ func (r *BundleInstanceReconciler) loadBundle(ctx context.Context, bundle *rukpa
 	for _, obj := range objects {
 		obj := obj
 		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
-			util.CoreOwnerKindKey: rukpakv1alpha1.BundleInstanceKind,
+			util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind,
 			util.CoreOwnerNameKey: biName,
 		}))
 		objs = append(objs, obj)

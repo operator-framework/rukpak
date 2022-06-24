@@ -8,27 +8,27 @@ manifests in a given directory. For more information on the `plain+v0` format, s
 the [plain+v0 bundle spec](/docs/plain-bundle-spec.md).
 
 The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
-content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleInstance` types that have
+content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core.rukpak.io/plain`. This field must be set to the correct provisioner
 name in order for the `plain` provisioner to see and interact with the bundle.
 
 ### Install and apply a specific version of a `plain+v0` bundle
 
-> :warning: Anyone with the ability to create or update BundleInstance objects can become cluster admin. It's important
+> :warning: Anyone with the ability to create or update BundleDeployment objects can become cluster admin. It's important
 > to limit access to this API via RBAC to only those that explicitly require access, as well as audit your bundles to
 > ensure the content being installed on-cluster is as-expected and secure.
 
 The `plain` provisioner can install and make available a specific `plain+v0` bundle in the cluster.
 
-Simply create a `BundleInstance` resource that contains the desired specification of a Bundle resource.
+Simply create a `BundleDeployment` resource that contains the desired specification of a Bundle resource.
 The `plain` provisioner will unpack the provided Bundle onto the cluster, and eventually make the content
 available on the cluster.
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
-kind: BundleInstance
+kind: BundleDeployment
 metadata:
-  name: my-bundle-instance
+  name: my-bundle-deployment
 spec:
   provisionerClassName: core.rukpak.io/plain
   template:
@@ -43,7 +43,7 @@ spec:
       provisionerClassName: core.rukpak.io/plain
 ```
 
-> Note: the generated Bundle will contain the BundleInstance's metadata.Name as a prefix, followed by
+> Note: the generated Bundle will contain the BundleDeployment's metadata.Name as a prefix, followed by
 > the hash of the provided template.
 
 First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
@@ -64,16 +64,16 @@ my-bundle      image   Unpacked   10s
 ```
 
 Now that the bundle has been unpacked, the provisioner is able to create the resources in the bundle on the cluster.
-These resources will be owned by the corresponding BundleInstance. Creating the BundleInstance on-cluster results in an
+These resources will be owned by the corresponding BundleDeployment. Creating the BundleDeployment on-cluster results in an
 InstallationSucceeded Phase if the application of resources to the cluster was successful.
 
 ```console
-$ kubectl get bundleinstance my-bundle-instance
+$ kubectl get bundledeployment my-bundle-deployment
 NAME                 DESIRED BUNDLE   INSTALLED BUNDLE   INSTALL STATE           AGE
-my-bundle-instance   my-bundle        my-bundle          InstallationSucceeded   11s
+my-bundle-deployment   my-bundle        my-bundle          InstallationSucceeded   11s
 ```
 
-> Note: Creation of more than one BundleInstance from the same Bundle will likely result in an error.
+> Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
 
 ## Running locally
 
@@ -95,15 +95,15 @@ make run
 
 ### Installing the Combo Operator
 
-From there, create some Bundles and BundleInstance types to see the provisioner in action. For an example bundle to
+From there, create some Bundles and BundleDeployment types to see the provisioner in action. For an example bundle to
 use, the [combo operator](https://github.com/operator-framework/combo) is a good candidate.
 
-Create the combo BundleInstance referencing the desired combo Bundle configuration:
+Create the combo BundleDeployment referencing the desired combo Bundle configuration:
 
 ```bash
 kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
-kind: BundleInstance
+kind: BundleDeployment
 metadata:
   name: combo
 spec:
@@ -121,13 +121,13 @@ spec:
 EOF
 ```
 
-A message saying that the BundleInstance is created should be returned:
+A message saying that the BundleDeployment is created should be returned:
 
 ```console
 $ kubectl apply -f -<<EOF
 ...
 EOF
-bundleinstance.core.rukpak.io/combo created
+bundledeployment.core.rukpak.io/combo created
 ```
 
 Next, check the Bundle status via:
@@ -144,16 +144,16 @@ NAME               TYPE    PHASE      AGE
 combo-7cdc7d7d6d   image   Unpacked   10s
 ```
 
-Check the BundleInstance status to ensure that the installation was successful:
+Check the BundleDeployment status to ensure that the installation was successful:
 
 ```bash
-kubectl get bundleinstance combo
+kubectl get bundledeployment combo
 ```
 
 A successful installation will show InstallationSucceeded as the `INSTALL STATE`:
 
 ```console
-$ kubectl get bundleinstance combo
+$ kubectl get bundledeployment combo
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
 combo   combo-7cdc7d7d6d   InstallationSucceeded   10s
 ```
@@ -181,7 +181,7 @@ image: quay.io/operator-framework/combo-operator:v0.0.1
 
 This means the operator should be successfully installed.
 
-The `plain` provisioner continually reconciles BundleInstance resources. Next, let's try deleting the combo deployment:
+The `plain` provisioner continually reconciles BundleDeployment resources. Next, let's try deleting the combo deployment:
 
 ```bash
 kubectl -n combo delete deployments.apps combo-operator
@@ -194,7 +194,7 @@ $ kubectl -n combo delete deployments.apps combo-operator
 deployment.apps "combo-operator" deleted
 ```
 
-The provisioner ensures that all resources required for the BundleInstance to run are accounted for on-cluster.
+The provisioner ensures that all resources required for the BundleDeployment to run are accounted for on-cluster.
 So if we check for the deployment again, it will be back on the cluster:
 
 ```console
@@ -207,14 +207,14 @@ combo-operator   1/1     1            1           15s
 
 Let's say the combo operator released a new patch version, and we want to upgrade to that version.
 
-> Note: Upgrading a BundleInstance involves updating the desired Bundle template being referenced.
+> Note: Upgrading a BundleDeployment involves updating the desired Bundle template being referenced.
 
-Update the existing `combo` BundleInstance resource and update the container image being referenced:
+Update the existing `combo` BundleDeployment resource and update the container image being referenced:
 
 ```bash
 kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
-kind: BundleInstance
+kind: BundleDeployment
 metadata:
   name: combo
 spec:
@@ -232,7 +232,7 @@ spec:
 EOF
 ```
 
-Once the newly generated Bundle is reporting an Unpacked status, the BundleInstance `combo` resource should now
+Once the newly generated Bundle is reporting an Unpacked status, the BundleDeployment `combo` resource should now
 point to the new Bundle (now named `combo-7ddfd9fcd5` instead of `combo-7cdc7d7d6d` previously). The combo-operator
 deployment in the combo namespace should also be healthy and contain a new container image:
 
@@ -241,7 +241,7 @@ $ kubectl get bundles -l app=combo
 NAME               TYPE    PHASE      AGE
 combo-7ddfd9fcd5   image   Unpacked   10s
 
-$ kubectl get bundleinstance combo
+$ kubectl get bundledeployment combo
 NAME    INSTALLED BUNDLE   INSTALL STATE           AGE
 combo   combo-7ddfd9fcd5   InstallationSucceeded   10s
 
@@ -257,22 +257,22 @@ Notice that the container image has changed to `v0.0.2` since we first installed
 
 ### Deleting the Combo Operator and Local Kind Cluster
 
-To clean up from the installation, simply remove the BundleInstance from the cluster. This will remove all references
+To clean up from the installation, simply remove the BundleDeployment from the cluster. This will remove all references
 resources including the deployment, RBAC, and the operator namespace.
 
-> Note: There's no need to manually clean up the Bundles that were generated from a BundleInstance resource. The plain provisioner places owner references on any Bundle that's generated from an individual BundleInstance resource.
+> Note: There's no need to manually clean up the Bundles that were generated from a BundleDeployment resource. The plain provisioner places owner references on any Bundle that's generated from an individual BundleDeployment resource.
 
 ```bash
-# Delete the combo BundleInstance
-kubectl delete bundleinstances.core.rukpak.io combo
+# Delete the combo bundledeployment
+kubectl delete BundleDeployments.core.rukpak.io combo
 ```
 
-A message should show that the BundleInstance was deleted and now the cluster state is the same as it was
+A message should show that the BundleDeployment was deleted and now the cluster state is the same as it was
 prior to installing the operator.
 
 ```console
-$ kubectl delete bundleinstances.core.rukpak.io combo
-bundleinstance.core.rukpak.io "combo" deleted
+$ kubectl delete bundledeployments.core.rukpak.io combo
+BundleDeployment.core.rukpak.io "combo" deleted
 ```
 
 To stop and clean up the kind cluster, delete it:

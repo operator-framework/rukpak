@@ -9,26 +9,26 @@ The following subdirectories contain concrete Provisioner implementations.
 
 ### Using provisioners to install bundle content
 RukPak comes built-in with the concept of provisioners. Provisioners are pluggable controllers that understand how to unpack and install
-`Bundle`s and `BundleInstance`s that specify they are in the provisioner's expected format.
+`Bundle`s and `BundleDeployment`s that specify they are in the provisioner's expected format.
 
 ```mermaid
 graph TD
     C[Provisioner]
     C -->|Watches| D[Bundle]
-    C -->|Watches| E[BundleInstance]
+    C -->|Watches| E[BundleDeployment]
     D -->|References| F[Content]
     E -->|Creates/Manages| F[Content]
 ```
 
-Each provisioner has its own custom logic for how it goes about handling content. Using a specific provisioner is done by specifying the `provisionerClassName` property in the spec of either the `Bundle` or `BundleInstance` api. Here is an example of this concept in an embedded `BundleInstance`.
+Each provisioner has its own custom logic for how it goes about handling content. Using a specific provisioner is done by specifying the `provisionerClassName` property in the spec of either the `Bundle` or `BundleDeployment` api. Here is an example of this concept in an embedded `BundleDeployment`.
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
-kind: BundleInstance
+kind: BundleDeployment
 metadata:
-  name: my-bundle-instance
+  name: my-bundle-Deployment
 spec:
-  provisionerClassName: core.rukpak.io/my-provisioner # <-- Provisioner for the BundleInstance
+  provisionerClassName: core.rukpak.io/my-provisioner # <-- Provisioner for the BundleDeployment
   template:
     metadata:
       labels:
@@ -43,9 +43,9 @@ spec:
 
 ### Pivoting between bundle versions
 
-The `BundleInstance` API is meant to indicate the version of the bundle that should be active within the cluster.
+The `BundleDeployment` API is meant to indicate the version of the bundle that should be active within the cluster.
 
-Given an existing BundleInstance resource in the cluster, which contains an embedded Bundle template for the
+Given an existing BundleDeployment resource in the cluster, which contains an embedded Bundle template for the
 `my-bundle-v0.0.1` bundle, you can modify the desired specification and a provisioner will automatically generate
 a new `my-bundle-v0.0.2` Bundle matching that template.
 
@@ -57,7 +57,7 @@ resources referenced by the bundle are present on the cluster.
 ### Make bundle content available but do not install it
 
 There is a natural separation between sourcing of the content and application of that content via two separate RukPak
-APIs, `Bundle` and `BundleInstance`. A user can specify a particular `Bundle` to be available in the cluster for
+APIs, `Bundle` and `BundleDeployment`. A user can specify a particular `Bundle` to be available in the cluster for
 inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, a provisioner
 will pull down and unpack the bundle to a tar.gz file that is saved using the provisioner's internal storage mechanism.
 

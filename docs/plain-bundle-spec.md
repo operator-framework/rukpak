@@ -79,7 +79,7 @@ on bundles backed by git repositories, see the [git based bundles doc](git-bundl
   image a minimal size.
 * Including any content in the root `manifests` directory of a plain bundle that is not static manifests will result in
   a failure when creating content on-cluster from that bundle via
-  a [BundleInstance](https://github.com/operator-framework/rukpak#bundleinstance). Essentially, any file that would not
+  a [BundleDeployment](https://github.com/operator-framework/rukpak#BundleDeployment). Essentially, any file that would not
   successfully `kubectl apply` will result in an error, but multi-object YAML files, or JSON files, are fine. There will
   be validation tooling provided that can determine whether a given artifact is a valid bundle.
 
@@ -150,7 +150,7 @@ make run
 ```bash
 kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
-kind: BundleInstance
+kind: BundleDeployment
 metadata:
   name: my-bundle
 spec:

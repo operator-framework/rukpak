@@ -59,7 +59,7 @@ in-place.
 
 ## Further considerations
 
-While the spec of the Bundle is immutable, it's still possible to run into scenarios where a BundleInstance pivots to a
+While the spec of the Bundle is immutable, it's still possible to run into scenarios where a BundleDeployment pivots to a
 newer version of bundle content without changing the underlying Bundle spec.
 
 This unintentional pivoting could occur when:
@@ -69,7 +69,7 @@ This unintentional pivoting could occur when:
    different commit
 3. Doing something to cause the Bundle's unpack pod to be re-created (for example, deleting the unpack pod)
 
-If a user performs these steps, the new content from step 2 will be unpacked as a result of step 3. The BundleInstance
+If a user performs these steps, the new content from step 2 will be unpacked as a result of step 3. The BundleDeployment
 would notice the changes, and pivot to the newer version of the content.
 
 This is similar to pod behavior, where one of the pod's container images uses a tag, the tag is moved to a different

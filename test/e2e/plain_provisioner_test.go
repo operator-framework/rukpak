@@ -706,7 +706,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 		It("should generate a Bundle that contains an owner reference", func() {
 			// Note: cannot use bi.GroupVersionKind() as the Kind/APIVersion fields
 			// will be empty during the testing suite.
-			biRef := metav1.NewControllerRef(bi, rukpakv1alpha1.BundleInstanceGVK)
+			biRef := metav1.NewControllerRef(bi, rukpakv1alpha1.BundleDeploymentGVK)
 
 			Eventually(func() []metav1.OwnerReference {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
@@ -734,7 +734,7 @@ var _ = Describe("plain provisioner bundleinstance", func() {
 				return b.Labels, nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerKindKey] }, Equal(rukpakv1alpha1.BundleInstanceKind)),
+				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerKindKey] }, Equal(rukpakv1alpha1.BundleDeploymentKind)),
 				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerNameKey] }, Equal(bi.GetName())),
 			))
 		})

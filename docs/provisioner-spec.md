@@ -2,7 +2,7 @@
 
 ## Overview
 
-A provisioner is a controller responsible for reconciling `Bundle` and/or `BundleInstance` objects using
+A provisioner is a controller responsible for reconciling `Bundle` and/or `BundleDeployment` objects using
 provisioner-specific logic, but with a consistent API. This provisioner concept is inspirted by and therefore very
 similar to native Kubernetes's `Ingress` API and the ecosystem of ingress controllers.
 
@@ -22,13 +22,13 @@ provisioners must include certain functionality and capabilities.
 
 ## Requirements
 
-1. A provisioner _must_ define one or more globally unique names for the `Bundle` and `BundleInstance` controllers it
+1. A provisioner _must_ define one or more globally unique names for the `Bundle` and `BundleDeployment` controllers it
 runs.
 2. A provisioner _should_ use its unique controller names when configuring its watch predicates so that it only
 reconciles bundles and bundle instances that use its name.
 3. A provisioner is not required to implement controllers for both bundles and bundle instances.
    - There may be use cases where a `Bundle` provisioner fetches a bundle in one format and converts it to another
-     format such that a different `BundleInstance` provisioner can be used to install it.
+     format such that a different `BundleDeployment` provisioner can be used to install it.
    - There may also be use cases where different provisioners exist for to provide implementation variations for the
      same bundle formats. For example, two different provisioners that handle plain manifest bundles: one that performs
      "atomic" upgrades and one tha performs eventually consistent upgrades.
