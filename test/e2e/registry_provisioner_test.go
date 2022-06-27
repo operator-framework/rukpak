@@ -16,19 +16,19 @@ import (
 )
 
 var _ = Describe("registry provisioner bundle", func() {
-	When("a BundleInstance targets a registry+v1 Bundle", func() {
+	When("a BundleDeployment targets a registry+v1 Bundle", func() {
 		var (
-			bi  *rukpakv1alpha1.BundleInstance
+			bi  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bi = &rukpakv1alpha1.BundleInstance{
+			bi = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "prometheus",
 				},
-				Spec: rukpakv1alpha1.BundleInstanceSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: &rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
@@ -57,7 +57,7 @@ var _ = Describe("registry provisioner bundle", func() {
 		})
 
 		It("should rollout the bundle contents successfully", func() {
-			By("eventually writing a successful installation state back to the bundleinstance status")
+			By("eventually writing a successful installation state back to the bundledeployment status")
 			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bi), bi); err != nil {
 					return nil, err
