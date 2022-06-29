@@ -145,6 +145,22 @@ spec:
                     required:
                     - ref
                     type: object
+                  local:
+                    description: Local is a reference to a local object in the cluster.
+                    properties:
+                      configMap:
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - name
+                        - namespace
+                        type: object
+                    required:
+                    - configMap
+                    type: object
                   type:
                     description: Type defines the kind of Bundle content being sourced.
                     type: string
@@ -322,6 +338,22 @@ spec:
                         type: string
                     required:
                     - ref
+                    type: object
+                  local:
+                    description: Local is a reference to a local object in the cluster.
+                    properties:
+                      configMap:
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - name
+                        - namespace
+                        type: object
+                    required:
+                    - configMap
                     type: object
                   type:
                     description: Type defines the kind of Bundle content being sourced.

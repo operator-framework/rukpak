@@ -31,6 +31,7 @@ type SourceType string
 const (
 	SourceTypeImage SourceType = "image"
 	SourceTypeGit   SourceType = "git"
+	SourceTypeLocal SourceType = "local"
 
 	TypeUnpacked = "Unpacked"
 
@@ -61,6 +62,8 @@ type BundleSource struct {
 	Image *ImageSource `json:"image,omitempty"`
 	// Git is the git repository that backs the content of this Bundle.
 	Git *GitSource `json:"git,omitempty"`
+	// Local is a reference to a local object in the cluster.
+	Local *LocalSource `json:"local,omitempty"`
 }
 
 type ImageSource struct {
@@ -84,6 +87,15 @@ type GitSource struct {
 	Ref GitRef `json:"ref"`
 	// Auth configures the authorization method if necessary.
 	Auth Authorization `json:"auth,omitempty"`
+}
+
+type LocalSource struct {
+	ConfigMapRef *ConfigMapRef `json:"configMap"`
+}
+
+type ConfigMapRef struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
 type GitRef struct {
