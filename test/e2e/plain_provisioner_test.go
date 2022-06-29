@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,6 +34,7 @@ import (
 const (
 	// TODO: make this is a CLI flag?
 	defaultSystemNamespace = "rukpak-system"
+	testdataDir            = "../../testdata"
 )
 
 func Logf(f string, v ...interface{}) {
@@ -736,6 +738,78 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 
+		When("the bundle is backed by a configmap", func() {
+			var (
+				bundle    *rukpakv1alpha1.Bundle
+				configmap *corev1.ConfigMap
+			)
+			BeforeEach(func() {
+				data := map[string]string{}
+				err := filepath.Walk(filepath.Join(testdataDir, "bundles/plain-v0/valid/manifests"), func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					if info.IsDir() {
+						return nil
+					}
+					c, err := ioutil.ReadFile(path)
+					if err != nil {
+						return err
+					}
+					data[info.Name()] = string(c)
+					return nil
+				})
+				Expect(err).To(BeNil())
+				configmap = &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "local-configmap-",
+						Namespace:    defaultSystemNamespace,
+					},
+					Data: data,
+				}
+				err = c.Create(ctx, configmap)
+				Expect(err).To(BeNil())
+				fmt.Printf("NAME: %v\n", configmap.ObjectMeta.Name)
+				bundle = &rukpakv1alpha1.Bundle{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "combo-local-",
+					},
+					Spec: rukpakv1alpha1.BundleSpec{
+						ProvisionerClassName: plain.ProvisionerID,
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeLocal,
+							Local: &rukpakv1alpha1.LocalSource{
+								ConfigMapRef: &rukpakv1alpha1.ConfigMapRef{
+									Name:      configmap.ObjectMeta.Name,
+									Namespace: defaultSystemNamespace,
+								},
+							},
+						},
+					},
+				}
+				err = c.Create(ctx, bundle)
+				Expect(err).To(BeNil())
+			})
+
+			AfterEach(func() {
+				err := c.Delete(ctx, bundle)
+				Expect(err).To(BeNil())
+				err = c.Delete(ctx, configmap)
+				Expect(err).To(BeNil())
+			})
+
+			It("Can create and unpack the bundle successfully", func() {
+				Eventually(func() error {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return err
+					}
+					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+						return errors.New("bundle is not unpacked")
+					}
+					return nil
+				}).Should(BeNil())
+			})
+		})
 	})
 
 	When("a bundle containing nested directory is created", func() {
