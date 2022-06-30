@@ -7,14 +7,18 @@ import (
 	"path/filepath"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/util"
 
 	"github.com/go-git/go-billy/v5/memfs"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Local struct {
-	client.Reader
+	client.Client
+	// reader queries the API server directly
+	reader client.Reader
 }
 
 func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
@@ -28,7 +32,7 @@ func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 	configMapRef := bundle.Spec.Source.Local.ConfigMapRef
 
 	var cm corev1.ConfigMap
-	if err := o.Get(ctx, client.ObjectKey{Name: configMapRef.Name, Namespace: configMapRef.Namespace}, &cm); err != nil {
+	if err := o.reader.Get(ctx, client.ObjectKey{Name: configMapRef.Name, Namespace: configMapRef.Namespace}, &cm); err != nil {
 		return nil, fmt.Errorf("could not find configmap %s/%s on the cluster", configMapRef.Namespace, configMapRef.Name)
 	}
 
@@ -47,6 +51,22 @@ func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 		if err != nil {
 			return nil, fmt.Errorf("creating filesystem from configmap: %s", err)
 		}
+	}
+
+	// Add an ownerref to the configmap based on the Bundle
+	var ownerref = metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
+	cm.OwnerReferences = append(cm.OwnerReferences, *ownerref)
+	// Update labels to reflect this ConfigMap is now managed by rukpak
+	var labels = cm.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[util.CoreOwnerKindKey] = rukpakv1alpha1.BundleKind
+	labels[util.CoreOwnerNameKey] = bundle.GetName()
+
+	// TODO: wrap this update call in a retry that ignores conflict errors
+	if err := o.Update(ctx, &cm); err != nil {
+		return nil, fmt.Errorf("could not update configmap with bundle ownerreference: %s", err)
 	}
 
 	var bundleFS fs.FS = &billyFS{memFS}
