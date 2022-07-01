@@ -69,12 +69,14 @@ RBAC permissions to access bundle content.
 As an example, a client outside the cluster can view the file contents from a bundle named `my-bundle` by running
 the following script:
 
+> Note: This script requires Kubernetes 1.24+ for both client and server
+
 ```bash
 BUNDLE_NAME=my-bundle
 
 kubectl create sa fetch-bundle -n default
 kubectl create clusterrolebinding fetch-bundle --clusterrole=bundle-reader --serviceaccount=default:fetch-bundle
-export TOKEN=$(kubectl get secret -n default $(kubectl get sa -n default fetch-bundle -o jsonpath='{.secrets[0].name}') -o jsonpath='{.data.token}' | base64 -d)
+export TOKEN=$(kubectl create token fetch-bundle)
 export URL=$(kubectl get bundle $BUNDLE_NAME -o jsonpath='{.status.contentURL}')
 kubectl run -qit --rm -n default --restart=Never fetch-bundle --image=curlimages/curl --overrides='{ "spec": { "serviceAccount": "fetch-bundle" }  }' --command -- curl -sSLk -H "Authorization: Bearer $TOKEN" -o - $URL | tar ztv
 kubectl delete clusterrolebinding fetch-bundle
