@@ -5,10 +5,18 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/homedir"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
+
+var scheme *runtime.Scheme
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -35,13 +43,17 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.rukpakctl.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
+	if home := homedir.HomeDir(); home != "" {
+		rootCmd.PersistentFlags().String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		rootCmd.PersistentFlags().String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	rootCmd.PersistentFlags().String("namespace", "rukpak-system", "namespace for target or work resources")
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	scheme = runtime.NewScheme()
+	err := rukpakv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		fmt.Printf("failed to add schema: %+v\n", err)
+		return
+	}
 }
