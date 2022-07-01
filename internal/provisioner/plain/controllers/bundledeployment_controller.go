@@ -39,7 +39,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -47,11 +46,16 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+	"github.com/operator-framework/rukpak/internal/provisioner/common"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
-	"github.com/operator-framework/rukpak/internal/storage"
 	updater "github.com/operator-framework/rukpak/internal/updater/bundle-deployment"
 	"github.com/operator-framework/rukpak/internal/util"
 )
+
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/status,verbs=update;patch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/finalizers,verbs=update
+//+kubebuilder:rbac:groups=*,resources=*,verbs=*
 
 const (
 	maxGeneratedBundleLimit = 4
@@ -66,22 +70,11 @@ var (
 
 // BundleDeploymentReconciler reconciles a BundleDeployment object
 type BundleDeploymentReconciler struct {
-	client.Client
-	Scheme     *runtime.Scheme
-	Controller controller.Controller
-
-	ActionClientGetter helmclient.ActionClientGetter
-	BundleStorage      storage.Storage
-	ReleaseNamespace   string
+	common.BundleDeploymentReconciler
 
 	dynamicWatchMutex sync.RWMutex
 	dynamicWatchGVKs  map[schema.GroupVersionKind]struct{}
 }
-
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/status,verbs=update;patch
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/finalizers,verbs=update
-//+kubebuilder:rbac:groups=*,resources=*,verbs=*
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -432,7 +425,7 @@ func (r *BundleDeploymentReconciler) loadBundle(ctx context.Context, bundle *ruk
 		return nil, fmt.Errorf("load bundle: %v", err)
 	}
 
-	objects, err := getObjects(bundleFS)
+	objects, err := common.GetObjects(bundleFS)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
 	}

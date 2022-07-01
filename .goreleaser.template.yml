@@ -20,21 +20,9 @@ builds:
     - s390x
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
-  - id: plain
-    main: ./internal/provisioner/plain
-    binary: plain
-    goos:
-    - linux
-    goarch:
-    - amd64
-    - arm64
-    - ppc64le
-    - s390x
-    ldflags:
-    - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
-  - id: registry
-    main: ./internal/provisioner/registry
-    binary: registry
+  - id: provisioner
+    main: ./internal/provisioner
+    binary: provisioner
     goos:
       - linux
     goarch:

@@ -13,7 +13,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package main
 
 import (
@@ -23,6 +22,7 @@ import (
 	"net/url"
 	"os"
 
+	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,7 +37,9 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/finalizer"
-	"github.com/operator-framework/rukpak/internal/provisioner/registry/controllers"
+	"github.com/operator-framework/rukpak/internal/provisioner/common"
+	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	"github.com/operator-framework/rukpak/internal/provisioner/registry"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -45,8 +47,13 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme           = runtime.NewScheme()
+	setupLog         = ctrl.Log.WithName("setup")
+	provisioners     = []string{"plain", "registry"}
+	setupProvisioner = map[string]common.ProvisionerSetupFunc{
+		"plain":    plain.SetupProvisionerWithManager,
+		"registry": registry.SetupProvisionerWithManager,
+	}
 )
 
 func init() {
@@ -74,9 +81,7 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources.")
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:latest", "Configures the container image that gets used to unpack Bundle contents.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	flag.StringVar(&storageDirectory, "storage-dir", storage.DefaultBundleCacheDir, "Configures the directory that is used to store Bundle contents.")
 	opts := zap.Options{
@@ -88,6 +93,19 @@ func main() {
 	if rukpakVersion {
 		fmt.Printf("Git commit: %s\n", version.String())
 		os.Exit(0)
+	}
+
+	args := flag.Args()
+	if len(args) != 1 {
+		fmt.Printf("must define a single provisioner to start, available provisioners: %v", provisioners)
+		os.Exit(0)
+	}
+	provisioner := args[0]
+
+	// Verify that the defined provisioner is supported
+	if _, ok := setupProvisioner[provisioner]; !ok {
+		fmt.Printf("cannot start unknown provisioner %v. available ones are: %v", provisioner, provisioners)
+		os.Exit(1)
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
@@ -107,7 +125,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "registry.core.rukpak.io",
+		LeaderElectionID:       fmt.Sprintf("%s.core.rukpak.io", provisioner),
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&rukpakv1alpha1.BundleDeployment{}: {},
@@ -170,7 +188,7 @@ func main() {
 	// If the bundle cache is backed by a storage implementation that allows
 	// multiple writers from different processes (e.g. a ReadWriteMany volume or
 	// an S3 bucket), we could have separate processes for finalizer handling
-	// and the primary provisioner controller. For now, the assumption is
+	// and the primary plain provisioner controller. For now, the assumption is
 	// that we are not using such an implementation.
 	bundleFinalizers := crfinalizer.NewFinalizers()
 	if err := bundleFinalizers.Register(finalizer.DeleteCachedBundleKey, &finalizer.DeleteCachedBundle{Storage: bundleStorage}); err != nil {
@@ -178,24 +196,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	const registryBundleProvisionerName = "registry"
-	unpacker, err := source.NewDefaultUnpacker(mgr, ns, registryBundleProvisionerName, unpackImage)
+	unpacker, err := source.NewDefaultUnpacker(mgr, ns, provisioner, unpackImage)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
 	}
 
-	if err = (&controllers.BundleReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		Storage:    bundleStorage,
-		Finalizers: bundleFinalizers,
-		Unpacker:   unpacker,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind)
+	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	if err := setupProvisioner[provisioner](
+		mgr,
+		common.BundleReconciler{
+			Client:     mgr.GetClient(),
+			Scheme:     mgr.GetScheme(),
+			Storage:    bundleStorage,
+			Finalizers: bundleFinalizers,
+			Unpacker:   unpacker,
+		},
+		common.BundleDeploymentReconciler{
+			Client:             mgr.GetClient(),
+			Scheme:             mgr.GetScheme(),
+			BundleStorage:      bundleStorage,
+			ReleaseNamespace:   ns,
+			ActionClientGetter: helmclient.NewActionClientGetter(cfgGetter),
+		},
+	); err != nil {
+		setupLog.Error(err, "unable to create provisioner", "provisioner", provisioner)
 		os.Exit(1)
 	}
-	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

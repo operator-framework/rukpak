@@ -38,13 +38,14 @@ spec:
         - name: manager
           image: quay.io/operator-framework/rukpak:latest
           imagePullPolicy: IfNotPresent
-          command: ["/plain"]
+          command: ["/provisioner"]
           args:
             - "--unpack-image=quay.io/operator-framework/rukpak:latest"
             - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(PLAIN_PROVISIONER_SERVICE_NAME).$(PLAIN_PROVISIONER_SERVICE_NAMESPACE).svc"
             - "--bundle-ca-file=/etc/pki/tls/ca.crt"
+            - "plain"
           ports:
             - containerPort: 8080
           volumeMounts:
