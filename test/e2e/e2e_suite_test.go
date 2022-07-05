@@ -7,7 +7,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -36,6 +38,10 @@ var _ = BeforeSuite(func() {
 
 	scheme := runtime.NewScheme()
 	err := rukpakv1alpha1.AddToScheme(scheme)
+	Expect(err).To(BeNil())
+	err = rbacv1.AddToScheme(scheme)
+	Expect(err).To(BeNil())
+	err = batchv1.AddToScheme(scheme)
 	Expect(err).To(BeNil())
 
 	err = operatorsv1.AddToScheme(scheme)

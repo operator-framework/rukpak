@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,7 +14,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -495,7 +498,6 @@ var _ = Describe("plain provisioner bundle", func() {
 				}).Should(BeNil())
 			})
 		})
-
 		When("the bundle is backed by a git tag", func() {
 			var (
 				bundle *rukpakv1alpha1.Bundle
@@ -788,6 +790,162 @@ var _ = Describe("plain provisioner bundle", func() {
 					WithTransform(func(c *metav1.Condition) string { return c.Message },
 						ContainSubstring(fmt.Sprintf("subdirectories are not allowed within the %q directory of the bundle image filesystem: found %q", manifestsDir, filepath.Join(manifestsDir, subdirName)))),
 				))
+			})
+		})
+	})
+
+	When("valid  bundle is created", func() {
+		var (
+			ctx    context.Context
+			bundle *rukpakv1alpha1.Bundle
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "combo-git-commit",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeGit,
+						Git: &rukpakv1alpha1.GitSource{
+							Repository: "https://github.com/exdx/combo-bundle",
+							Ref: rukpakv1alpha1.GitRef{
+								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+			By("eventually reporting an Unpacked phase", func() {
+				Eventually(func() (string, error) {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						return "", err
+					}
+					return bundle.Status.Phase, nil
+				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
+			})
+
+			By("eventually writing a content URL to the status", func() {
+				Eventually(func() (string, error) {
+					err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
+					Expect(err).To(BeNil())
+					return bundle.Status.ContentURL, nil
+				}).Should(Not(BeEmpty()))
+			})
+		})
+		AfterEach(func() {
+			err := c.Delete(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+		When("start server for bundle contents", func() {
+			var (
+				sa  corev1.ServiceAccount
+				crb rbacv1.ClusterRoleBinding
+				job batchv1.Job
+				pod corev1.Pod
+			)
+			BeforeEach(func() {
+				// Create a temporary ServiceAccount
+				sa = corev1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rukpak-svr-sa",
+						Namespace: defaultSystemNamespace,
+					},
+				}
+				err := c.Create(ctx, &sa)
+				Expect(err).To(BeNil())
+
+				// Create a temporary ClusterRoleBinding to bind the ServiceAccount to bundle-reader ClusterRole
+				crb = rbacv1.ClusterRoleBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rukpak-svr-crb",
+						Namespace: defaultSystemNamespace,
+					},
+
+					Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: "rukpak-svr-sa", Namespace: defaultSystemNamespace}},
+					RoleRef:  rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "ClusterRole", Name: "bundle-reader"},
+				}
+
+				err = c.Create(ctx, &crb)
+				Expect(err).To(BeNil())
+				url := bundle.Status.ContentURL
+
+				// Create a Job that reads from the URL and outputs contents in the pod log
+				mounttoken := true
+				job = batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rukpak-svr-job",
+						Namespace: defaultSystemNamespace,
+					},
+					Spec: batchv1.JobSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name:    "rukpak-svr",
+										Image:   "curlimages/curl",
+										Command: []string{"sh", "-c", "curl -sSLk -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" -o - " + url + " | tar ztv"},
+									},
+								},
+								ServiceAccountName:           "rukpak-svr-sa",
+								RestartPolicy:                "Never",
+								AutomountServiceAccountToken: &mounttoken,
+							},
+						},
+					},
+				}
+				err = c.Create(ctx, &job)
+				Expect(err).To(BeNil())
+				Eventually(func() (bool, error) {
+					err = c.Get(ctx, types.NamespacedName{Name: "rukpak-svr-job", Namespace: defaultSystemNamespace}, &job)
+					if err != nil {
+						return false, err
+					}
+					return job.Status.CompletionTime != nil && job.Status.Succeeded == 1, err
+				}).Should(BeTrue())
+			})
+			AfterEach(func() {
+				Eventually(func() bool {
+					errJob := c.Delete(ctx, &job)
+					errPod := c.Delete(ctx, &pod)
+					errCrb := c.Delete(ctx, &crb)
+					errSa := c.Delete(ctx, &sa)
+					return client.IgnoreNotFound(errJob) == nil && client.IgnoreNotFound(errPod) == nil && client.IgnoreNotFound(errCrb) == nil && client.IgnoreNotFound(errSa) == nil
+				}).Should(BeTrue())
+			})
+			It("reads the pod log", func() {
+				// Get Pod for the Job
+				pods := &corev1.PodList{}
+				Eventually(func() (bool, error) {
+					err := c.List(context.Background(), pods, client.MatchingLabels{"job-name": "rukpak-svr-job"})
+					if err != nil {
+						return false, err
+					}
+					return len(pods.Items) == 1, nil
+				}).Should(BeTrue())
+
+				Eventually(func() (bool, error) {
+					// Get logs of the Pod
+					pod = pods.Items[0]
+					logReader, err := kubeClient.CoreV1().Pods(defaultSystemNamespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(context.Background())
+					if err != nil {
+						return false, err
+					}
+					buf := new(bytes.Buffer)
+					_, err = buf.ReadFrom(logReader)
+					Expect(err).To(BeNil())
+					return strings.Contains(buf.String(), "manifests/00_namespace.yaml") &&
+						strings.Contains(buf.String(), "manifests/01_cluster_role.yaml") &&
+						strings.Contains(buf.String(), "manifests/01_service_account.yaml") &&
+						strings.Contains(buf.String(), "manifests/02_deployment.yaml") &&
+						strings.Contains(buf.String(), "manifests/03_cluster_role_binding.yaml") &&
+						strings.Contains(buf.String(), "manifests/combo.io_combinations.yaml") &&
+						strings.Contains(buf.String(), "manifests/combo.io_templates.yaml"), nil
+				}).Should(BeTrue())
 			})
 		})
 	})
