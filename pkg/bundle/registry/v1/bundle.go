@@ -8,22 +8,22 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/operator-framework/rukpak/pkg/bundle"
+	"github.com/operator-framework/rukpak/pkg/manifest"
 )
 
 // Bundle holds the contents of a registry+v1 bundle.
 type Bundle struct {
-	bundle.FS
+	manifest.FS
 }
 
 // New creates a new registry+v1 bundle at the root of the given filesystem.
 func New(fsys fs.FS) Bundle {
 	// If the source is another bundle, use the FS
-	if bundleFS, ok := fsys.(bundle.FS); ok {
-		return Bundle{bundleFS}
+	if manifestFS, ok := fsys.(manifest.FS); ok {
+		return Bundle{manifestFS}
 	}
 
-	return Bundle{bundle.New(fsys, bundle.WithManifestDirs("manifests"))}
+	return Bundle{manifest.New(fsys, manifest.WithManifestDirs("manifests"))}
 }
 
 // CSV returns the ClusterServiceVersion manifest if one exists in the bundle.

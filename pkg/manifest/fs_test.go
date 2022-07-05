@@ -1,4 +1,4 @@
-package bundle_test
+package manifest_test
 
 import (
 	"io/fs"
@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/operator-framework/rukpak/pkg/bundle"
+	"github.com/operator-framework/rukpak/pkg/manifest"
 	"github.com/operator-framework/rukpak/test/testutil"
 )
 
@@ -17,7 +17,7 @@ const csvFname = "manifests/memcached-operator.clusterserviceversion.yaml"
 var _ = Describe("FS", func() {
 	var (
 		baseFS fs.FS
-		fsys   bundle.FS
+		fsys   manifest.FS
 	)
 
 	BeforeEach(func() {
@@ -25,7 +25,7 @@ var _ = Describe("FS", func() {
 	})
 
 	JustBeforeEach(func() {
-		fsys = bundle.New(baseFS, bundle.WithManifestDirs("manifests"))
+		fsys = manifest.New(baseFS, manifest.WithManifestDirs("manifests"))
 	})
 
 	Describe("opening a file", func() {
@@ -52,7 +52,7 @@ var _ = Describe("FS", func() {
 
 			It("should return a normal file", func() {
 				Expect(f).ToNot(BeNil())
-				Expect(f).ToNot(BeAssignableToTypeOf(bundle.ObjectFile[client.Object]{}))
+				Expect(f).ToNot(BeAssignableToTypeOf(manifest.File[client.Object]{}))
 			})
 		})
 
@@ -67,10 +67,10 @@ var _ = Describe("FS", func() {
 
 			It("should return a manifest file", func() {
 				Expect(f).ToNot(BeNil())
-				Expect(f).To(BeAssignableToTypeOf(&bundle.ObjectFile[client.Object]{}))
+				Expect(f).To(BeAssignableToTypeOf(&manifest.File[client.Object]{}))
 
 				By("asserting the file to a manifest file type")
-				objFile := f.(*bundle.ObjectFile[client.Object])
+				objFile := f.(*manifest.File[client.Object])
 				Expect(objFile.Objects).To(HaveLen(1), "it should contain a parsed object")
 			})
 		})

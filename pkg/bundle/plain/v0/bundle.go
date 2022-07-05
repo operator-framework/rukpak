@@ -3,12 +3,12 @@ package v0
 import (
 	"io/fs"
 
-	"github.com/operator-framework/rukpak/pkg/bundle"
+	"github.com/operator-framework/rukpak/pkg/manifest"
 )
 
 // Bundle holds the contents of a plain+v0 bundle.
 type Bundle struct {
-	bundle.FS
+	manifest.FS
 
 	// external settings
 	installNamespace string
@@ -19,17 +19,10 @@ type Bundle struct {
 }
 
 // New creates a new plain+v0 bundle at the root of the given filesystem.
-func New(fsys fs.FS, opts ...func(*Bundle)) Bundle {
-	b := Bundle{createdSvcAccs: make(map[string]struct{})}
-	for _, opt := range opts {
-		opt(&b)
+func New(fsys fs.FS) Bundle {
+	if manifestFS, ok := fsys.(manifest.FS); ok {
+		return Bundle{FS: manifestFS, createdSvcAccs: make(map[string]struct{})}
 	}
 
-	if bundleFS, ok := fsys.(bundle.FS); ok {
-		b.FS = bundleFS
-	} else {
-		b.FS = bundle.New(fsys, bundle.WithManifestDirs("manifests"))
-	}
-
-	return b
+	return Bundle{FS: manifest.New(fsys, manifest.WithManifestDirs("manifests"))}
 }

@@ -1,4 +1,4 @@
-package bundle
+package manifest
 
 import (
 	"io/fs"
@@ -19,21 +19,14 @@ import (
 //
 // A bundle is a directory that contains files that may or may not be
 // Kubernetes manifests. When opening a manifest file, it will return an
-// `ObjectFile` type that allows the consumer to access the typed objects
+// `manifest.File` type that allows the consumer to access the typed objects
 // without first opening/parsing the manifest itself. It still fully supports
 // all file operations.
-//
-// TODO(ryantking): Should we support any other file system abstractions beyond `fs.FS`?
-// `fs.FS` doesn't support any write operations. They can modify the objects in an `ObjectFile`, but that won't change
-// the byte representation.
 type FS struct {
 	baseFS       fs.FS
 	manifestDirs []string
 	scheme       *runtime.Scheme
 	strictTypes  bool
-
-	// TODO(ryantking): This is a hack since there is no API for modifying files in an fs.FS
-	storedObjs map[string]ObjectFile[client.Object]
 }
 
 // New returns a new FS wrapped around the given base FS.
@@ -45,9 +38,8 @@ func New(baseFS fs.FS, opts ...func(*FS)) FS {
 	utilruntime.Must(rukpakv1alpha1.AddToScheme(scheme))
 
 	fsys := FS{
-		baseFS:     baseFS,
-		scheme:     scheme,
-		storedObjs: make(map[string]ObjectFile[client.Object]),
+		baseFS: baseFS,
+		scheme: scheme,
 	}
 	for _, opt := range opts {
 		opt(&fsys)
@@ -93,13 +85,8 @@ func WithStrictTypes() func(*FS) {
 // Open a file if it exists on the file system.
 //
 // If the file is in a directory that contains manifests and ends in `.yaml` or `.yml` then it will return an
-// `*ObjectFile` with the objects parsed to their concrete go type.
+// `*manifest.File` with the objects parsed to their concrete go type.
 func (fsys FS) Open(name string) (fs.File, error) {
-	// TODO(ryantking): When we figure out how to store objects, this will change
-	if objFile, ok := fsys.storedObjs[name]; ok {
-		return objFile, nil
-	}
-
 	f, err := fsys.baseFS.Open(name)
 	if err != nil {
 		return nil, err
@@ -108,7 +95,7 @@ func (fsys FS) Open(name string) (fs.File, error) {
 		return f, nil
 	}
 
-	objFile, err := NewObjectFile[client.Object](f, fsys.scheme, fsys.strictTypes)
+	objFile, err := NewFile[client.Object](f, fsys.scheme, fsys.strictTypes)
 	if err != nil {
 		f.Close() // close the file that's already open
 		return nil, err
@@ -118,7 +105,7 @@ func (fsys FS) Open(name string) (fs.File, error) {
 }
 
 func (fsys FS) isManifestFile(name string) bool {
-	if filepath.Ext(name) != ".yaml" || filepath.Ext(name) == ".yml" {
+	if filepath.Ext(name) != ".yaml" && filepath.Ext(name) == ".yml" {
 		return false
 	}
 	if len(fsys.manifestDirs) == 0 {
@@ -152,7 +139,7 @@ func (fsys FS) Objects(filterFns ...func(client.Object) bool) ([]client.Object, 
 		if err != nil {
 			return err
 		}
-		file, err := NewObjectFile[client.Object](f, fsys.scheme, fsys.strictTypes)
+		file, err := NewFile[client.Object](f, fsys.scheme, fsys.strictTypes)
 		if err != nil {
 			return err
 		}
@@ -167,23 +154,7 @@ func (fsys FS) Objects(filterFns ...func(client.Object) bool) ([]client.Object, 
 		return nil, err
 	}
 
-	// TODO(ryantking): Remove when the stored objects go away with a better write abstraction
-	for _, f := range fsys.storedObjs {
-		for _, obj := range f.Objects {
-			if filterFn(obj) {
-				objs = append(objs, obj)
-			}
-		}
-	}
-
 	return objs, nil
-}
-
-// StoreObjects adds objects to the name file.
-func (fsys FS) StoreObjects(name string, objs ...client.Object) {
-	objFile := fsys.storedObjs[name]
-	objFile.Objects = append(objFile.Objects, objs...)
-	fsys.storedObjs[name] = objFile
 }
 
 func (fsys FS) mergeFilterFns(filterFns ...func(client.Object) bool) func(client.Object) bool {
