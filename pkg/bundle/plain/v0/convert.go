@@ -1,11 +1,17 @@
 package v0
 
 import (
+	"bytes"
 	"fmt"
 	"hash/fnv"
+	"os"
+	"path/filepath"
 	"strings"
+	"testing/fstest"
+	"time"
 
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -16,6 +22,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/pkg/bundle"
 	registryv1 "github.com/operator-framework/rukpak/pkg/bundle/registry/v1"
+	"github.com/operator-framework/rukpak/pkg/manifest"
 )
 
 // WithInstallNamespace is an option for converting other bundles to `plain+v0`.
@@ -46,7 +53,11 @@ func init() {
 }
 
 func convertFromRegistryV1(in registryv1.Bundle, opts ...func(*Bundle)) (*Bundle, error) {
-	b := Bundle{FS: in.FS, createdSvcAccs: make(map[string]struct{})}
+	fsys := make(fstest.MapFS)
+	b := Bundle{
+		FS:             in.FS, // HACK: This is just so the scheme can be used during conversion.
+		createdSvcAccs: make(map[string]struct{}),
+	}
 	for _, opt := range opts {
 		opt(&b)
 	}
@@ -57,13 +68,14 @@ func convertFromRegistryV1(in registryv1.Bundle, opts ...func(*Bundle)) (*Bundle
 	if err := b.validateOptions(csv); err != nil {
 		return nil, err
 	}
-	if err := b.extractCsvDeployments(csv); err != nil {
+	if err := b.extractCsvDeployments(fsys, csv); err != nil {
 		return nil, err
 	}
-	if err := b.extractCsvRBAC(csv); err != nil {
+	if err := b.extractCsvRBAC(fsys, csv); err != nil {
 		return nil, err
 	}
 
+	b.FS = manifest.New(fsys, manifest.WithManifestDirs("manifests"))
 	return &b, nil
 }
 
@@ -130,7 +142,7 @@ func (b Bundle) supportedInstallModes(csv *operatorsv1alpha1.ClusterServiceVersi
 	return supportedInstallModes
 }
 
-func (b *Bundle) extractCsvDeployments(csv *operatorsv1alpha1.ClusterServiceVersion) error {
+func (b *Bundle) extractCsvDeployments(fsys fstest.MapFS, csv *operatorsv1alpha1.ClusterServiceVersion) error {
 	annotations := csv.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
@@ -138,10 +150,10 @@ func (b *Bundle) extractCsvDeployments(csv *operatorsv1alpha1.ClusterServiceVers
 	annotations["olm.targetNamespaces"] = strings.Join(b.targetNamespaces, ",")
 
 	for _, depSpec := range csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
-		if err := b.newDeployment(depSpec, annotations); err != nil {
+		if err := b.newDeployment(fsys, depSpec, annotations); err != nil {
 			return err
 		}
-		if err := b.newServiceAccount(depSpec.Spec.Template.Spec.ServiceAccountName); err != nil {
+		if err := b.newServiceAccount(fsys, depSpec.Spec.Template.Spec.ServiceAccountName); err != nil {
 			return err
 		}
 	}
@@ -149,25 +161,25 @@ func (b *Bundle) extractCsvDeployments(csv *operatorsv1alpha1.ClusterServiceVers
 	return nil
 }
 
-func (b *Bundle) extractCsvRBAC(csv *operatorsv1alpha1.ClusterServiceVersion) error {
+func (b *Bundle) extractCsvRBAC(fsys fstest.MapFS, csv *operatorsv1alpha1.ClusterServiceVersion) error {
 	for _, permission := range csv.Spec.InstallStrategy.StrategySpec.Permissions {
 		name := b.generateName(
 			fmt.Sprintf("%s-%s", csv.GetName(), permission.ServiceAccountName),
 			[]interface{}{csv.GetName(), permission},
 		)
-		if err := b.newServiceAccount(permission.ServiceAccountName); err != nil {
+		if err := b.newServiceAccount(fsys, permission.ServiceAccountName); err != nil {
 			return err
 		}
-		if err := b.newRoles(name, permission); err != nil {
+		if err := b.newRoles(fsys, name, permission); err != nil {
 			return err
 		}
-		if err := b.newRoleBindings(name, permission); err != nil {
+		if err := b.newRoleBindings(fsys, name, permission); err != nil {
 			return err
 		}
-		if err := b.newClusterRoles(name, permission); err != nil {
+		if err := b.newClusterRoles(fsys, name, permission); err != nil {
 			return err
 		}
-		if err := b.newClusterRoleBindings(name, permission); err != nil {
+		if err := b.newClusterRoleBindings(fsys, name, permission); err != nil {
 			return err
 		}
 	}
@@ -175,54 +187,59 @@ func (b *Bundle) extractCsvRBAC(csv *operatorsv1alpha1.ClusterServiceVersion) er
 	return nil
 }
 
-func (b *Bundle) newServiceAccount(name string) error {
-	if _, ok := b.createdSvcAccs[name]; ok {
-		return nil
-	}
+var serviceAccountGVK = corev1.SchemeGroupVersion.WithKind("ServiceAccount")
 
-	obj, err := b.Scheme().New(corev1.SchemeGroupVersion.WithKind("ServiceAccount"))
+func (b *Bundle) newServiceAccount(fsys fstest.MapFS, name string) error {
+	obj, err := b.Scheme().New(serviceAccountGVK)
 	if err != nil {
 		return err
 	}
 
 	svcAcc := obj.(*corev1.ServiceAccount)
+	svcAcc.SetGroupVersionKind(serviceAccountGVK)
 	svcAcc.Namespace = b.installNamespace
 	svcAcc.Name = name
-	b.StoreObjects(svcAcc.Name+"_generated.yaml", svcAcc) // TODO(ryantking): Better name
-	b.createdSvcAccs[name] = struct{}{}
-	return nil
+	return b.writeObjects(fsys, svcAcc.Name+"_generated.yaml", svcAcc) // TODO(ryantking): Better name
 }
 
+var deploymentGVK = appsv1.SchemeGroupVersion.WithKind("Deployment")
+
 func (b *Bundle) newDeployment(
+	fsys fstest.MapFS,
 	depSpec operatorsv1alpha1.StrategyDeploymentSpec,
 	annotations map[string]string,
 ) error {
-	obj, err := b.Scheme().New(appsv1.SchemeGroupVersion.WithKind("Deployment"))
+	obj, err := b.Scheme().New(deploymentGVK)
 	if err != nil {
 		return err
 	}
 
 	dep := obj.(*appsv1.Deployment)
+	dep.SetGroupVersionKind(deploymentGVK)
 	dep.Namespace = b.installNamespace
 	dep.Name = depSpec.Name
 	dep.Labels = depSpec.Label
 	dep.Annotations = annotations
 	dep.Spec = depSpec.Spec
-	b.StoreObjects(dep.Name+"_generated.yaml", dep) // TODO(ryantking): Better name
-	return nil
+	return b.writeObjects(fsys, dep.Name+"_generated.yaml", dep) // TODO(ryantking): Better name
 }
 
+var roleGVK = rbacv1.SchemeGroupVersion.WithKind("Role")
+
 func (b *Bundle) newRoles(
+	fsys fstest.MapFS,
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
 	roles := make([]client.Object, 0, len(b.targetNamespaces))
-	obj, err := b.Scheme().New(rbacv1.SchemeGroupVersion.WithKind("Role"))
+	gvk := rbacv1.SchemeGroupVersion.WithKind("Role")
+	obj, err := b.Scheme().New(gvk)
 	if err != nil {
 		return err
 	}
 
 	role := obj.(*rbacv1.Role)
+	role.SetGroupVersionKind(roleGVK)
 	role.Name = name
 	role.Rules = permission.Rules
 	for _, ns := range b.targetNamespaces {
@@ -235,11 +252,17 @@ func (b *Bundle) newRoles(
 		roles = append(roles, &role)
 	}
 
-	b.StoreObjects(role.Name+"_generated.yaml", roles...) // TODO(ryantking): Better name
-	return nil
+	if len(roles) == 0 {
+		return nil
+	}
+
+	return b.writeObjects(fsys, role.Name+"_generated.yaml", roles...) // TODO(ryantking): Better name
 }
 
+var roleBindingGVK = rbacv1.SchemeGroupVersion.WithKind("RoleBinding")
+
 func (b *Bundle) newRoleBindings(
+	fsys fstest.MapFS,
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
@@ -250,6 +273,7 @@ func (b *Bundle) newRoleBindings(
 	}
 
 	roleBinding := obj.(*rbacv1.RoleBinding)
+	roleBinding.SetGroupVersionKind(roleBindingGVK)
 	roleBinding.Name = name
 	roleBinding.Subjects = []rbacv1.Subject{
 		{
@@ -274,21 +298,28 @@ func (b *Bundle) newRoleBindings(
 		roleBindings = append(roleBindings, &roleBinding)
 	}
 
-	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBindings...) // TODO(ryantking): Better name
-	return nil
+	if len(roleBindings) == 0 {
+		return nil
+	}
+
+	return b.writeObjects(fsys, roleBinding.Name+"_generated.yaml", roleBindings...) // TODO(ryantking): Better name
 }
 
+var clusterRoleGVK = rbacv1.SchemeGroupVersion.WithKind("ClusterRole")
+
 func (b *Bundle) newClusterRoles(
+	fsys fstest.MapFS,
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
 	roles := make([]client.Object, 0, len(b.targetNamespaces))
-	obj, err := b.Scheme().New(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"))
+	obj, err := b.Scheme().New(clusterRoleGVK)
 	if err != nil {
 		return err
 	}
 
 	role := obj.(*rbacv1.ClusterRole)
+	role.SetGroupVersionKind(clusterRoleGVK)
 	role.Name = name
 	role.Rules = permission.Rules
 	for _, ns := range b.targetNamespaces {
@@ -301,21 +332,28 @@ func (b *Bundle) newClusterRoles(
 		roles = append(roles, &role)
 	}
 
-	b.StoreObjects(role.Name+"_generated.yaml", roles...) // TODO(ryantking): Better name
-	return nil
+	if len(roles) == 0 {
+		return nil
+	}
+
+	return b.writeObjects(fsys, role.Name+"_generated.yaml", roles...) // TODO(ryantking): Better name
 }
 
+var clusterRoleBindingGVK = rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding")
+
 func (b *Bundle) newClusterRoleBindings(
+	fsys fstest.MapFS,
 	name string,
 	permission operatorsv1alpha1.StrategyDeploymentPermissions,
 ) error {
 	roleBindings := make([]client.Object, 0, len(b.targetNamespaces))
-	obj, err := b.Scheme().New(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"))
+	obj, err := b.Scheme().New(clusterRoleBindingGVK)
 	if err != nil {
 		return err
 	}
 
 	roleBinding := obj.(*rbacv1.ClusterRoleBinding)
+	roleBinding.SetGroupVersionKind(clusterRoleBindingGVK)
 	roleBinding.Name = name
 	roleBinding.Subjects = []rbacv1.Subject{
 		{
@@ -340,8 +378,11 @@ func (b *Bundle) newClusterRoleBindings(
 		roleBindings = append(roleBindings, &roleBinding)
 	}
 
-	b.StoreObjects(roleBinding.Name+"_generated.yaml", roleBindings...) // TODO(ryantking): Better name
-	return nil
+	if len(roleBindings) == 0 {
+		return nil
+	}
+
+	return b.writeObjects(fsys, roleBinding.Name+"_generated.yaml", roleBindings...) // TODO(ryantking): Validate name
 }
 
 func (b Bundle) generateName(base string, o interface{}) string {
@@ -355,4 +396,28 @@ func (b Bundle) generateName(base string, o interface{}) string {
 	}
 
 	return fmt.Sprintf("%s-%s", base, hashStr)
+}
+
+func (b Bundle) writeObjects(fsys fstest.MapFS, name string, objs ...client.Object) error {
+	var data bytes.Buffer
+
+	enc := yaml.NewEncoder(&data)
+	for _, obj := range objs {
+		if err := enc.Encode(obj); err != nil {
+			return fmt.Errorf("encoding %s.%s: %w", obj.GetNamespace(), obj.GetName(), err)
+		}
+	}
+	if err := enc.Close(); err != nil {
+		return fmt.Errorf("closing encoder: %w", err)
+	}
+
+	fsys[filepath.Join("manifests", name)] = &fstest.MapFile{
+		Data:    data.Bytes(),
+		Mode:    os.ModePerm,
+		ModTime: time.Now(),
+		// TODO(ryantking): Worry about Sys at all?
+		// Sys: nil,
+	}
+
+	return nil
 }
