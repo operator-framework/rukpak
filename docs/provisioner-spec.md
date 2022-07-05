@@ -3,7 +3,7 @@
 ## Overview
 
 A provisioner is a controller responsible for reconciling `Bundle` and/or `BundleDeployment` objects using
-provisioner-specific logic, but with a consistent API. This provisioner concept is inspirted by and therefore very
+provisioner-specific logic, but with a consistent API. This provisioner concept is inspired by and therefore very
 similar to native Kubernetes's `Ingress` API and the ecosystem of ingress controllers.
 
 The idea of a provisioner is to unpack bundle content and install that bundle content onto a cluster, and the
