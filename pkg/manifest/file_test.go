@@ -1,4 +1,4 @@
-package bundle_test
+package manifest_test
 
 import (
 	"io/fs"
@@ -14,11 +14,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/pkg/bundle"
+	"github.com/operator-framework/rukpak/pkg/manifest"
 	"github.com/operator-framework/rukpak/test/testutil"
 )
 
-var _ = Describe("ObjectFile", func() {
+var _ = Describe("File", func() {
 	var (
 		scheme *runtime.Scheme
 		fsys   fs.FS
@@ -47,11 +47,11 @@ var _ = Describe("ObjectFile", func() {
 	})
 
 	When("casting to the concrete type", func() {
-		var objFile *bundle.ObjectFile[*operatorsv1alpha1.ClusterServiceVersion]
+		var objFile *manifest.File[*operatorsv1alpha1.ClusterServiceVersion]
 
 		JustBeforeEach(func() {
 			var err error
-			objFile, err = bundle.NewObjectFile[*operatorsv1alpha1.ClusterServiceVersion](file, scheme, false)
+			objFile, err = manifest.NewFile[*operatorsv1alpha1.ClusterServiceVersion](file, scheme, false)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -64,12 +64,12 @@ var _ = Describe("ObjectFile", func() {
 		var (
 			strictTypes = false
 
-			objFile *bundle.ObjectFile[client.Object]
+			objFile *manifest.File[client.Object]
 			err     error
 		)
 
 		JustBeforeEach(func() {
-			objFile, err = bundle.NewObjectFile[client.Object](file, scheme, strictTypes)
+			objFile, err = manifest.NewFile[client.Object](file, scheme, strictTypes)
 		})
 
 		When("the object is of a known type", func() {

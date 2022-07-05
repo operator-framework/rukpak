@@ -1,4 +1,4 @@
-package bundle
+package manifest
 
 import (
 	"bytes"
@@ -12,23 +12,23 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-// ObjectFile represents a manifest flie that contains one or more Kubernetes objects.
+// File represents a manifest flie that contains one or more Kubernetes objects.
 //
 // The objects will be stored as type `T`.
 // If `T` is an interface type, the objects can be cast to their specific structure type.
-type ObjectFile[T runtime.Object] struct {
+type File[T runtime.Object] struct {
 	Objects []T
 
 	fs.File
 	data io.Reader
 }
 
-// NewObjectFile parses the kubernetes objects contained in the file according to the scheme.
+// NewFile parses the kubernetes objects contained in the file according to the scheme.
 //
 // If `strict` is enabled, object types the scheme is not aware of will throw an error.
-func NewObjectFile[T runtime.Object](f fs.File, scheme *runtime.Scheme, strict bool) (*ObjectFile[T], error) {
+func NewFile[T runtime.Object](f fs.File, scheme *runtime.Scheme, strict bool) (*File[T], error) {
 	var (
-		file           = ObjectFile[T]{File: f, data: f}
+		file           = File[T]{File: f, data: f}
 		r    io.Reader = f
 	)
 
@@ -56,7 +56,7 @@ func NewObjectFile[T runtime.Object](f fs.File, scheme *runtime.Scheme, strict b
 }
 
 // Read bytes from the file.
-func (f ObjectFile[T]) Read(p []byte) (int, error) {
+func (f File[T]) Read(p []byte) (int, error) {
 	return f.data.Read(p)
 }
 
