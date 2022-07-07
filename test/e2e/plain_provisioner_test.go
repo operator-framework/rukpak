@@ -829,6 +829,135 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
+	When("the bundle is backed by a non-existent configmap", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "combo-local-",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeLocal,
+						Local: &rukpakv1alpha1.LocalSource{
+							ConfigMapRef: &rukpakv1alpha1.ConfigMapRef{
+								Name:      "non-exist",
+								Namespace: defaultSystemNamespace,
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			err := c.Delete(ctx, bundle)
+			Expect(client.IgnoreNotFound(err)).To(BeNil())
+		})
+		It("eventually results in a failing bundle state", func() {
+			By("waiting until the bundle is reporting Failing state")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message },
+					ContainSubstring(fmt.Sprintf("source bundle content: could not find configmap %s/%s on the cluster", defaultSystemNamespace, "non-exist"))),
+			))
+		})
+	})
+
+	When("the bundle is backed by an invalid configmap", func() {
+		var (
+			bundle    *rukpakv1alpha1.Bundle
+			configmap *corev1.ConfigMap
+			ctx       context.Context
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+			data := map[string]string{}
+			err := filepath.Walk(filepath.Join(testdataDir, "bundles/plain-v0/subdir/manifests"), func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
+				c, err := ioutil.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				data[info.Name()] = string(c)
+				return nil
+			})
+			Expect(err).To(BeNil())
+			configmap = &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "local-configmap-",
+					Namespace:    defaultSystemNamespace,
+				},
+				Data: data,
+			}
+			err = c.Create(ctx, configmap)
+			Expect(err).To(BeNil())
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "combo-local-",
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeLocal,
+						Local: &rukpakv1alpha1.LocalSource{
+							ConfigMapRef: &rukpakv1alpha1.ConfigMapRef{
+								Name:      configmap.ObjectMeta.Name,
+								Namespace: defaultSystemNamespace,
+							},
+						},
+					},
+				},
+			}
+			err = c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			err := c.Delete(ctx, bundle)
+			Expect(client.IgnoreNotFound(err)).To(BeNil())
+			err = c.Delete(ctx, configmap)
+			Expect(client.IgnoreNotFound(err)).To(BeNil())
+		})
+		It("checks the bundle's phase gets failing", func() {
+			By("waiting until the bundle is reporting Failing state")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("json: cannot unmarshal string into Go value")),
+			))
+		})
+	})
+
 	When("a bundle containing nested directory is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
