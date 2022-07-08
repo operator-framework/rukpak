@@ -1528,6 +1528,69 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 		})
 	})
 
+	When("a BundleDeployment target cannot be unpacked", func() {
+		var (
+			bd  *rukpakv1alpha1.BundleDeployment
+			ctx context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+			bd = &rukpakv1alpha1.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "olm-apis",
+				},
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Template: &rukpakv1alpha1.BundleTemplate{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app.kubernetes.io/name": "olm-apis",
+							},
+						},
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: plain.ProvisionerID,
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeImage,
+								Image: &rukpakv1alpha1.ImageSource{
+									Ref: "testdata/bundles/plain-v0:subdir",
+								},
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bd)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing BundleDeployment resource")
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, bd))
+			}).Should(Succeed())
+		})
+
+		It("should project an unpack failed state", func() {
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
+					return nil, err
+				}
+				if bd.Status.ActiveBundle != "" {
+					return nil, fmt.Errorf("bi.Status.ActiveBundle is non-empty (%q)", bd.Status.ActiveBundle)
+				}
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, And(
+					ContainSubstring(`Failed to unpack the olm-apis`),
+					ContainSubstring(`get objects from bundle manifests: subdirectories are not allowed within the "manifests" directory of the bundle image filesystem: found "manifests/emptydir"`),
+				)),
+			))
+		})
+	})
+
 	When("a BundleDeployment is dependent on another BundleDeployment", func() {
 		var (
 			ctx         context.Context
