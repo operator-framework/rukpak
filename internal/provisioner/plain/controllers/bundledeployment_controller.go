@@ -133,6 +133,9 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			reason = rukpakv1alpha1.ReasonUnpackFailed
 			status = metav1.ConditionFalse
 			message = fmt.Sprintf("Failed to unpack the %s Bundle", bundle.GetName())
+			if c := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked); c != nil {
+				message = fmt.Sprintf("%s: %s", message, c.Message)
+			}
 		}
 		u.UpdateStatus(
 			updater.EnsureCondition(metav1.Condition{
