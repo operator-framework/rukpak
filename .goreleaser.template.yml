@@ -56,6 +56,18 @@ builds:
     - s390x
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: binarymgr
+    main: ./cmd/binarymgr
+    binary: binarymgr
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+      - s390x
+    ldflags:
+      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: crdvalidator
     main: ./cmd/crdvalidator
     binary: crdvalidator
@@ -129,5 +141,6 @@ release:
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/plain-provisioner --timeout=60s
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/registry-provisioner --timeout=60s
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/rukpak-core-webhook --timeout=60s
+    kubectl wait --for=condition=Available --namespace=rukpak-system deployment/binary-manager --timeout=60s
     kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
     ```
