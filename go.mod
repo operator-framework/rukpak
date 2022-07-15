@@ -7,6 +7,8 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.2
+	github.com/gorilla/handlers v1.5.1
+	github.com/gorilla/mux v1.8.0
 	github.com/nlepage/go-tarfs v1.1.0
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.18.1
@@ -15,6 +17,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/crypto v0.0.0-20220408190544-5352b0902921
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	helm.sh/helm/v3 v3.9.0
 	k8s.io/api v0.24.1
@@ -26,14 +29,21 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.99.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
+	github.com/Azure/go-autorest/autorest v0.11.20 // indirect
+	github.com/Azure/go-autorest/autorest/adal v0.9.15 // indirect
+	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
+	github.com/Azure/go-autorest/logger v0.2.1 // indirect
+	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
 	github.com/Masterminds/squirrel v1.5.2 // indirect
-	github.com/Microsoft/go-winio v0.5.1 // indirect
+	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
@@ -60,6 +70,7 @@ require (
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/color v1.13.0 // indirect
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
@@ -71,6 +82,7 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-jwt/jwt/v4 v4.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
@@ -79,7 +91,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.2.0 // indirect
-	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
@@ -147,7 +158,6 @@ require (
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/net v0.0.0-20220407224826-aac1ed45d8e3 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect

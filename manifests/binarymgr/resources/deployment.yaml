@@ -2,22 +2,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: rukpak-system
-  name: plain-provisioner
+  name: binary-manager
   labels:
-    app: plain-provisioner
+    app: binary-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: plain-provisioner
+      app: binary-manager
   template:
     metadata:
       labels:
-        app: plain-provisioner
+        app: binary-manager
       annotations:
         kubectl.kubernetes.io/default-container: manager
     spec:
-      serviceAccountName: plain-provisioner-admin
+      serviceAccountName: binary-manager-admin
       containers:
         - name: kube-rbac-proxy
           image: quay.io/brancz/kube-rbac-proxy:v0.12.0
@@ -26,37 +26,45 @@ spec:
             - "--upstream=http://127.0.0.1:8080/"
             - "--logtostderr=true"
             - "--v=1"
+            - "--client-ca-file=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
             - "--tls-cert-file=/etc/pki/tls/tls.crt"
             - "--tls-private-key-file=/etc/pki/tls/tls.key"
           ports:
             - containerPort: 8443
               protocol: TCP
               name: https
+          securityContext:
+            allowPrivilegeEscalation: false
           volumeMounts:
             - name: certs
               mountPath: /etc/pki/tls
         - name: manager
           image: quay.io/operator-framework/rukpak:latest
           imagePullPolicy: IfNotPresent
-          command: ["/plain"]
+          command: ["/binarymgr"]
           args:
-            - "--unpack-image=quay.io/operator-framework/rukpak:latest"
-            - "--base-binary-download-url=https://$(BINARY_MANAGER_SERVICE_NAME).$(BINARY_MANAGER_SERVICE_NAMESPACE).svc"
-            - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
-            - "--http-external-address=https://$(PLAIN_PROVISIONER_SERVICE_NAME).$(PLAIN_PROVISIONER_SERVICE_NAMESPACE).svc"
-            - "--bundle-ca-file=/etc/pki/tls/ca.crt"
-          ports:
-            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
           volumeMounts:
             - name: bundle-cache
               mountPath: /var/cache/bundles
-            - name: certs
-              mountPath: /etc/pki/tls
       volumes:
         - name: bundle-cache
           emptyDir: {}
         - name: certs
           secret:
-            secretName: plain-provisioner-cert
+            secretName: binary-manager-cert
             optional: false

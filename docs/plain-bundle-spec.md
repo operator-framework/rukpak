@@ -26,6 +26,7 @@ Supported source types for a plain bundle currently include the following:
 * A container image
 * A [directory in a git repository](git-bundles.md)
 * A [configmap](local-bundles.md)
+* A [binary upload](binary-bundles.md)
 
 Additional source types, such as a local volume or a generic URI-based resource, are on the roadmap. These source types
 all present the same content, a directory containing static Kubernetes YAML manifests, in a different ways.

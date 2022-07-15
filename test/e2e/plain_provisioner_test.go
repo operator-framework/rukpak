@@ -24,12 +24,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
+	"github.com/operator-framework/rukpak/internal/rukpakctl"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 )
@@ -954,6 +956,126 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("json: cannot unmarshal string into Go value")),
+			))
+		})
+	})
+
+	When("the bundle is from a binary source", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/valid"))
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("valid-binary-%s", rand.String(8)),
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type:   rukpakv1alpha1.SourceTypeBinary,
+						Binary: &rukpakv1alpha1.BinarySource{},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, defaultSystemNamespace, "rukpak-ca")
+			Expect(err).To(BeNil())
+
+			bu := rukpakctl.BundleUploader{
+				UploadServiceName:      "binary-manager",
+				UploadServiceNamespace: defaultSystemNamespace,
+				Cfg:                    cfg,
+				RootCAs:                rootCAs,
+				APIReader:              c,
+			}
+			err = bu.Upload(ctx, bundle.Name, bundleFS)
+			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			err := c.Delete(ctx, bundle)
+			Expect(client.IgnoreNotFound(err)).To(BeNil())
+		})
+
+		It("can unpack the bundle successfully", func() {
+			Eventually(func() error {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					return err
+				}
+				if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+					return errors.New("bundle is not unpacked")
+				}
+				return nil
+			}).Should(BeNil())
+		})
+	})
+
+	When("the bundle is backed by an invalid upload", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		const (
+			manifestsDir = "manifests"
+			subdirName   = "emptydir"
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/subdir"))
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("invalid-binary-%s", rand.String(8)),
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Source: rukpakv1alpha1.BundleSource{
+						Type:   rukpakv1alpha1.SourceTypeBinary,
+						Binary: &rukpakv1alpha1.BinarySource{},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(BeNil())
+
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, defaultSystemNamespace, "rukpak-ca")
+			Expect(err).To(BeNil())
+
+			bu := rukpakctl.BundleUploader{
+				UploadServiceName:      "binary-manager",
+				UploadServiceNamespace: defaultSystemNamespace,
+				Cfg:                    cfg,
+				RootCAs:                rootCAs,
+				APIReader:              c,
+			}
+			err = bu.Upload(ctx, bundle.Name, bundleFS)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			err := c.Delete(ctx, bundle)
+			Expect(client.IgnoreNotFound(err)).To(BeNil())
+		})
+		It("checks the bundle's phase gets failing", func() {
+			By("waiting until the bundle is reporting Failing state")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message },
+					ContainSubstring(fmt.Sprintf("subdirectories are not allowed within the %q directory of the bundle image filesystem: found %q", manifestsDir, filepath.Join(manifestsDir, subdirName)))),
 			))
 		})
 	})

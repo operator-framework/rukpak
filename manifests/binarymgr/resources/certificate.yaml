@@ -1,0 +1,18 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: binary-manager
+  namespace: rukpak-system
+spec:
+  secretName: binary-manager-cert
+  dnsNames:
+    - $(BINARY_MANAGER_SERVICE_NAME).$(BINARY_MANAGER_SERVICE_NAMESPACE).svc
+    - $(BINARY_MANAGER_SERVICE_NAME).$(BINARY_MANAGER_SERVICE_NAMESPACE).svc.cluster.local
+
+    # Include localhost to support rukpakctl run (which uses port-forwarding to expose this service on "localhost")
+    # This is required to allow rukpakctl's certificate verification to succeed.
+    - localhost
+  issuerRef:
+    kind: Issuer
+    name: rukpak-ca-issuer
