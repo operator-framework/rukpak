@@ -29,9 +29,10 @@ var (
 type SourceType string
 
 const (
-	SourceTypeImage SourceType = "image"
-	SourceTypeGit   SourceType = "git"
-	SourceTypeLocal SourceType = "local"
+	SourceTypeImage  SourceType = "image"
+	SourceTypeGit    SourceType = "git"
+	SourceTypeLocal  SourceType = "local"
+	SourceTypeBinary SourceType = "binary"
 
 	TypeUnpacked = "Unpacked"
 
@@ -64,6 +65,11 @@ type BundleSource struct {
 	Git *GitSource `json:"git,omitempty"`
 	// Local is a reference to a local object in the cluster.
 	Local *LocalSource `json:"local,omitempty"`
+	// Binary is a source that enables this Bundle's content to be uploaded
+	// via Rukpak's bundle upload service. This source type is primarily useful
+	// with bundle development workflows because it enables bundle developers
+	// to inject a local bundle directly into the cluster.
+	Binary *BinarySource `json:"binary,omitempty"`
 }
 
 type ImageSource struct {
@@ -123,6 +129,8 @@ type Authorization struct {
 	// used. This should be used only for testing.
 	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
+
+type BinarySource struct{}
 
 type ProvisionerID string
 

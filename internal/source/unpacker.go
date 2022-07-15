@@ -2,8 +2,12 @@ package source
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/fs"
+	"net/http"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -90,12 +94,19 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*
 // NewDefaultUnpacker returns a new composite Source that unpacks bundles using
 // a default source mapping with built-in implementations of all of the supported
 // source types.
-func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImage string) (Unpacker, error) {
+//
+// TODO: refactor NewDefaultUnpacker due to growing parameter list
+func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImage string, binaryBaseDownloadURL string, rootCAs *x509.CertPool) (Unpacker, error) {
 	cfg := mgr.GetConfig()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
+	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
+	if httpTransport.TLSClientConfig == nil {
+		httpTransport.TLSClientConfig = &tls.Config{}
+	}
+	httpTransport.TLSClientConfig.RootCAs = rootCAs
 	return NewUnpacker(map[rukpakv1alpha1.SourceType]Unpacker{
 		rukpakv1alpha1.SourceTypeImage: &Image{
 			Client:          mgr.GetClient(),
@@ -111,6 +122,11 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImag
 		rukpakv1alpha1.SourceTypeLocal: &Local{
 			Client: mgr.GetClient(),
 			reader: mgr.GetAPIReader(),
+		},
+		rukpakv1alpha1.SourceTypeBinary: &Binary{
+			baseDownloadURL: binaryBaseDownloadURL,
+			bearerToken:     mgr.GetConfig().BearerToken,
+			client:          http.Client{Timeout: 10 * time.Second, Transport: httpTransport},
 		},
 	}), nil
 }

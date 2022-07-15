@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/nlepage/go-tarfs"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 var _ Storage = &LocalDirectory{}
@@ -42,53 +43,8 @@ func (s *LocalDirectory) Load(_ context.Context, owner client.Object) (fs.FS, er
 
 func (s *LocalDirectory) Store(_ context.Context, owner client.Object, bundle fs.FS) error {
 	buf := &bytes.Buffer{}
-	gzw := gzip.NewWriter(buf)
-	tw := tar.NewWriter(gzw)
-	if err := fs.WalkDir(bundle, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.Type()&os.ModeSymlink != 0 {
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil {
-			return fmt.Errorf("get file info for %q: %v", path, err)
-		}
-
-		h, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return fmt.Errorf("build tar file info header for %q: %v", path, err)
-		}
-		h.Uid = 0
-		h.Gid = 0
-		h.Uname = ""
-		h.Gname = ""
-		h.Name = path
-
-		if err := tw.WriteHeader(h); err != nil {
-			return fmt.Errorf("write tar header for %q: %v", path, err)
-		}
-		if d.IsDir() {
-			return nil
-		}
-		f, err := bundle.Open(path)
-		if err != nil {
-			return fmt.Errorf("open file %q: %v", path, err)
-		}
-		if _, err := io.Copy(tw, f); err != nil {
-			return fmt.Errorf("write tar data for %q: %v", path, err)
-		}
-		return nil
-	}); err != nil {
-		return fmt.Errorf("generate tar.gz for bundle %q: %v", owner.GetName(), err)
-	}
-	if err := tw.Close(); err != nil {
-		return err
-	}
-	if err := gzw.Close(); err != nil {
-		return err
+	if err := util.FSToTarGZ(buf, bundle); err != nil {
+		return fmt.Errorf("convert bundle %q to tar.gz: %v", owner.GetName(), err)
 	}
 
 	bundleFile, err := os.Create(s.bundlePath(owner.GetName()))
@@ -108,7 +64,7 @@ func (s *LocalDirectory) Delete(_ context.Context, owner client.Object) error {
 }
 
 func (s *LocalDirectory) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	fsys := &filesOnlyFilesystem{os.DirFS(s.RootDirectory)}
+	fsys := &util.FilesOnlyFilesystem{FS: os.DirFS(s.RootDirectory)}
 	http.StripPrefix(s.URL.Path, http.FileServer(http.FS(fsys))).ServeHTTP(resp, req)
 }
 
@@ -129,35 +85,4 @@ func ignoreNotExist(err error) error {
 		return nil
 	}
 	return err
-}
-
-// filesOnlyFilesystem is an fs.FS implementation that treats non-regular files
-// (e.g. directories, symlinks, devices, etc.) as non-existent. The reason for
-// this is so that we only serve bundle files.
-//
-// This treats directories as not found so that the http server does not serve
-// HTML directory index responses.
-//
-// This treats other symlink files as not found so that we prevent HTTP requests
-// from escaping the filesystem root.
-//
-// Lastly, this treats other non-regular files as not found because they are
-// out of scope for serving bundle contents.
-type filesOnlyFilesystem struct {
-	fs fs.FS
-}
-
-func (f *filesOnlyFilesystem) Open(name string) (fs.File, error) {
-	file, err := f.fs.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !stat.Mode().IsRegular() {
-		return nil, os.ErrNotExist
-	}
-	return file, nil
 }
