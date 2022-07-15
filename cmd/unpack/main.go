@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/operator-framework/rukpak/internal/version"
+	"github.com/operator-framework/rukpak/pkg/version"
 )
 
 func main() {
