@@ -67,7 +67,7 @@ type BundleSource struct {
 	Local *LocalSource `json:"local,omitempty"`
 	// Binary is a source that enables this Bundle's content to be uploaded
 	// via Rukpak's bundle upload service. This source type is primarily useful
-	// with bundle development workflows because it enabled bundle developers
+	// with bundle development workflows because it enables bundle developers
 	// to inject a local bundle directly into the cluster.
 	Binary *BinarySource `json:"binary,omitempty"`
 }

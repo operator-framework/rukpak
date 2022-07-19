@@ -61,7 +61,7 @@ spec:
                     description: Binary is a source that enables this Bundle's content
                       to be uploaded via Rukpak's bundle upload service. This source
                       type is primarily useful with bundle development workflows because
-                      it enabled bundle developers to inject a local bundle directly
+                      it enables bundle developers to inject a local bundle directly
                       into the cluster.
                     type: object
                   git:
@@ -262,7 +262,7 @@ spec:
                     description: Binary is a source that enables this Bundle's content
                       to be uploaded via Rukpak's bundle upload service. This source
                       type is primarily useful with bundle development workflows because
-                      it enabled bundle developers to inject a local bundle directly
+                      it enables bundle developers to inject a local bundle directly
                       into the cluster.
                     type: object
                   git:
