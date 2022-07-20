@@ -64,7 +64,6 @@ func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 	labels[util.CoreOwnerKindKey] = rukpakv1alpha1.BundleKind
 	labels[util.CoreOwnerNameKey] = bundle.GetName()
 
-	// TODO: wrap this update call in a retry that ignores conflict errors
 	if err := o.Update(ctx, &cm); err != nil {
 		return nil, fmt.Errorf("could not update configmap with bundle ownerreference: %s", err)
 	}
