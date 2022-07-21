@@ -27,14 +27,12 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
-const (
-	rukpakSystemNamespace = "rukpak-system"
-	binaryServiceName     = "binary-manager"
-)
-
 // newRunCmd creates the run command
 func newRunCmd() *cobra.Command {
 	var (
+		systemNamespace                      string
+		binaryUploadServiceName              string
+		caSecretName                         string
 		bundleDeploymentProvisionerClassName string
 		bundleProvisionerClassName           string
 	)
@@ -43,6 +41,7 @@ func newRunCmd() *cobra.Command {
 		Use:   "run <bundleDeploymentName> <bundleDir>",
 		Short: "Run a bundle from an upload of a local bundle directory.",
 		Long:  "Run a bundle from an upload of a local bundle directory.",
+		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			bundleDeploymentName, bundleDir := args[0], args[1]
 			ctx := signals.SetupSignalHandler()
@@ -75,7 +74,7 @@ func newRunCmd() *cobra.Command {
 			}
 			fmt.Printf("bundledeployment.core.rukpak.io %q applied\n", bundleDeploymentName)
 
-			rukpakCAs, err := rukpakctl.GetRukpakCA(ctx, cl)
+			rukpakCAs, err := rukpakctl.GetClusterCA(ctx, cl, systemNamespace, caSecretName)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -85,8 +84,8 @@ func newRunCmd() *cobra.Command {
 				log.Fatalf("failed to get bundle name: %v", err)
 			}
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      binaryServiceName,
-				UploadServiceNamespace: rukpakSystemNamespace,
+				UploadServiceName:      binaryUploadServiceName,
+				UploadServiceNamespace: systemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rukpakCAs,
 				APIReader:              cl,
@@ -96,8 +95,10 @@ func newRunCmd() *cobra.Command {
 			}
 			fmt.Printf("successfully uploaded bundle content for %q\n", bundleName)
 		},
-		Args: cobra.ExactArgs(2),
 	}
+	cmd.Flags().StringVar(&systemNamespace, "system-namespace", "rukpak-system", "the namespace in which the rukpak controllers are deployed.")
+	cmd.Flags().StringVar(&binaryUploadServiceName, "binary-upload-service-name", "binary-manager", "the name of the service of the binary upload manager.")
+	cmd.Flags().StringVar(&caSecretName, "ca-secret-name", "rukpak-ca", "the name of the secret in the system namespace containing the root CAs used to authenticate the binary upload service.")
 	cmd.Flags().StringVar(&bundleDeploymentProvisionerClassName, "bundle-deployment-provisioner-class", "core.rukpak.io/plain", "Provisioner class name to set on bundle deployment.")
 	cmd.Flags().StringVar(&bundleProvisionerClassName, "bundle-provisioner-class", "core.rukpak.io/plain", "Provisioner class name to set on bundle.")
 	return cmd

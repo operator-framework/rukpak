@@ -49,7 +49,7 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 			return err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("https://localhost:%d/bundles/%s", localPort, fmt.Sprintf("%s.tgz", bundleName)), bundleTgz)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPut, proxyBundleURL(bundleName, localPort), bundleTgz)
 		if err != nil {
 			return err
 		}
@@ -94,4 +94,8 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 		return err
 	}
 	return nil
+}
+
+func proxyBundleURL(bundleName string, port uint16) string {
+	return fmt.Sprintf("https://localhost:%d/bundles/%s", port, fmt.Sprintf("%s.tgz", bundleName))
 }

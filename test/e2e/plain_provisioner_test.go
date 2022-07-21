@@ -985,7 +985,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			err := c.Create(ctx, bundle)
 			Expect(err).To(BeNil())
 
-			rootCAs, err := rukpakctl.GetRukpakCA(ctx, c)
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, defaultSystemNamespace, "rukpak-ca")
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
@@ -1045,7 +1045,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			err := c.Create(ctx, bundle)
 			Expect(err).To(BeNil())
 
-			rootCAs, err := rukpakctl.GetRukpakCA(ctx, c)
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, defaultSystemNamespace, "rukpak-ca")
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{

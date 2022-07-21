@@ -94,6 +94,8 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*
 // NewDefaultUnpacker returns a new composite Source that unpacks bundles using
 // a default source mapping with built-in implementations of all of the supported
 // source types.
+//
+// TODO: refactor NewDefaultUnpacker due to growing parameter list
 func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImage string, binaryBaseDownloadURL string, rootCAs *x509.CertPool) (Unpacker, error) {
 	cfg := mgr.GetConfig()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
