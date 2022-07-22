@@ -18,7 +18,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
-// BundleUploader uploads bundle filesystems to rukpak's binary upload service.
+// BundleUploader uploads bundle filesystems to rukpak's upload service.
 type BundleUploader struct {
 	UploadServiceName      string
 	UploadServiceNamespace string

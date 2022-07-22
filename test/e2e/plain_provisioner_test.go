@@ -960,7 +960,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("the bundle is from a binary source", func() {
+	When("the bundle is uploaded", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -972,13 +972,13 @@ var _ = Describe("plain provisioner bundle", func() {
 			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/valid"))
 			bundle = &rukpakv1alpha1.Bundle{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("valid-binary-%s", rand.String(8)),
+					Name: fmt.Sprintf("valid-upload-%s", rand.String(8)),
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
-						Type:   rukpakv1alpha1.SourceTypeBinary,
-						Binary: &rukpakv1alpha1.BinarySource{},
+						Type:   rukpakv1alpha1.SourceTypeUpload,
+						Upload: &rukpakv1alpha1.UploadSource{},
 					},
 				},
 			}
@@ -989,7 +989,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      "binary-manager",
+				UploadServiceName:      "upload-manager",
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
@@ -1031,13 +1031,13 @@ var _ = Describe("plain provisioner bundle", func() {
 			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/subdir"))
 			bundle = &rukpakv1alpha1.Bundle{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("invalid-binary-%s", rand.String(8)),
+					Name: fmt.Sprintf("invalid-upload-%s", rand.String(8)),
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
-						Type:   rukpakv1alpha1.SourceTypeBinary,
-						Binary: &rukpakv1alpha1.BinarySource{},
+						Type:   rukpakv1alpha1.SourceTypeUpload,
+						Upload: &rukpakv1alpha1.UploadSource{},
 					},
 				},
 			}
@@ -1048,7 +1048,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      "binary-manager",
+				UploadServiceName:      "upload-manager",
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,

@@ -96,7 +96,7 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImage string, binaryBaseDownloadURL string, rootCAs *x509.CertPool) (Unpacker, error) {
+func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImage string, baseUploadManagerURL string, rootCAs *x509.CertPool) (Unpacker, error) {
 	cfg := mgr.GetConfig()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -123,8 +123,8 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImag
 			Client: mgr.GetClient(),
 			reader: mgr.GetAPIReader(),
 		},
-		rukpakv1alpha1.SourceTypeBinary: &Binary{
-			baseDownloadURL: binaryBaseDownloadURL,
+		rukpakv1alpha1.SourceTypeUpload: &Upload{
+			baseDownloadURL: baseUploadManagerURL,
 			bearerToken:     mgr.GetConfig().BearerToken,
 			client:          http.Client{Timeout: 10 * time.Second, Transport: httpTransport},
 		},
