@@ -9,18 +9,19 @@ import (
 	"strings"
 
 	"golang.org/x/sync/errgroup"
-	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ServicePortForwarder forwards a port from a local port to a Kubernetes service.
 type ServicePortForwarder struct {
-	cfg       *rest.Config
-	apiReader client.Reader
+	cfg *rest.Config
+	cl  kubernetes.Interface
 
 	ready     chan struct{}
 	localPort uint16
@@ -30,23 +31,32 @@ type ServicePortForwarder struct {
 	port             intstr.IntOrString
 }
 
-func NewServicePortForwarder(cfg *rest.Config, cl client.Reader, service types.NamespacedName, port intstr.IntOrString) *ServicePortForwarder {
+// NewServicePortForwarder creates a new ServicePortForwarder.
+func NewServicePortForwarder(cfg *rest.Config, service types.NamespacedName, port intstr.IntOrString) (*ServicePortForwarder, error) {
+	cl, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ServicePortForwarder{
-		cfg:       cfg,
-		apiReader: cl,
-		ready:     make(chan struct{}),
+		cfg:   cfg,
+		cl:    cl,
+		ready: make(chan struct{}),
 
 		serviceName:      service.Name,
 		serviceNamespace: service.Namespace,
 		port:             port,
-	}
+	}, nil
 }
 
+// Start starts the port-forward defined by the ServicePortForwarder and blocks until the provided context is closed.
+// When the provided context is closed, the forwarded port is also closed. This function opens a random local port,
+// which can be discovered using the LocalPort method.
 func (pf *ServicePortForwarder) Start(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	endpoints := &corev1.Endpoints{}
-	if err := pf.apiReader.Get(ctx, types.NamespacedName{Name: pf.serviceName, Namespace: pf.serviceNamespace}, endpoints); err != nil {
+	endpoints, err := pf.cl.CoreV1().Endpoints(pf.serviceNamespace).Get(ctx, pf.serviceName, metav1.GetOptions{})
+	if err != nil {
 		return err
 	}
 
@@ -112,6 +122,11 @@ func (pf *ServicePortForwarder) Start(ctx context.Context) error {
 	return eg.Wait()
 }
 
+// LocalPort returns the local port on which the port forward is listening. It automatically
+// waits until the port forward is configured, so there is no need for callers to coordinate
+// calls between Start and LocalPort (other than that Start must be called at some point for
+// a local port to eventually become ready). If the provided context is closed prior to the
+// local port becoming ready, LocalPort returns the context's error.
 func (pf *ServicePortForwarder) LocalPort(ctx context.Context) (uint16, error) {
 	select {
 	case <-ctx.Done():

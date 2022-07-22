@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -131,20 +132,34 @@ func newUploadHandler(cl client.Client, storageDir string) http.Handler {
 			http.Error(w, fmt.Sprintf("bundle source type is %q; expected %q", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeBinary), http.StatusConflict)
 			return
 		}
+
+		uploadBundleData, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("read request body: %v", err), http.StatusInternalServerError)
+			return
+		}
+		bundleFilePath := bundlePath(storageDir, bundleName)
+		if existingData, err := os.ReadFile(bundleFilePath); err == nil {
+			if bytes.Equal(uploadBundleData, existingData) {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+
 		if bundle.Status.Phase == rukpakv1alpha1.PhaseUnpacked {
 			http.Error(w, "bundle has already been unpacked, cannot change content of existing bundle", http.StatusConflict)
 			return
 		}
 
-		bundleFile, err := os.Create(bundlePath(storageDir, bundleName))
+		bundleFile, err := os.Create(bundleFilePath)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to store bundle binary: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("failed to store bundle data: %v", err), http.StatusInternalServerError)
 			return
 		}
 		defer bundleFile.Close()
 
-		if _, err := io.Copy(bundleFile, r.Body); err != nil {
-			http.Error(w, fmt.Sprintf("failed to store bundle binary: %v", err), http.StatusInternalServerError)
+		if _, err := bundleFile.Write(uploadBundleData); err != nil {
+			http.Error(w, fmt.Sprintf("failed to store bundle data: %v", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -161,13 +176,14 @@ func newUploadHandler(cl client.Client, storageDir string) http.Handler {
 				Type:    rukpakv1alpha1.TypeUnpacked,
 				Status:  metav1.ConditionFalse,
 				Reason:  rukpakv1alpha1.ReasonUnpackPending,
-				Message: "received binary upload, waiting for provisioner to unpack it.",
+				Message: "received bundle upload, waiting for provisioner to unpack it.",
 			})
 			return cl.Status().Update(r.Context(), bundle)
 		}); err != nil {
 			http.Error(w, err.Error(), int(getCode(err)))
 			return
 		}
+		w.WriteHeader(http.StatusCreated)
 	})
 	return handlers.CustomLoggingHandler(nil, r, func(_ io.Writer, params handlers.LogFormatterParams) {
 		ctrl.Log.WithName("http").Info("responded", "method", params.Request.Method, "status", params.StatusCode, "url", params.URL.String(), "size", params.Size)
