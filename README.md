@@ -26,6 +26,18 @@ This project uses GitHub issues and milestones to prioritize and keep track of o
 the project, checkout the [open issues](https://github.com/operator-framework/rukpak/issues) and
 [recent milestones](https://github.com/operator-framework/rukpak/milestones).
 
+## Documentation
+
+The RukPak project currently houses all of its documentation directly in this repository. There are several sources of
+documentation:
+
+* Top-level provisioner documentation in the `internal/provisioner`.
+  * The [plain provisioner README](./internal/provisioner/plain/README.md)
+  * The [registry provisioner README](./internal/provisioner/registry/README.md)
+* A [docs](./docs) folder with additional documentation, specifically around the behavior of current features, and past
+  designs.
+* The below section of this README contains a high-level overview of the primary APIs and how to get started using RukPak.
+
 ## Getting Started
 
 ### Installation
@@ -35,8 +47,7 @@ the [releases](https://github.com/operator-framework/rukpak/releases) page. Ther
 the release notes on how to install a particular release. The only requirement is to have a `kubectl` client available
 that is configured to target the cluster to install to.
 
-> Note: RukPak depends on [cert-manager](https://cert-manager.io/) for creating and managing certificates for its webhooks.
-cert-manager should be installed prior to installing RukPak. See the cert-manager [installation docs](https://cert-manager.io/docs/installation/)
+> Note: RukPak depends on [cert-manager](https://cert-manager.io/) for creating and managing certificates for its webhooks. cert-manager should be installed prior to installing RukPak. See the cert-manager [installation docs](https://cert-manager.io/docs/installation/)
 for more information on how to install cert-manager.
 
 It is recommended to install the latest release to access the latest features and new bugfixes. RukPak releases target
@@ -77,9 +88,9 @@ see [the plain bundle spec](./docs/plain-bundle-spec.md).
 
 ## Components
 
-RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleDeployment](#BundleDeployment), as well as the concept
-of a [Provisioner](#provisioner). These components work together to bring content onto the cluster and install it,
-generating resources within the cluster. Below is a high level diagram depicting the interaction of the RukPak
+RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleDeployment](#BundleDeployment), as well as the
+concept of a [Provisioner](#provisioner). These components work together to bring content onto the cluster and install
+it, generating resources within the cluster. Below is a high level diagram depicting the interaction of the RukPak
 components.
 
 ```mermaid
@@ -92,8 +103,9 @@ graph TD
 ```
 
 A provisioner places a watch on both Bundles and BundleDeployments that refer to it explicitly. For a given bundle, the
-provisioner unpacks the contents of the Bundle onto the cluster. Then, given a BundleDeployment referring to that Bundle,
-the provisioner then installs the bundle contents and is responsible for managing the lifecycle of those resources.
+provisioner unpacks the contents of the Bundle onto the cluster. Then, given a BundleDeployment referring to that
+Bundle, the provisioner then installs the bundle contents and is responsible for managing the lifecycle of those
+resources.
 
 ### Bundle
 
@@ -131,8 +143,8 @@ spec:
 > to verify and trust the content that is being installed, and limit access (via RBAC) to the BundleDeployment API to only those
 > who require those permissions.
 
-The `BundleDeployment` API points to a Bundle and indicates that it should be “active”. This includes pivoting from older
-versions of an active bundle.`BundleDeployment` may also include an embedded spec for a desired Bundle.
+The `BundleDeployment` API points to a Bundle and indicates that it should be “active”. This includes pivoting from
+older versions of an active bundle.`BundleDeployment` may also include an embedded spec for a desired Bundle.
 
 Much like Pods stamp out instances of container images, `BundleDeployments` stamp out a deployed version of
 Bundles. `BundleDeployment` can be seen as a generalization of the Pod concept.
