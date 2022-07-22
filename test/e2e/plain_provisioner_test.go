@@ -993,9 +993,8 @@ var _ = Describe("plain provisioner bundle", func() {
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
-				APIReader:              c,
 			}
-			err = bu.Upload(ctx, bundle.Name, bundleFS)
+			_, err = bu.Upload(ctx, bundle.Name, bundleFS)
 			Expect(err).To(BeNil())
 		})
 
@@ -1053,9 +1052,8 @@ var _ = Describe("plain provisioner bundle", func() {
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
-				APIReader:              c,
 			}
-			err = bu.Upload(ctx, bundle.Name, bundleFS)
+			_, err = bu.Upload(ctx, bundle.Name, bundleFS)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {

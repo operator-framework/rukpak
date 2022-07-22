@@ -9,6 +9,10 @@ import (
 	"os"
 )
 
+// FSToTarGZ writes the filesystem represented by fsys to w as a gzipped tar archive.
+// This function unsets user and group information in the tar archive so that readers
+// of archives produced by this function do not need to account for differences in
+// permissions between source and destination filesystems.
 func FSToTarGZ(w io.Writer, fsys fs.FS) error {
 	gzw := gzip.NewWriter(w)
 	tw := tar.NewWriter(gzw)

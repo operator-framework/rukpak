@@ -5,28 +5,21 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/nlepage/go-tarfs"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
+// Binary is a bundle source that sources bundles from the rukpak upload service.
 type Binary struct {
 	baseDownloadURL string
 	bearerToken     string
 	client          http.Client
 }
 
-func NewBinary(baseDownloadURL string) (*Binary, error) {
-	return &Binary{
-		baseDownloadURL: baseDownloadURL,
-		client: http.Client{
-			Timeout: 10 * time.Second,
-		},
-	}, nil
-}
-
+// Unpack unpacks a binary bundle by requesting the bundle contents from a web server hosted
+// by rukpak's binary upload service.
 func (b *Binary) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeBinary {
 		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeBinary)

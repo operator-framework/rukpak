@@ -1,7 +1,6 @@
 package rukpakctl
 
 import (
-	"bytes"
 	"context"
 	"crypto/x509"
 	"errors"
@@ -15,41 +14,58 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
+// BundleUploader uploads bundle filesystems to rukpak's binary upload service.
 type BundleUploader struct {
 	UploadServiceName      string
 	UploadServiceNamespace string
 
-	Cfg       *rest.Config
-	RootCAs   *x509.CertPool
-	APIReader client.Reader
+	Cfg     *rest.Config
+	RootCAs *x509.CertPool
 }
 
-func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleFS fs.FS) error {
+// Upload uploads the contents of a bundle to the bundle upload service configured on the
+// BundleUploader.
+//
+// To perform the upload, Upload utilizes a Kubernetes API port-forward to forward a port from
+// the uploader service to the local machine. Once the port has been forwarded, Upload
+// uploads the bundleFS as the content for the bundle named by the provided bundleName.
+//
+// Upload returns a boolean value indicating if the bundle content was modified on the server and
+// an error value that will convey any errors that occurred during the upload.
+//
+// Uploads of content that is identical to the existing bundle's content will not result in an error,
+// which means this function is idempotent. Running this function multiple times with the same input
+// does not result in any change to the cluster state after the initial upload.
+func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleFS fs.FS) (bool, error) {
+	pf, err := NewServicePortForwarder(bu.Cfg, types.NamespacedName{Namespace: bu.UploadServiceNamespace, Name: bu.UploadServiceName}, intstr.FromString("https"))
+	if err != nil {
+		return false, err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
-	pf := NewServicePortForwarder(bu.Cfg, bu.APIReader, types.NamespacedName{Namespace: bu.UploadServiceNamespace, Name: bu.UploadServiceName}, intstr.FromString("https"))
 	eg.Go(func() error {
 		return pf.Start(ctx)
 	})
 
+	bundleReader, bundleWriter := io.Pipe()
+	eg.Go(func() error {
+		return bundleWriter.CloseWithError(util.FSToTarGZ(bundleWriter, bundleFS))
+	})
+
+	var bundleModified bool
 	eg.Go(func() error {
 		// get the local port. this will wait until the port forwarder is ready.
 		localPort, err := pf.LocalPort(ctx)
 		if err != nil {
-			return ctx.Err()
-		}
-
-		bundleTgz := &bytes.Buffer{}
-		if err := util.FSToTarGZ(bundleTgz, bundleFS); err != nil {
 			return err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPut, proxyBundleURL(bundleName, localPort), bundleTgz)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPut, proxyBundleURL(bundleName, localPort), bundleReader)
 		if err != nil {
 			return err
 		}
@@ -77,11 +93,16 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 		}
 		defer resp.Body.Close()
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case http.StatusCreated:
+			bundleModified = true
+		case http.StatusNoContent:
+			bundleModified = false
+		default:
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
 			if len(string(body)) > 0 {
 				return errors.New(string(body))
 			}
@@ -91,9 +112,9 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 		return nil
 	})
 	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		return err
+		return false, err
 	}
-	return nil
+	return bundleModified, nil
 }
 
 func proxyBundleURL(bundleName string, port uint16) string {
