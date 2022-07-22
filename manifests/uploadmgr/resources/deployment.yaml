@@ -2,22 +2,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: rukpak-system
-  name: binary-manager
+  name: upload-manager
   labels:
-    app: binary-manager
+    app: upload-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: binary-manager
+      app: upload-manager
   template:
     metadata:
       labels:
-        app: binary-manager
+        app: upload-manager
       annotations:
         kubectl.kubernetes.io/default-container: manager
     spec:
-      serviceAccountName: binary-manager-admin
+      serviceAccountName: upload-manager-admin
       containers:
         - name: kube-rbac-proxy
           image: quay.io/brancz/kube-rbac-proxy:v0.12.0
@@ -41,7 +41,7 @@ spec:
         - name: manager
           image: quay.io/operator-framework/rukpak:latest
           imagePullPolicy: IfNotPresent
-          command: ["/binarymgr"]
+          command: ["/uploadmgr"]
           args:
             - "--http-bind-address=127.0.0.1:8080"
           livenessProbe:
@@ -66,5 +66,5 @@ spec:
           emptyDir: {}
         - name: certs
           secret:
-            secretName: binary-manager-cert
+            secretName: upload-manager-cert
             optional: false

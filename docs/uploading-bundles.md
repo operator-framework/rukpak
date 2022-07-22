@@ -1,17 +1,17 @@
-# Binary Bundles
+# Uploading Bundles
 
 ## Summary
 
-A Bundle can reference content from a local bundle directory instead of a remote container image or a git repository by
-using the `binary` source type in the Bundle manifest. This enables one to easily source content locally without external
+A Bundle can reference content from an uploaded bundle directory instead of a remote container image or a git repository by
+using the `upload` source type in the Bundle manifest. This enables one to easily source content locally without external
 repositories/registries.
 
 The `rukpakctl run` command can be used to create or update a `BundleDeployment` that references
-a `binary` bundle.
+an `upload` bundle.
 
-## Running a `binary` bundle
+## Running an `upload` bundle
 
-To run a `binary` bundle, simply invoke the `rukpakctl run` subcommand with a `BundleDeployment` name and the path
+To run an `upload` bundle, simply invoke the `rukpakctl run` subcommand with a `BundleDeployment` name and the path
 to a local directory that contains a bundle.
 
 ```console
@@ -24,9 +24,9 @@ provisioner class names for both the bundle template and the bundle deployment s
 The `--bundle-provisioner-class` and `--bundle-deployment-provisioner-class` flags can be used to
 configure the provisioner classes that are used to unpack and deploy the bundle, respectively.
 
-## Updating an existing `binary` bundle
+## Updating an existing `upload` bundle
 
-The `binary` source type also supports pivoting from one `binary` bundle to another. To initiate
+The `upload` source type also supports pivoting from one `upload` bundle to another. To initiate
 a pivot, simply run the same `rukpakctl run` command with a bundle directory that contains different
 content than the existing bundle. The `rukpakctl` client will automatically hash the contents of the bundle
 directory and include that hash as a label in the bundle template to ensure that the template changes,
@@ -40,7 +40,7 @@ an iterative development cycle of:
 
 ## A note about immutability
 
-The `binary` source upload handler rejects uploads for non-`binary` bundles and for `binary` bundles
+The `upload` source upload handler rejects uploads for non-`upload` bundles and for `upload` bundles
 that have already been unpacked. This preserves the immutable property of bundles.
 
 ## Example
@@ -56,7 +56,7 @@ that have already been unpacked. This preserves the immutable property of bundle
    ```console
    $ kubectl get bundle -l app=combo
    NAME               TYPE     PHASE      AGE
-   combo-7fdb455bf7   binary   Unpacked   104s
+   combo-7fdb455bf7   upload   Unpacked   104s
    ```
 
 3. Check the status of the bundle deployment

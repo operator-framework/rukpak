@@ -31,7 +31,7 @@ import (
 func newRunCmd() *cobra.Command {
 	var (
 		systemNamespace                      string
-		binaryUploadServiceName              string
+		uploadServiceName                    string
 		caSecretName                         string
 		bundleDeploymentProvisionerClassName string
 		bundleProvisionerClassName           string
@@ -111,7 +111,7 @@ one version to the next.
 				log.Fatalf("failed to get bundle name: %v", err)
 			}
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      binaryUploadServiceName,
+				UploadServiceName:      uploadServiceName,
 				UploadServiceNamespace: systemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rukpakCAs,
@@ -129,8 +129,8 @@ one version to the next.
 		},
 	}
 	cmd.Flags().StringVar(&systemNamespace, "system-namespace", "rukpak-system", "the namespace in which the rukpak controllers are deployed.")
-	cmd.Flags().StringVar(&binaryUploadServiceName, "binary-upload-service-name", "binary-manager", "the name of the service of the binary upload manager.")
-	cmd.Flags().StringVar(&caSecretName, "ca-secret-name", "rukpak-ca", "the name of the secret in the system namespace containing the root CAs used to authenticate the binary upload service.")
+	cmd.Flags().StringVar(&uploadServiceName, "upload-service-name", "upload-manager", "the name of the service of the upload manager.")
+	cmd.Flags().StringVar(&caSecretName, "ca-secret-name", "rukpak-ca", "the name of the secret in the system namespace containing the root CAs used to authenticate the upload service.")
 	cmd.Flags().StringVar(&bundleDeploymentProvisionerClassName, "bundle-deployment-provisioner-class", "core.rukpak.io/plain", "Provisioner class name to set on bundle deployment.")
 	cmd.Flags().StringVar(&bundleProvisionerClassName, "bundle-provisioner-class", "core.rukpak.io/plain", "Provisioner class name to set on bundle.")
 	return cmd
@@ -152,8 +152,8 @@ func buildBundleDeployment(bdName string, bundleLabels map[string]string, biPCN,
 				"spec": map[string]interface{}{
 					"provisionerClassName": bPNC,
 					"source": map[string]interface{}{
-						"type":   rukpakv1alpha1.SourceTypeBinary,
-						"binary": &rukpakv1alpha1.BinarySource{},
+						"type":   rukpakv1alpha1.SourceTypeUpload,
+						"upload": &rukpakv1alpha1.UploadSource{},
 					},
 				},
 			},
