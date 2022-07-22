@@ -40,8 +40,35 @@ func newRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <bundleDeploymentName> <bundleDir>",
 		Short: "Run a bundle from an upload of a local bundle directory.",
-		Long:  "Run a bundle from an upload of a local bundle directory.",
-		Args:  cobra.ExactArgs(2),
+		Long: `Run a bundle from an upload of a local bundle directory.
+
+The run subcommand allows bundle developers to quickly iterate on bundles
+they are developing, and to test how their bundle deployment pivots from
+one version to the next.
+`,
+		Example: `
+  #
+  # Initial creation of memcached-api bundle deployment:
+  #
+  $ rukpakctl run memcached-api ./memcached-api-v0.1.0/
+  bundledeployment.core.rukpak.io "memcached-api" applied
+  successfully uploaded bundle content for "memcached-api-5b9bbf8799"
+
+  #
+  # Pivot to a new bundle for the existing memcached-api bundle-deployment
+  #
+  $ rukpakctl run memcached-api ./memcached-api-v0.2.0/
+  bundledeployment.core.rukpak.io "memcached-api" applied
+  successfully uploaded bundle content for "memcached-api-8578dfddf9"
+
+  #
+  # Run the same command again
+  #
+  $ rukpakctl run memcached-api ./memcached-api-v0.2.0/
+  bundledeployment.core.rukpak.io "memcached-api" applied
+  bundle "memcached-api-8578dfddf9" is already up-to-date
+`,
+		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			bundleDeploymentName, bundleDir := args[0], args[1]
 			ctx := signals.SetupSignalHandler()
@@ -88,11 +115,16 @@ func newRunCmd() *cobra.Command {
 				UploadServiceNamespace: systemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rukpakCAs,
-				APIReader:              cl,
 			}
-			if err := bu.Upload(ctx, bundleName, bundleFS); err != nil {
+			modified, err := bu.Upload(ctx, bundleName, bundleFS)
+			if err != nil {
 				log.Fatalf("failed to upload bundle: %v", err)
 			}
+			if !modified {
+				fmt.Printf("bundle %q is already up-to-date\n", bundleName)
+				return
+			}
+
 			fmt.Printf("successfully uploaded bundle content for %q\n", bundleName)
 		},
 	}

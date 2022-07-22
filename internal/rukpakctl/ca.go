@@ -11,6 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// GetClusterCA returns an x509.CertPool by reading the contents of a Kubernetes Secret. It uses the provided
+// client to get the requested secret and then loads the contents of the secret's "ca.crt" key into the cert pool.
 func GetClusterCA(ctx context.Context, cl client.Reader, ns, secretName string) (*x509.CertPool, error) {
 	caSecret := &corev1.Secret{}
 	if err := cl.Get(ctx, types.NamespacedName{Namespace: ns, Name: secretName}, caSecret); err != nil {
