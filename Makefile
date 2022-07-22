@@ -121,7 +121,7 @@ wait:
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/plain-provisioner --timeout=60s
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/registry-provisioner --timeout=60s
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/binary-manager --timeout=60s
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/upload-manager --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
 run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
@@ -142,7 +142,7 @@ uninstall: ## Remove all rukpak resources from the cluster
 
 # Binary builds
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: plain registry unpack core binarymgr crdvalidator rukpakctl
+build: plain registry unpack core uploadmgr crdvalidator rukpakctl
 
 plain:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
@@ -156,7 +156,7 @@ unpack:
 core:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@/...
 
-binarymgr:
+uploadmgr:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@/...
 
 crdvalidator:

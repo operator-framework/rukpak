@@ -88,13 +88,6 @@ spec:
                         description: Source defines the configuration for the underlying
                           Bundle content.
                         properties:
-                          binary:
-                            description: Binary is a source that enables this Bundle's
-                              content to be uploaded via Rukpak's bundle upload service.
-                              This source type is primarily useful with bundle development
-                              workflows because it enables bundle developers to inject
-                              a local bundle directly into the cluster.
-                            type: object
                           git:
                             description: Git is the git repository that backs the
                               content of this Bundle.
@@ -209,6 +202,13 @@ spec:
                             description: Type defines the kind of Bundle content being
                               sourced.
                             type: string
+                          upload:
+                            description: Upload is a source that enables this Bundle's
+                              content to be uploaded via Rukpak's bundle upload service.
+                              This source type is primarily useful with bundle development
+                              workflows because it enables bundle developers to inject
+                              a local bundle directly into the cluster.
+                            type: object
                         required:
                         - type
                         type: object

@@ -41,7 +41,7 @@ spec:
           command: ["/plain"]
           args:
             - "--unpack-image=quay.io/operator-framework/rukpak:latest"
-            - "--base-binary-download-url=https://$(BINARY_MANAGER_SERVICE_NAME).$(BINARY_MANAGER_SERVICE_NAMESPACE).svc"
+            - "--base-upload-manager-url=https://$(UPLOAD_MANAGER_SERVICE_NAME).$(UPLOAD_MANAGER_SERVICE_NAMESPACE).svc"
             - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(PLAIN_PROVISIONER_SERVICE_NAME).$(PLAIN_PROVISIONER_SERVICE_NAMESPACE).svc"

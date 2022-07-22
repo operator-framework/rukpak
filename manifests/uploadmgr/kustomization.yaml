@@ -7,15 +7,15 @@ resources:
   - resources/serviceaccount.yaml
 
 vars:
-  - name: BINARY_MANAGER_SERVICE_NAMESPACE # namespace of the service
+  - name: UPLOAD_MANAGER_SERVICE_NAMESPACE # namespace of the service
     objref:
       kind: Service
       version: v1
-      name: binary-manager
+      name: upload-manager
     fieldref:
       fieldpath: metadata.namespace
-  - name: BINARY_MANAGER_SERVICE_NAME
+  - name: UPLOAD_MANAGER_SERVICE_NAME
     objref:
       kind: Service
       version: v1
-      name: binary-manager
+      name: upload-manager

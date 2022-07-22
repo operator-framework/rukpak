@@ -58,16 +58,16 @@ func init() {
 
 func main() {
 	var (
-		httpBindAddr          string
-		httpExternalAddr      string
-		bundleCAFile          string
-		enableLeaderElection  bool
-		probeAddr             string
-		systemNamespace       string
-		unpackImage           string
-		baseBinaryDownloadURL string
-		rukpakVersion         bool
-		storageDirectory      string
+		httpBindAddr         string
+		httpExternalAddr     string
+		bundleCAFile         string
+		enableLeaderElection bool
+		probeAddr            string
+		systemNamespace      string
+		unpackImage          string
+		baseUploadManagerURL string
+		rukpakVersion        bool
+		storageDirectory     string
 	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
 	flag.StringVar(&httpExternalAddr, "http-external-address", "http://localhost:8080", "The external address at which the http server is reachable.")
@@ -75,7 +75,7 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "rukpak-system", "Configures the namespace that gets used to deploy system resources.")
 	flag.StringVar(&unpackImage, "unpack-image", "quay.io/operator-framework/rukpak:latest", "Configures the container image that gets used to unpack Bundle contents.")
-	flag.StringVar(&baseBinaryDownloadURL, "base-binary-download-url", "", "The base URL from which to download binary type bundles.")
+	flag.StringVar(&baseUploadManagerURL, "base-upload-manager-url", "", "The base URL from which to fetch uploaded bundles.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -181,7 +181,7 @@ func main() {
 	}
 
 	const registryBundleProvisionerName = "registry"
-	unpacker, err := source.NewDefaultUnpacker(mgr, ns, registryBundleProvisionerName, unpackImage, baseBinaryDownloadURL, rootCAs)
+	unpacker, err := source.NewDefaultUnpacker(mgr, ns, registryBundleProvisionerName, unpackImage, baseUploadManagerURL, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)

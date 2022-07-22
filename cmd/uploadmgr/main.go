@@ -128,8 +128,8 @@ func newUploadHandler(cl client.Client, storageDir string) http.Handler {
 			http.Error(w, err.Error(), int(getCode(err)))
 			return
 		}
-		if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeBinary {
-			http.Error(w, fmt.Sprintf("bundle source type is %q; expected %q", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeBinary), http.StatusConflict)
+		if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
+			http.Error(w, fmt.Sprintf("bundle source type is %q; expected %q", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeUpload), http.StatusConflict)
 			return
 		}
 
@@ -220,7 +220,7 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 	bundleInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			bundle := obj.(*rukpakv1alpha1.Bundle)
-			if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeBinary {
+			if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
 				return
 			}
 			filename := bundlePath(gc.storageDir, bundle.Name)
@@ -252,7 +252,7 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 				continue
 			}
 			for _, bundle := range bundles.Items {
-				if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeBinary {
+				if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
 					continue
 				}
 				existingFiles.Delete(filepath.Base(bundlePath(gc.storageDir, bundle.Name)))

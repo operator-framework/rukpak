@@ -1,5 +1,5 @@
 bases:
   - ./apis
-  - ./binarymgr
+  - ./uploadmgr
   - ./provisioners
   - ./crdvalidator

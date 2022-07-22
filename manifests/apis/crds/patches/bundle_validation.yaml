@@ -17,7 +17,7 @@
   - required:
     - local
   - required:
-    - binary
+    - upload
 
 # Union git ref
 - op: add
