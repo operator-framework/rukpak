@@ -7,5 +7,6 @@ COPY unpack unpack
 COPY core core
 COPY uploadmgr uploadmgr
 COPY crdvalidator crdvalidator
+COPY rukpakctl rukpakctl
 
 EXPOSE 8080
