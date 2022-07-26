@@ -19,87 +19,80 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/kubernetes/scheme"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/cmd/rukpakctl/utils"
 )
 
-type BundleOptions struct {
+type bundleOptions struct {
 	*kubernetes.Clientset
 	runtimeclient.Client
 	namespace string
 }
 
-var bundleOpt BundleOptions
-
 // bundleCmd represents the bundle command
-var bundleCmd = &cobra.Command{
-	Use:   "bundle <manifest directory>  <bundle name prefix>",
-	Short: "create rukpak bundle resource.",
-	Long:  `create rukpak bundle resource with specified contents.`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("requires argument: <manifest file directory> <bundle name prefix>")
-		}
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		kubeconfig, err := cmd.Flags().GetString("kubeconfig")
-		if err != nil {
-			fmt.Printf("failed to find kubeconfig location: %+v\n", err)
-			return
-		}
-		// use the current context in kubeconfig
-		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			fmt.Printf("failed to find kubeconfig location: %+v\n", err)
-			return
-		}
+func newBundleCmd() *cobra.Command {
+	var bundleOpt bundleOptions
 
-		bundleOpt.Client, err = runtimeclient.New(config, runtimeclient.Options{
-			Scheme: scheme,
-		})
-		if err != nil {
-			fmt.Printf("failed to create kubernetes client: %+v\n", err)
-			return
-		}
+	bundleCmd := &cobra.Command{
+		Use:   "bundle <manifest directory>  <bundle name prefix>",
+		Short: "create rukpak bundle resource.",
+		Long:  `create rukpak bundle resource with specified contents.`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return errors.New("requires argument: <manifest file directory> <bundle name prefix>")
+			}
+			return nil
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			sch := scheme.Scheme
+			if err := rukpakv1alpha1.AddToScheme(sch); err != nil {
+				log.Fatal(err)
+			}
 
-		if bundleOpt.Clientset, err = kubernetes.NewForConfig(config); err != nil {
-			fmt.Printf("failed to create kubernetes client: %+v\n", err)
-			return
-		}
+			cfg, err := config.GetConfig()
+			if err != nil {
+				log.Fatalf("failed to find kubeconfig location: %v", err)
+			}
 
-		bundleOpt.namespace, err = cmd.Flags().GetString("namespace")
-		if err != nil {
-			bundleOpt.namespace = "rukpak-system"
-		}
+			bundleOpt.Client, err = runtimeclient.New(cfg, runtimeclient.Options{
+				Scheme: sch,
+			})
+			if err != nil {
+				log.Fatalf("failed to create kubernetes client: %v", err)
+			}
 
-		err = bundle(bundleOpt, args)
-		if err != nil {
-			fmt.Printf("bundle command failed: %+v\n", err)
-		}
-	},
+			if bundleOpt.Clientset, err = kubernetes.NewForConfig(cfg); err != nil {
+				log.Fatalf("failed to create kubernetes client: %v", err)
+			}
+
+			err = bundle(cmd.Context(), bundleOpt, args)
+			if err != nil {
+				log.Fatalf("bundle command failed: %v", err)
+			}
+		},
+	}
+	bundleCmd.Flags().StringVar(&bundleOpt.namespace, "namespace", "rukpak-system", "namespace for target or work resources")
+	return bundleCmd
 }
 
-func init() {
-	createCmd.AddCommand(bundleCmd)
-}
-
-func bundle(opt BundleOptions, args []string) error {
+func bundle(ctx context.Context, opt bundleOptions, args []string) error {
 	namePrefix := "rukpakctl-bundle-"
 	if len(args) > 1 {
 		namePrefix = args[1]
 	}
 	// Create a bundle configmap
-	configmapName, err := utils.CreateConfigmap(opt.CoreV1(), namePrefix, args[0], opt.namespace)
+	configmapName, err := utils.CreateConfigmap(ctx, opt.CoreV1(), namePrefix, args[0], opt.namespace)
 	if err != nil {
-		return fmt.Errorf("failed to create a configmap: %+v", err)
+		return fmt.Errorf("failed to create a configmap: %v", err)
 	}
 
 	bundle := &rukpakv1alpha1.Bundle{
@@ -123,9 +116,9 @@ func bundle(opt BundleOptions, args []string) error {
 			},
 		},
 	}
-	err = opt.Create(context.Background(), bundle)
+	err = opt.Create(ctx, bundle)
 	if err != nil {
-		return fmt.Errorf("failed to create bundle: %+v", err)
+		return fmt.Errorf("failed to create bundle: %v", err)
 	}
 	fmt.Printf("bundle %q created\n", bundle.ObjectMeta.Name)
 

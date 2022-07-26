@@ -113,7 +113,7 @@ func MapBundleDeploymentToBundles(ctx context.Context, c client.Client, bd rukpa
 
 func MapBundleToBundleDeployments(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) []*rukpakv1alpha1.BundleDeployment {
 	bundleDeployments := &rukpakv1alpha1.BundleDeploymentList{}
-	if err := c.List(context.Background(), bundleDeployments); err != nil {
+	if err := c.List(ctx, bundleDeployments); err != nil {
 		return nil
 	}
 	var bds []*rukpakv1alpha1.BundleDeployment
@@ -130,12 +130,12 @@ func MapBundleToBundleDeployments(ctx context.Context, c client.Client, b rukpak
 	return bds
 }
 
-func MapBundleToBundleDeploymentHandler(cl client.Client, log logr.Logger) handler.MapFunc {
+func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, log logr.Logger) handler.MapFunc {
 	return func(object client.Object) []reconcile.Request {
 		b := object.(*rukpakv1alpha1.Bundle)
 
 		var requests []reconcile.Request
-		matchingBDs := MapBundleToBundleDeployments(context.Background(), cl, *b)
+		matchingBDs := MapBundleToBundleDeployments(ctx, cl, *b)
 		for _, bd := range matchingBDs {
 			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(bd)})
 		}

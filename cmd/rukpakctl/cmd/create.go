@@ -19,15 +19,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// createCmd represents the create command
-var createCmd = &cobra.Command{
-	Use:   "create",
-	Short: "create command creates rukpak resource",
-	Long:  `create command creates specified rukpak resource.`,
-	Run: func(cmd *cobra.Command, args []string) {
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(createCmd)
+// newCreateCmd creates the "create" subcommand
+func newCreateCmd() *cobra.Command {
+	createCmd := &cobra.Command{Use: "create",
+		Short: "create command creates rukpak resource",
+		Long:  `create command creates specified rukpak resource.`,
+	}
+	createCmd.AddCommand(
+		newBundleCmd(),
+		newBundleDeploymentCmd(),
+	)
+	return createCmd
 }
