@@ -16,6 +16,8 @@
     - image
   - required:
     - local
+  - required:
+    - upload
 
 # Union git ref
 - op: add

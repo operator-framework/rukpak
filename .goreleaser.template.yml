@@ -56,6 +56,18 @@ builds:
     - s390x
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: uploadmgr
+    main: ./cmd/uploadmgr
+    binary: uploadmgr
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+      - s390x
+    ldflags:
+      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: crdvalidator
     main: ./cmd/crdvalidator
     binary: crdvalidator
@@ -68,6 +80,18 @@ builds:
     - s390x
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: rukpakctl
+    main: ./cmd/rukpakctl
+    binary: rukpakctl
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+      - s390x
+    ldflags:
+      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
 dockers:
 - image_templates:
   - "{{ .Env.IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}-amd64"
@@ -129,5 +153,6 @@ release:
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/plain-provisioner --timeout=60s
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/registry-provisioner --timeout=60s
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/rukpak-core-webhook --timeout=60s
+    kubectl wait --for=condition=Available --namespace=rukpak-system deployment/upload-manager --timeout=60s
     kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
     ```

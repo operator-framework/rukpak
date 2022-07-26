@@ -5,6 +5,8 @@ COPY plain plain
 COPY registry registry
 COPY unpack unpack
 COPY core core
+COPY uploadmgr uploadmgr
 COPY crdvalidator crdvalidator
+COPY rukpakctl rukpakctl
 
 EXPOSE 8080
