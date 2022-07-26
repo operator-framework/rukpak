@@ -271,6 +271,6 @@ func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// The default unpacker creates Pod's ownerref'd to its bundle, so
 		// we need to watch pods to ensure we reconcile events coming from these
 		// pods.
-		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.TODO(), mgr.GetClient(), l, plain.ProvisionerID, &rukpakv1alpha1.Bundle{})).
+		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, plain.ProvisionerID, &rukpakv1alpha1.Bundle{})).
 		Complete(r)
 }

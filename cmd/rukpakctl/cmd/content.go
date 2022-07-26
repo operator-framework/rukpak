@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -28,9 +29,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
@@ -41,61 +45,46 @@ type options struct {
 	namespace string
 }
 
-var opt options
+func newContentCmd() *cobra.Command {
+	var opt options
 
-var contentCmd = &cobra.Command{
-	Use:   "content <bundle name>",
-	Short: "display contents of the specified bundle.",
-	Long:  `display contents of the specified bundle.`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("requires 2 argument: <bundle name>")
-		}
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		kubeconfig, err := cmd.Flags().GetString("kubeconfig")
-		if err != nil {
-			fmt.Printf("failed to find kubeconfig location: %+v\n", err)
-			return
-		}
-		// use the current context in kubeconfig
-		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			fmt.Printf("failed to find kubeconfig location: %+v\n", err)
-			return
-		}
+	contentCmd := &cobra.Command{
+		Use:   "content <bundle name>",
+		Short: "display contents of the specified bundle.",
+		Long:  `display contents of the specified bundle.`,
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			sch := runtime.NewScheme()
+			if err := rukpakv1alpha1.AddToScheme(sch); err != nil {
+				log.Fatalf("failed to add rukpak types to scheme: %v", err)
+			}
 
-		opt.Client, err = runtimeclient.New(config, runtimeclient.Options{
-			Scheme: scheme,
-		})
-		if err != nil {
-			fmt.Printf("failed to create kubernetes client: %+v\n", err)
-			return
-		}
+			cfg, err := config.GetConfig()
+			if err != nil {
+				log.Fatalf("failed to load kubeconfig: %v", err)
+			}
 
-		if opt.Clientset, err = kubernetes.NewForConfig(config); err != nil {
-			fmt.Printf("failed to create kubernetes client: %+v\n", err)
-			return
-		}
+			opt.Client, err = runtimeclient.New(cfg, runtimeclient.Options{
+				Scheme: sch,
+			})
+			if err != nil {
+				log.Fatalf("failed to create kubernetes client: %v", err)
+			}
 
-		opt.namespace, err = cmd.Flags().GetString("namespace")
-		if err != nil {
-			opt.namespace = "rukpak-system"
-		}
+			if opt.Clientset, err = kubernetes.NewForConfig(cfg); err != nil {
+				log.Fatalf("failed to create kubernetes client: %v", err)
+			}
 
-		err = content(opt, args)
-		if err != nil {
-			fmt.Printf("content command failed: %+v\n", err)
-		}
-	},
+			if err := content(cmd.Context(), opt, args); err != nil {
+				log.Fatalf("content command failed: %v", err)
+			}
+		},
+	}
+	contentCmd.Flags().StringVar(&opt.namespace, "namespace", "rukpak-system", "namespace to run content query job.")
+	return contentCmd
 }
 
-func init() {
-	rootCmd.AddCommand(contentCmd)
-}
-
-func content(opt options, args []string) error {
+func content(ctx context.Context, opt options, args []string) error {
 	// Create a temporary ClusterRoleBinding to bind the ServiceAccount to bundle-reader ClusterRole
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -105,11 +94,11 @@ func content(opt options, args []string) error {
 		Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: "rukpakctl-sa", Namespace: opt.namespace}},
 		RoleRef:  rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "ClusterRole", Name: "bundle-reader"},
 	}
-	crb, err := opt.RbacV1().ClusterRoleBindings().Create(context.Background(), crb, metav1.CreateOptions{})
+	crb, err := opt.RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create a cluster role bindings: %+v", err)
+		return fmt.Errorf("failed to create a cluster role bindings: %v", err)
 	}
-	defer deletecrb()
+	defer deletecrb(ctx, opt.Clientset)
 
 	// Create a temporary ServiceAccount
 	sa := corev1.ServiceAccount{
@@ -126,15 +115,15 @@ func content(opt options, args []string) error {
 			},
 		},
 	}
-	_, err = opt.CoreV1().ServiceAccounts(opt.namespace).Create(context.Background(), &sa, metav1.CreateOptions{})
+	_, err = opt.CoreV1().ServiceAccounts(opt.namespace).Create(ctx, &sa, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create a service account: %+v", err)
+		return fmt.Errorf("failed to create a service account: %v", err)
 	}
 
 	bundle := &rukpakv1alpha1.Bundle{}
-	err = opt.Get(context.Background(), runtimeclient.ObjectKey{Name: args[0]}, bundle)
+	err = opt.Get(ctx, runtimeclient.ObjectKey{Name: args[0]}, bundle)
 	if err != nil {
-		return fmt.Errorf("error : %+v", err)
+		return err
 	}
 	url := bundle.Status.ContentURL
 	if url == "" {
@@ -173,46 +162,47 @@ func content(opt options, args []string) error {
 			},
 		},
 	}
-	job, err = opt.BatchV1().Jobs(opt.namespace).Create(context.Background(), job, metav1.CreateOptions{})
+	job, err = opt.BatchV1().Jobs(opt.namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create a job: %+v", err)
+		return fmt.Errorf("failed to create a job: %v", err)
 	}
 
 	// Wait for Job completion
-	for {
-		deployedJob, err := opt.BatchV1().Jobs(opt.namespace).Get(context.Background(), job.ObjectMeta.Name, metav1.GetOptions{})
+	if err := wait.PollImmediateUntil(time.Second, func() (bool, error) {
+		deployedJob, err := opt.BatchV1().Jobs(opt.namespace).Get(ctx, job.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to get a job: %+v", err)
+			return false, fmt.Errorf("failed to get a job: %v", err)
 		}
-		if deployedJob.Status.CompletionTime != nil {
-			break
-		}
-		time.Sleep(1 * time.Second)
+		return deployedJob.Status.CompletionTime != nil, nil
+	}, ctx.Done()); err != nil {
+		return fmt.Errorf("failed waiting for job to complete: %v", err)
 	}
 
 	// Get Pod for the Job
-	pods, err := opt.CoreV1().Pods(opt.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: "job-name=" + job.ObjectMeta.Name})
+	podSelector := labels.Set{"job-name": job.Name}.AsSelector()
+	pods, err := opt.CoreV1().Pods(opt.namespace).List(ctx, metav1.ListOptions{LabelSelector: podSelector.String()})
 	if err != nil {
-		return fmt.Errorf("failed to find pods for job: %+v", err)
+		return fmt.Errorf("failed to list pods for job: %v", err)
 	}
-	if len(pods.Items) != 1 {
-		return fmt.Errorf("there are more than 1 pod found for the job")
+	const expectedPods = 1
+	if len(pods.Items) != expectedPods {
+		return fmt.Errorf("unexpected number of pods found for job: expected %d, found %d", expectedPods, len(pods.Items))
 	}
 
 	// Get logs of the Pod
-	logReader, err := opt.CoreV1().Pods(opt.namespace).GetLogs(pods.Items[0].Name, &corev1.PodLogOptions{}).Stream(context.Background())
+	logReader, err := opt.CoreV1().Pods(opt.namespace).GetLogs(pods.Items[0].Name, &corev1.PodLogOptions{}).Stream(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get pod logs: %+v", err)
+		return fmt.Errorf("failed to get pod logs: %v", err)
 	}
 	defer logReader.Close()
 	if _, err := io.Copy(os.Stdout, logReader); err != nil {
-		return fmt.Errorf("failed to read log: %+v", err)
+		return fmt.Errorf("failed to read log: %v", err)
 	}
 	return nil
 }
 
-func deletecrb() {
-	if err := opt.RbacV1().ClusterRoleBindings().Delete(context.Background(), "rukpakctl-crb", metav1.DeleteOptions{}); err != nil {
-		fmt.Printf("failed to delete clusterrolebinding: %+v", err)
+func deletecrb(ctx context.Context, kube kubernetes.Interface) {
+	if err := kube.RbacV1().ClusterRoleBindings().Delete(ctx, "rukpakctl-crb", metav1.DeleteOptions{}); err != nil {
+		fmt.Printf("failed to delete clusterrolebinding: %v", err)
 	}
 }

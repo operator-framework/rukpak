@@ -15,7 +15,7 @@ import (
 	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func CreateConfigmap(core typedv1.CoreV1Interface, name, dir, namespace string) (string, error) {
+func CreateConfigmap(ctx context.Context, core typedv1.CoreV1Interface, name, dir, namespace string) (string, error) {
 	// Create a bundle configmap
 	data := map[string]string{}
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -42,6 +42,6 @@ func CreateConfigmap(core typedv1.CoreV1Interface, name, dir, namespace string) 
 		},
 		Data: data,
 	}
-	configmap, err = core.ConfigMaps(namespace).Create(context.Background(), configmap, metav1.CreateOptions{})
+	configmap, err = core.ConfigMaps(namespace).Create(ctx, configmap, metav1.CreateOptions{})
 	return configmap.ObjectMeta.Name, err
 }
