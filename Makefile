@@ -123,7 +123,7 @@ wait:
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
-run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
+run: rukpakctl build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
 
 cert-mgr: ## Install the certification manager
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
