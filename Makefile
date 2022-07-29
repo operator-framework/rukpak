@@ -70,6 +70,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./manifests/provisioners/plain/resources/cluster_role.yaml
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=registry-provisioner-admin paths=./internal/provisioner/registry/... output:stdout > ./manifests/provisioners/registry/resources/cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin paths=./internal/provisioner/helm/... output:stdout > ./manifests/provisioners/helm/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -120,6 +121,7 @@ install-manifests:
 wait:
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/plain-provisioner --timeout=60s
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/registry-provisioner --timeout=60s
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/helm-provisioner --timeout=60s
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
@@ -141,12 +143,15 @@ uninstall: ## Remove all rukpak resources from the cluster
 
 # Binary builds
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: plain registry unpack core crdvalidator rukpakctl
+build: plain registry helm unpack core crdvalidator rukpakctl
 
 plain:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
 
 registry:
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
+
+helm:
 	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
 
 unpack:

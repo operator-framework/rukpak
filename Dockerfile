@@ -3,6 +3,7 @@ WORKDIR /
 
 COPY plain plain
 COPY registry registry
+COPY helm helm
 COPY unpack unpack
 COPY core core
 COPY crdvalidator crdvalidator
