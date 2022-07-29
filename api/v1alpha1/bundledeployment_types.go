@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
@@ -49,6 +50,9 @@ type BundleDeploymentSpec struct {
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Template describes the generated Bundle that this deployment will manage.
 	Template *BundleTemplate `json:"template"`
+	// Config is provisioner specific configurations
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Config runtime.RawExtension `json:"config,omitempty"`
 }
 
 // BundleTemplate defines the desired state of a Bundle resource
