@@ -82,10 +82,10 @@ spec:
                               to contain `data.username` and `data.password` for the
                               username and password, respectively for http(s) scheme.
                               Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
-                              The secret is expected to contain `data.ssh-privatekey`
-                              and `data.ssh-knownhosts` for the ssh privatekey and
-                              the host entry in the known_hosts file respectively
-                              for ssh authorization. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
                             properties:
                               name:
                                 description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -129,6 +129,48 @@ spec:
                     required:
                     - ref
                     - repository
+                    type: object
+                  http:
+                    description: HTTP is the remote location that backs the content
+                      of this Bundle.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                        type: object
+                      url:
+                        description: URL is where the bundle contents is.
+                        type: string
+                    required:
+                    - url
                     type: object
                   image:
                     description: Image is the bundle image that backs the content
@@ -283,10 +325,10 @@ spec:
                               to contain `data.username` and `data.password` for the
                               username and password, respectively for http(s) scheme.
                               Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
-                              The secret is expected to contain `data.ssh-privatekey`
-                              and `data.ssh-knownhosts` for the ssh privatekey and
-                              the host entry in the known_hosts file respectively
-                              for ssh authorization. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
                             properties:
                               name:
                                 description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -330,6 +372,48 @@ spec:
                     required:
                     - ref
                     - repository
+                    type: object
+                  http:
+                    description: HTTP is the remote location that backs the content
+                      of this Bundle.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                        type: object
+                      url:
+                        description: URL is where the bundle contents is.
+                        type: string
+                    required:
+                    - url
                     type: object
                   image:
                     description: Image is the bundle image that backs the content

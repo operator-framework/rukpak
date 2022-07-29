@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
@@ -28,6 +30,68 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
+
+const (
+	maxGeneratedBundleLimit = 4
+)
+
+var (
+	// ErrMaxGeneratedLimit is the error returned by the BundleDeployment controller
+	// when the configured maximum number of Bundles that match a label selector
+	// has been reached.
+	ErrMaxGeneratedLimit = errors.New("reached the maximum generated Bundle limit")
+)
+
+// reconcileDesiredBundle is responsible for checking whether the desired
+// Bundle resource that's specified in the BundleDeployment parameter's
+// spec.Template configuration is present on cluster, and if not, creates
+// a new Bundle resource matching that desired specification.
+func ReconcileDesiredBundle(ctx context.Context, c client.Client, bd *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.Bundle, *rukpakv1alpha1.BundleList, error) {
+	// get the set of Bundle resources that already exist on cluster, and sort
+	// by metadata.CreationTimestamp in the case there's multiple Bundles
+	// that match the label selector.
+	existingBundles, err := GetBundlesForBundleDeploymentSelector(ctx, c, bd)
+	if err != nil {
+		return nil, nil, err
+	}
+	SortBundlesByCreation(existingBundles)
+
+	// check whether the BI controller has already reached the maximum
+	// generated Bundle limit to avoid hotlooping scenarios.
+	if len(existingBundles.Items) > maxGeneratedBundleLimit {
+		return nil, nil, ErrMaxGeneratedLimit
+	}
+
+	// check whether there's an existing Bundle that matches the desired Bundle template
+	// specified in the BI resource, and if not, generate a new Bundle that matches the template.
+	b := CheckExistingBundlesMatchesTemplate(existingBundles, bd.Spec.Template)
+	if b == nil {
+		controllerRef := metav1.NewControllerRef(bd, bd.GroupVersionKind())
+		hash := GenerateTemplateHash(bd.Spec.Template)
+
+		labels := bd.Spec.Template.Labels
+		if len(labels) == 0 {
+			labels = make(map[string]string)
+		}
+		labels[CoreOwnerKindKey] = rukpakv1alpha1.BundleDeploymentKind
+		labels[CoreOwnerNameKey] = bd.GetName()
+		labels[CoreBundleTemplateHashKey] = hash
+
+		b = &rukpakv1alpha1.Bundle{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            GenerateBundleName(bd.GetName(), hash),
+				OwnerReferences: []metav1.OwnerReference{*controllerRef},
+				Labels:          labels,
+				Annotations:     bd.Spec.Template.Annotations,
+			},
+			Spec: bd.Spec.Template.Spec,
+		}
+		if err := c.Create(ctx, b); err != nil {
+			return nil, nil, err
+		}
+	}
+	return b, existingBundles, err
+}
 
 func BundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {

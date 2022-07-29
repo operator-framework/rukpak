@@ -73,6 +73,7 @@ generate: controller-gen ## Generate code and manifests
 		paths=./internal/provisioner/registry/... \
 		paths=./internal/uploadmgr/... \
 			output:stdout > ./manifests/core/resources/cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin paths=./internal/provisioner/helm/... output:stdout > ./manifests/provisioners/helm/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -123,6 +124,7 @@ install-manifests:
 wait:
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
 	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-webhooks --timeout=60s
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/helm-provisioner --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
 run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
@@ -142,7 +144,7 @@ uninstall: ## Remove all rukpak resources from the cluster
 ##@ build/load:
 
 # Binary builds
-BINARIES=core unpack webhooks crdvalidator rukpakctl
+BINARIES=core helm unpack webhooks crdvalidator rukpakctl
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
 build: $(BINARIES)
 

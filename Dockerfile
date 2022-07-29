@@ -1,6 +1,7 @@
 FROM gcr.io/distroless/static:debug
 WORKDIR /
 
+COPY helm helm
 COPY core core
 COPY unpack unpack
 COPY webhooks webhooks
