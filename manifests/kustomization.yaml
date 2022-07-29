@@ -2,3 +2,4 @@ bases:
   - ./apis
   - ./core
   - ./crdvalidator
+  - ./provisioners

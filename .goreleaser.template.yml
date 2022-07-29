@@ -20,6 +20,18 @@ builds:
     - s390x
     ldflags:
     - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: helm
+    main: ./cmd/helm
+    binary: helm
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+      - s390x
+    ldflags:
+      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: core
     main: ./cmd/core
     binary: core

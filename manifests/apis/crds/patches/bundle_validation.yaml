@@ -18,6 +18,8 @@
     - local
   - required:
     - upload
+  - required:
+    - http
 
 # Union git ref
 - op: add

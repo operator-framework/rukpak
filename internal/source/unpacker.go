@@ -132,5 +132,9 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, unpackImage string, baseUpl
 			bearerToken:     mgr.GetConfig().BearerToken,
 			client:          http.Client{Timeout: uploadClientTimeout, Transport: httpTransport},
 		},
+		rukpakv1alpha1.SourceTypeHTTP: &HTTP{
+			Reader:          mgr.GetAPIReader(),
+			SecretNamespace: namespace,
+		},
 	}), nil
 }

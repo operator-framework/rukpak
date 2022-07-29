@@ -18,23 +18,24 @@ package controllers
 
 import (
 	"context"
-	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"io/ioutil"
 	"strings"
-	"sync"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -43,11 +44,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"sigs.k8s.io/yaml"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
-	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
+	helm "github.com/operator-framework/rukpak/internal/provisioner/helm/types"
 	"github.com/operator-framework/rukpak/internal/storage"
 	updater "github.com/operator-framework/rukpak/internal/updater/bundle-deployment"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -56,15 +55,14 @@ import (
 // BundleDeploymentReconciler reconciles a BundleDeployment object
 type BundleDeploymentReconciler struct {
 	client.Client
+	Reader client.Reader
+
 	Scheme     *runtime.Scheme
 	Controller controller.Controller
 
 	ActionClientGetter helmclient.ActionClientGetter
 	BundleStorage      storage.Storage
 	ReleaseNamespace   string
-
-	dynamicWatchMutex sync.RWMutex
-	dynamicWatchGVKs  map[schema.GroupVersionKind]struct{}
 }
 
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch
@@ -90,7 +88,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		bd := bd.DeepCopy()
 		bd.ObjectMeta.ManagedFields = nil
 		bd.Spec.Template = nil
-		if err := r.Status().Patch(ctx, bd, client.Apply, client.FieldOwner(plain.ProvisionerID)); err != nil {
+		if err := r.Status().Patch(ctx, bd, client.Apply, client.FieldOwner(helm.ProvisionerID)); err != nil {
 			l.Error(err, "failed to patch status")
 		}
 	}()
@@ -144,38 +142,28 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
 		}))
 
-	desiredObjects, err := r.loadBundle(ctx, bundle, bd.GetName())
+	values, err := r.loadValues(ctx, bd)
 	if err != nil {
 		u.UpdateStatus(
 			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeHasValidBundle,
+				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonBundleLoadFailed,
+				Reason:  rukpakv1alpha1.ReasonInstallFailed,
 				Message: err.Error(),
 			}))
 		return ctrl.Result{}, err
 	}
 
-	chrt := &chart.Chart{
-		Metadata: &chart.Metadata{},
-	}
-	for _, obj := range desiredObjects {
-		jsonData, err := yaml.Marshal(obj)
-		if err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInvalidBundleContent,
-					Status:  metav1.ConditionTrue,
-					Reason:  rukpakv1alpha1.ReasonReadingContentFailed,
-					Message: err.Error(),
-				}))
-			return ctrl.Result{}, err
-		}
-		hash := sha256.Sum256(jsonData)
-		chrt.Templates = append(chrt.Templates, &chart.File{
-			Name: fmt.Sprintf("object-%x.yaml", hash[0:8]),
-			Data: jsonData,
-		})
+	chrt, err := r.loadChart(ctx, bundle)
+	if err != nil {
+		u.UpdateStatus(
+			updater.EnsureCondition(metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInvalidBundleContent,
+				Status:  metav1.ConditionTrue,
+				Reason:  rukpakv1alpha1.ReasonReadingContentFailed,
+				Message: err.Error(),
+			}))
+		return ctrl.Result{}, err
 	}
 
 	bd.SetNamespace(r.ReleaseNamespace)
@@ -206,7 +194,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	switch state {
 	case stateNeedsInstall:
-		_, err = cl.Install(bd.Name, r.ReleaseNamespace, chrt, nil, func(install *action.Install) error {
+		_, err = cl.Install(bd.Name, r.ReleaseNamespace, chrt, values, func(install *action.Install) error {
 			install.CreateNamespace = false
 			return nil
 		})
@@ -224,7 +212,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
-		_, err = cl.Upgrade(bd.Name, r.ReleaseNamespace, chrt, nil)
+		_, err = cl.Upgrade(bd.Name, r.ReleaseNamespace, chrt, values)
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -256,46 +244,6 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, fmt.Errorf("unexpected release state %q", state)
 	}
 
-	for _, obj := range desiredObjects {
-		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		if err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-					Message: err.Error(),
-				}))
-			return ctrl.Result{}, err
-		}
-
-		unstructuredObj := &unstructured.Unstructured{Object: uMap}
-		if err := func() error {
-			r.dynamicWatchMutex.Lock()
-			defer r.dynamicWatchMutex.Unlock()
-
-			_, isWatched := r.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()]
-			if !isWatched {
-				if err := r.Controller.Watch(
-					&source.Kind{Type: unstructuredObj},
-					&handler.EnqueueRequestForOwner{OwnerType: bd, IsController: true},
-					helmpredicate.DependentPredicateFuncs()); err != nil {
-					return err
-				}
-				r.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()] = struct{}{}
-			}
-			return nil
-		}(); err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-					Message: err.Error(),
-				}))
-			return ctrl.Result{}, err
-		}
-	}
 	u.UpdateStatus(
 		updater.EnsureCondition(metav1.Condition{
 			Type:    rukpakv1alpha1.TypeInstalled,
@@ -305,7 +253,6 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}),
 		updater.EnsureInstalledName(bundle.GetName()),
 	)
-
 	if err := r.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
 		l.Error(err, "failed to delete old bundles")
 		return ctrl.Result{}, err
@@ -364,27 +311,76 @@ func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterfa
 	return currentRelease, stateUnchanged, nil
 }
 
-func (r *BundleDeploymentReconciler) loadBundle(ctx context.Context, bundle *rukpakv1alpha1.Bundle, bdName string) ([]client.Object, error) {
-	bundleFS, err := r.BundleStorage.Load(ctx, bundle)
+func (r *BundleDeploymentReconciler) loadValues(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) (chartutil.Values, error) {
+	data, err := bd.Spec.Config.MarshalJSON()
 	if err != nil {
-		return nil, fmt.Errorf("load bundle: %v", err)
+		return nil, err
 	}
-
-	objects, err := getObjects(bundleFS)
+	var config map[string]string
+	err = json.Unmarshal(data, &config)
 	if err != nil {
-		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
+		return nil, err
 	}
+	valuesString := config["values"]
 
-	objs := make([]client.Object, 0, len(objects))
-	for _, obj := range objects {
-		obj := obj
-		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
-			util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind,
-			util.CoreOwnerNameKey: bdName,
-		}))
-		objs = append(objs, obj)
+	var values chartutil.Values
+	if valuesString != "" {
+		values, err = chartutil.ReadValues([]byte(valuesString))
+		if err != nil {
+			return nil, err
+		}
+		return values, nil
 	}
-	return objs, nil
+	return nil, nil
+}
+
+func (r *BundleDeploymentReconciler) loadChart(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*chart.Chart, error) {
+	chartfs, err := r.BundleStorage.Load(ctx, bundle)
+	if err != nil {
+		return nil, err
+	}
+	var baseDir string
+	files := []*loader.BufferedFile{}
+	err = fs.WalkDir(chartfs, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if path == "." {
+			return nil
+		}
+		if baseDir == "" {
+			baseDir = path
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		f, err := chartfs.Open(path)
+		if err != nil {
+			return err
+		}
+		data, err := ioutil.ReadAll(f)
+		if err != nil {
+			return err
+		}
+		bf := loader.BufferedFile{
+			Name: path[len(baseDir)+1:],
+			Data: data,
+		}
+		files = append(files, &bf)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	chrt, err := loader.LoadFiles(files)
+	if err != nil {
+		return nil, err
+	}
+	if err = chrt.Validate(); err != nil {
+		return nil, err
+	}
+	return chrt, nil
 }
 
 type errRequiredResourceNotFound struct {
@@ -421,13 +417,12 @@ func isResourceNotFoundErr(err error) bool {
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(util.BundleDeploymentProvisionerFilter(plain.ProvisionerID))).
+		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(util.BundleDeploymentProvisionerFilter(helm.ProvisionerID))).
 		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), mgr.GetLogger()))).
 		Build(r)
 	if err != nil {
 		return err
 	}
 	r.Controller = controller
-	r.dynamicWatchGVKs = map[schema.GroupVersionKind]struct{}{}
 	return nil
 }
