@@ -230,6 +230,17 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 			}
 		},
 	})
+
+	// Wait for the cache to sync to ensure that our bundle List calls
+	// in the below loop see a full view of the bundles that exist in
+	// the cluster.
+	if ok := gc.cache.WaitForCacheSync(ctx); !ok {
+		if ctx.Err() == nil {
+			return fmt.Errorf("cache did not sync")
+		}
+		return fmt.Errorf("cache did not sync: %v", ctx.Err())
+	}
+
 	ticker := time.NewTicker(gc.storageSyncInterval)
 	defer ticker.Stop()
 	for {
