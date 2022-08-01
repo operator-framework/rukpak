@@ -1,5 +1,6 @@
 # RukPak
 
+[![GitHub Actions](https://github.com/operator-framework/rukpak/workflows/e2e/badge.svg)](https://github.com/operator-framework/rukpak/actions)
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 [![Go Report Card](https://goreportcard.com/badge/github.com/operator-framework/rukpak)](https://goreportcard.com/report/github.com/operator-framework/rukpak)
 [![Slack Channel](https://img.shields.io/badge/chat-4A154B?logo=slack&logoColor=white "Slack Channel")](https://kubernetes.slack.com/archives/C038B7MF75M)
