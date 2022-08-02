@@ -81,7 +81,7 @@ content on a Kubernetes cluster. See [below](#components) for a more detailed lo
 The provisioner currently implemented and bundled with RukPak is known as the plain provisioner. To get started with
 this provisioner on a local kind cluster,
 see [the quickstart section](./internal/provisioner/plain/README.md#Running-locally) of the plain provisioner README. To
-install the latest version of the provisioner on an existing cluster, see the [installation guide](#install). There will
+install the latest version of the provisioner on an existing cluster, see the [installation guide](#installation). There will
 be other provisioners added to the RukPak project that support different content types.
 
 The plain provisioner is able to source and unpack plain bundles. To learn more about the plain bundle format,
@@ -89,7 +89,7 @@ see [the plain bundle spec](./docs/plain-bundle-spec.md).
 
 ## Components
 
-RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleDeployment](#BundleDeployment), as well as the
+RukPak is composed of two primary APIs, [Bundle](#bundle) and [BundleDeployment](#bundledeployment), as well as the
 concept of a [Provisioner](#provisioner). These components work together to bring content onto the cluster and install
 it, generating resources within the cluster. Below is a high level diagram depicting the interaction of the RukPak
 components.

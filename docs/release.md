@@ -48,7 +48,6 @@ Once a manual tag has been created, monitor the progress of the [release workflo
 Once that release workflow has run, navigate to the [quay.io/operator-framework/rukpak image repository][image] and ensure that the expected container images have been created.
 
 [milestone]: <https://github.com/operator-framework/rukpak/milestones>
-[release]: <https://github.com/operator-framework/rukpak/releases>
 [slack]: <https://kubernetes.slack.com/archives/C038B7MF75M>
 [workflow]: <https://github.com/operator-framework/rukpak/actions/workflows/release.yaml>
 [image]: <https://quay.io/repository/operator-framework/rukpak?tab=tags>
