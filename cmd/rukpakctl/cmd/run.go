@@ -137,6 +137,11 @@ one version to the next.
 }
 
 func buildBundleDeployment(bdName string, bundleLabels map[string]string, biPCN, bPNC string) *unstructured.Unstructured {
+	// We use unstructured here to avoid problems of serializing default values when sending patches to the apiserver.
+	// If you use a typed object, any default values from that struct get serialized into the JSON patch, which could
+	// cause unrelated fields to be patched back to the default value even though that isn't the intention. Using an
+	// unstructured ensures that the patch contains only what is specified. Using unstructured like this is basically
+	// identical to "kubectl apply -f"
 	return &unstructured.Unstructured{Object: map[string]interface{}{
 		"apiVersion": rukpakv1alpha1.GroupVersion.String(),
 		"kind":       rukpakv1alpha1.BundleDeploymentKind,
