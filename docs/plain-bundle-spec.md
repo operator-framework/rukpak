@@ -21,6 +21,8 @@ is able to source `plain+v0` bundles and install them onto a Kubernetes cluster.
 > Note: the plain+v0 bundle format is at schema version v0, which means it's an experimental format that is subject
 > to change.
 
+Random change.
+
 Supported source types for a plain bundle currently include the following:
 
 * A container image
