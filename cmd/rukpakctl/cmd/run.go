@@ -15,9 +15,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
@@ -101,12 +101,17 @@ one version to the next.
 			}
 			fmt.Printf("bundledeployment.core.rukpak.io %q applied\n", bundleDeploymentName)
 
-			rukpakCAs, err := rukpakctl.GetClusterCA(ctx, cl, systemNamespace, caSecretName)
+			rukpakCAs, err := rukpakctl.GetClusterCA(ctx, cl, types.NamespacedName{Namespace: systemNamespace, Name: caSecretName})
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			bundleName, err := getBundleName(ctx, cfg, bundleLabels)
+			dynCl, err := dynamic.NewForConfig(cfg)
+			if err != nil {
+				log.Fatalf("build dynamic client: %v", err)
+			}
+
+			bundleName, err := getBundleName(ctx, dynCl, bundleLabels)
 			if err != nil {
 				log.Fatalf("failed to get bundle name: %v", err)
 			}
@@ -166,12 +171,7 @@ func buildBundleDeployment(bdName string, bundleLabels map[string]string, biPCN,
 	}}
 }
 
-func getBundleName(ctx context.Context, cfg *rest.Config, bundleLabels map[string]string) (string, error) {
-	dynCl, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		return "", fmt.Errorf("build dynamic client: %v", err)
-	}
-
+func getBundleName(ctx context.Context, dynCl dynamic.Interface, bundleLabels map[string]string) (string, error) {
 	watch, err := dynCl.Resource(rukpakv1alpha1.GroupVersion.WithResource("bundles")).Watch(ctx, metav1.ListOptions{Watch: true, LabelSelector: labels.FormatLabels(bundleLabels)})
 	if err != nil {
 		return "", fmt.Errorf("watch bundles: %v", err)

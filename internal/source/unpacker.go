@@ -15,6 +15,11 @@ import (
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
+const (
+	// uploadClientTimeout is the timeout to be used with http connections to upload manager.
+	uploadClientTimeout = time.Second * 10
+)
+
 // Unpacker unpacks bundle content, either synchronously or asynchronously and
 // returns a Result, which conveys information about the progress of unpacking
 // the bundle content.
@@ -126,7 +131,7 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImag
 		rukpakv1alpha1.SourceTypeUpload: &Upload{
 			baseDownloadURL: baseUploadManagerURL,
 			bearerToken:     mgr.GetConfig().BearerToken,
-			client:          http.Client{Timeout: 10 * time.Second, Transport: httpTransport},
+			client:          http.Client{Timeout: uploadClientTimeout, Transport: httpTransport},
 		},
 	}), nil
 }

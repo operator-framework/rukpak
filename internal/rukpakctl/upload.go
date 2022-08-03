@@ -46,12 +46,23 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 		return false, err
 	}
 
+	// cancel is called by the upload goroutine after the upload completes,
+	// thus ensuring the port-forwarding goroutine exits, which allows the
+	// errgroup.Wait() call to unblock.
 	ctx, cancel := context.WithCancel(ctx)
+
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return pf.Start(ctx)
 	})
 
+	// Create a pipe to conserve memory. We don't need to buffer the entire bundle
+	// tar.gz prior to sending it. To use a pipe, we start a writer goroutine and
+	// a reader goroutine such that the reader reads as soon as the writer writes.
+	// The reader continues reading until it receives io.EOF, so we need to close
+	// writer (triggering the io.EOF) as soon as we finish writing. We close the
+	// writer with `bundleWriter.CloseWithError` so that an error encountered
+	// writing the FS to a tar.gz stream can be processed by the reader.
 	bundleReader, bundleWriter := io.Pipe()
 	eg.Go(func() error {
 		return bundleWriter.CloseWithError(util.FSToTarGZ(bundleWriter, bundleFS))
