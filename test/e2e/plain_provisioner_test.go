@@ -985,7 +985,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			err := c.Create(ctx, bundle)
 			Expect(err).To(BeNil())
 
-			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, defaultSystemNamespace, "rukpak-ca")
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
@@ -1004,15 +1004,12 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		It("can unpack the bundle successfully", func() {
-			Eventually(func() error {
+			Eventually(func() (*rukpakv1alpha1.Bundle, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-					return err
+					return nil, err
 				}
-				if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-					return errors.New("bundle is not unpacked")
-				}
-				return nil
-			}).Should(BeNil())
+				return bundle, nil
+			}).Should(WithTransform(func(b *rukpakv1alpha1.Bundle) string { return b.Status.Phase }, Equal(rukpakv1alpha1.PhaseUnpacked)))
 		})
 	})
 
@@ -1044,7 +1041,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			err := c.Create(ctx, bundle)
 			Expect(err).To(BeNil())
 
-			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, defaultSystemNamespace, "rukpak-ca")
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
