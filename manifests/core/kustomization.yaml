@@ -1,0 +1,24 @@
+resources:
+  - resources/bundle_reader_client_clusterrole.yaml
+  - resources/bundle_uploader_client_clusterrole.yaml
+  - resources/rukpak_issuer.yaml
+  - resources/certificate.yaml
+  - resources/cluster_role.yaml
+  - resources/cluster_role_binding.yaml
+  - resources/deployment.yaml
+  - resources/service.yaml
+  - resources/serviceaccount.yaml
+
+vars:
+ - name: CORE_SERVICE_NAMESPACE # namespace of the service
+   objref:
+    kind: Service
+    version: v1
+    name: core
+   fieldref:
+    fieldpath: metadata.namespace
+ - name: CORE_SERVICE_NAME
+   objref:
+    kind: Service
+    version: v1
+    name: core

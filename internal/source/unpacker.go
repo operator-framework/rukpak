@@ -101,7 +101,7 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImage string, baseUploadManagerURL string, rootCAs *x509.CertPool) (Unpacker, error) {
+func NewDefaultUnpacker(mgr ctrl.Manager, namespace, unpackImage string, baseUploadManagerURL string, rootCAs *x509.CertPool) (Unpacker, error) {
 	cfg := mgr.GetConfig()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -114,11 +114,10 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, provisionerName, unpackImag
 	httpTransport.TLSClientConfig.RootCAs = rootCAs
 	return NewUnpacker(map[rukpakv1alpha1.SourceType]Unpacker{
 		rukpakv1alpha1.SourceTypeImage: &Image{
-			Client:          mgr.GetClient(),
-			KubeClient:      kubeClient,
-			ProvisionerName: provisionerName,
-			PodNamespace:    namespace,
-			UnpackImage:     unpackImage,
+			Client:       mgr.GetClient(),
+			KubeClient:   kubeClient,
+			PodNamespace: namespace,
+			UnpackImage:  unpackImage,
 		},
 		rukpakv1alpha1.SourceTypeGit: &Git{
 			Reader:          mgr.GetAPIReader(),

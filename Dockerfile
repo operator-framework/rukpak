@@ -1,11 +1,9 @@
 FROM gcr.io/distroless/static:debug
 WORKDIR /
 
-COPY plain plain
-COPY registry registry
-COPY unpack unpack
 COPY core core
-COPY uploadmgr uploadmgr
+COPY unpack unpack
+COPY webhooks webhooks
 COPY crdvalidator crdvalidator
 COPY rukpakctl rukpakctl
 

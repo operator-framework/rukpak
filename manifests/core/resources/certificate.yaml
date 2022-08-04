@@ -1,0 +1,15 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: core
+  namespace: rukpak-system
+spec:
+  secretName: core-cert
+  dnsNames:
+    - localhost
+    - $(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc
+    - $(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: rukpak-ca-issuer

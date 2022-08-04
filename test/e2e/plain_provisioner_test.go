@@ -306,7 +306,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			Eventually(func() bool {
 				pod := &corev1.Pod{}
 				if err := c.Get(ctx, types.NamespacedName{
-					Name:      util.PodName("plain", bundle.GetName()),
+					Name:      util.PodName(bundle.GetName()),
 					Namespace: defaultSystemNamespace,
 				}, pod); err != nil {
 					return false
@@ -491,7 +491,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					}
 
 					provisionerPods := &corev1.PodList{}
-					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
 						return err
 					}
 					if len(provisionerPods.Items) != 1 {
@@ -543,7 +543,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					}
 
 					provisionerPods := &corev1.PodList{}
-					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
 						return err
 					}
 					if len(provisionerPods.Items) != 1 {
@@ -596,7 +596,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					}
 
 					provisionerPods := &corev1.PodList{}
-					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
 						return err
 					}
 					if len(provisionerPods.Items) != 1 {
@@ -650,7 +650,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					}
 
 					provisionerPods := &corev1.PodList{}
-					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
 						return err
 					}
 					if len(provisionerPods.Items) != 1 {
@@ -730,7 +730,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					}
 
 					provisionerPods := &corev1.PodList{}
-					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"}); err != nil {
+					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
 						return err
 					}
 					if len(provisionerPods.Items) != 1 {
@@ -989,12 +989,14 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      "upload-manager",
+				UploadServiceName:      "core",
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
 			}
-			_, err = bu.Upload(ctx, bundle.Name, bundleFS)
+			uploadCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+			defer cancel()
+			_, err = bu.Upload(uploadCtx, bundle.Name, bundleFS)
 			Expect(err).To(BeNil())
 		})
 
@@ -1045,12 +1047,14 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      "upload-manager",
+				UploadServiceName:      "core",
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
 			}
-			_, err = bu.Upload(ctx, bundle.Name, bundleFS)
+			uploadCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+			defer cancel()
+			_, err = bu.Upload(uploadCtx, bundle.Name, bundleFS)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
@@ -1939,7 +1943,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 		It("should result in the underlying bundle file being deleted", func() {
 			provisionerPods := &corev1.PodList{}
-			err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "plain-provisioner"})
+			err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"})
 			Expect(err).To(BeNil())
 			Expect(provisionerPods.Items).To(HaveLen(1))
 

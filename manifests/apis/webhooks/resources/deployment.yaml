@@ -2,24 +2,23 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: system
-  name: core-webhook
+  name: webhooks
   labels:
-    app: core-webhook
+    app: webhooks
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: core-webhook
+      app: webhooks
   template:
     metadata:
       labels:
-        app: core-webhook
+        app: webhooks
     spec:
-      serviceAccountName: core-admin
+      serviceAccountName: webhooks-admin
       containers:
-        - name: core-webhook
-          command: ["/core"]
-          args: ["run"]
+        - name: webhooks
+          command: ["/webhooks"]
           image: quay.io/operator-framework/rukpak:latest
           imagePullPolicy: IfNotPresent
           ports:
