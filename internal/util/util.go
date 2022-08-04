@@ -221,8 +221,8 @@ func PodNamespace(defaultNamespace string) string {
 	return string(namespace)
 }
 
-func PodName(provisionerName, bundleName string) string {
-	return fmt.Sprintf("%s-unpack-bundle-%s", provisionerName, bundleName)
+func PodName(bundleName string) string {
+	return fmt.Sprintf("unpack-bundle-%s", bundleName)
 }
 
 func BundleLabels(bundleName string) map[string]string {

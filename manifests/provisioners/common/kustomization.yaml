@@ -1,4 +1,0 @@
-resources:
- - resources/bundle_reader_client_clusterrole.yaml
- - resources/bundle_uploader_client_clusterrole.yaml
- - resources/rukpak_issuer.yaml

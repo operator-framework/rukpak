@@ -129,5 +129,5 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 }
 
 func proxyBundleURL(bundleName string, port uint16) string {
-	return fmt.Sprintf("https://localhost:%d/bundles/%s", port, fmt.Sprintf("%s.tgz", bundleName))
+	return fmt.Sprintf("https://localhost:%d/uploads/%s", port, fmt.Sprintf("%s.tgz", bundleName))
 }

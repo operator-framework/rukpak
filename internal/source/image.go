@@ -22,11 +22,10 @@ import (
 )
 
 type Image struct {
-	Client          client.Client
-	KubeClient      kubernetes.Interface
-	ProvisionerName string
-	PodNamespace    string
-	UnpackImage     string
+	Client       client.Client
+	KubeClient   kubernetes.Interface
+	PodNamespace string
+	UnpackImage  string
 }
 
 const imageBundleUnpackContainerName = "bundle"
@@ -64,7 +63,7 @@ func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
 	automountServiceAccountToken := false
-	pod.SetName(util.PodName(i.ProvisionerName, bundle.Name))
+	pod.SetName(util.PodName(bundle.Name))
 	pod.SetNamespace(i.PodNamespace)
 
 	return util.CreateOrRecreate(ctx, i.Client, pod, func() error {

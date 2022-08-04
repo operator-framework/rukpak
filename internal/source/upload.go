@@ -25,7 +25,7 @@ func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Re
 		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeUpload)
 	}
 
-	url := fmt.Sprintf("%s/bundles/%s.tgz", b.baseDownloadURL, bundle.Name)
+	url := fmt.Sprintf("%s/uploads/%s.tgz", b.baseDownloadURL, bundle.Name)
 	action := fmt.Sprintf("%s %s", http.MethodGet, url)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

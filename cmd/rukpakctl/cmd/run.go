@@ -134,7 +134,7 @@ one version to the next.
 		},
 	}
 	cmd.Flags().StringVar(&systemNamespace, "system-namespace", "rukpak-system", "the namespace in which the rukpak controllers are deployed.")
-	cmd.Flags().StringVar(&uploadServiceName, "upload-service-name", "upload-manager", "the name of the service of the upload manager.")
+	cmd.Flags().StringVar(&uploadServiceName, "upload-service-name", "core", "the name of the service of the upload manager.")
 	cmd.Flags().StringVar(&caSecretName, "ca-secret-name", "rukpak-ca", "the name of the secret in the system namespace containing the root CAs used to authenticate the upload service.")
 	cmd.Flags().StringVar(&bundleDeploymentProvisionerClassName, "bundle-deployment-provisioner-class", "core.rukpak.io/plain", "Provisioner class name to set on bundle deployment.")
 	cmd.Flags().StringVar(&bundleProvisionerClassName, "bundle-provisioner-class", "core.rukpak.io/plain", "Provisioner class name to set on bundle.")

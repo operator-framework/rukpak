@@ -68,8 +68,11 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:crd:dir=./manifests/apis/crds paths=./api/...
 	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... output:stdout > ./manifests/apis/webhooks/resources/webhook.yaml
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
-	$(Q)$(CONTROLLER_GEN) rbac:roleName=plain-provisioner-admin paths=./internal/provisioner/plain/... output:stdout > ./manifests/provisioners/plain/resources/cluster_role.yaml
-	$(Q)$(CONTROLLER_GEN) rbac:roleName=registry-provisioner-admin paths=./internal/provisioner/registry/... output:stdout > ./manifests/provisioners/registry/resources/cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=core-admin \
+		paths=./internal/provisioner/plain/... \
+		paths=./internal/provisioner/registry/... \
+		paths=./internal/uploadmgr/... \
+			output:stdout > ./manifests/core/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -118,10 +121,8 @@ install-manifests:
 	kubectl apply -k manifests
 
 wait:
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/plain-provisioner --timeout=60s
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/registry-provisioner --timeout=60s
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-core-webhook --timeout=60s
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/upload-manager --timeout=60s
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
+	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-webhooks --timeout=60s
 	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
 run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
@@ -141,29 +142,12 @@ uninstall: ## Remove all rukpak resources from the cluster
 ##@ build/load:
 
 # Binary builds
+BINARIES=core unpack webhooks crdvalidator rukpakctl
 VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-build: plain registry unpack core uploadmgr crdvalidator rukpakctl
+build: $(BINARIES)
 
-plain:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
-
-registry:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./internal/provisioner/$@
-
-unpack:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@/...
-
-core:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@/...
-
-uploadmgr:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@/...
-
-crdvalidator:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/crdvalidator
-
-rukpakctl:
-	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/rukpakctl
+$(BINARIES):
+	CGO_ENABLED=0 go build $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@
 
 build-container: export GOOS=linux
 build-container: BIN_DIR:=$(BIN_DIR)/$(GOOS)
