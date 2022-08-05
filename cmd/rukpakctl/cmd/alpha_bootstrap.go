@@ -21,7 +21,7 @@ func newAlphaBootstrapCmd() *cobra.Command {
 	var (
 		systemNamespace   string
 		uploadServiceName string
-		caSecretName      string
+		caConfigMapName   string
 	)
 	cmd := &cobra.Command{
 		Use:    "bootstrap <bundleDeploymentName>",
@@ -97,7 +97,7 @@ under the management of a rukpak BundleDeployment.'
 				Config:            cfg,
 				SystemNamespace:   systemNamespace,
 				UploadServiceName: uploadServiceName,
-				CASecretName:      caSecretName,
+				CAConfigMapName:   caConfigMapName,
 			}
 			modified, err := r.Run(ctx, bundleDeploymentName, bundleFS, rukpakctl.RunOptions{
 				BundleDeploymentProvisionerClassName: plain.ProvisionerID,
@@ -115,6 +115,6 @@ under the management of a rukpak BundleDeployment.'
 	}
 	cmd.Flags().StringVar(&systemNamespace, "system-namespace", util.DefaultSystemNamespace, "Namespace in which the core rukpak provisioners are running.")
 	cmd.Flags().StringVar(&uploadServiceName, "upload-service-name", util.DefaultUploadServiceName, "the name of the service of the upload manager.")
-	cmd.Flags().StringVar(&caSecretName, "ca-secret-name", "rukpak-ca", "the name of the secret in the system namespace containing the root CAs used to authenticate the upload service.")
+	cmd.Flags().StringVar(&caConfigMapName, "ca-configmap-name", util.DefaultCAConfigMapName, "the name of the configmap in the system namespace containing the root CAs used to authenticate the upload service.")
 	return cmd
 }

@@ -36,11 +36,13 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/configmapsyncer"
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/bundle"
 	"github.com/operator-framework/rukpak/internal/provisioner/bundledeployment"
@@ -139,6 +141,26 @@ func main() {
 	}
 
 	ns := util.PodNamespace(systemNamespace)
+
+	// TODO: use cache.MultiNamespacedCacheWithOptionsBuilder for core controller cache
+	//    When https://github.com/kubernetes-sigs/controller-runtime/pull/1962
+	//    merges, use cache.MultiNamespacedCacheWithOptionsBuilder so that
+	//    the system namespace can use cache.New and watch all objects in its own
+	//    namespace. Once we switch to that cache, we can avoid using a separate
+	//    controller-runtime "cluster".
+	systemNamespaceClstr, err := cluster.New(cfg, func(options *cluster.Options) {
+		options.Namespace = ns
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create manager")
+		os.Exit(1)
+	}
+
+	if err := mgr.Add(systemNamespaceClstr); err != nil {
+		setupLog.Error(err, "unable to add system namespace cluster to manager")
+		os.Exit(1)
+	}
+
 	storageURL, err := url.Parse(fmt.Sprintf("%s/bundles/", httpExternalAddr))
 	if err != nil {
 		setupLog.Error(err, "unable to parse bundle content server URL")
@@ -245,6 +267,14 @@ func main() {
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
 	)...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
+		os.Exit(1)
+	}
+
+	if err = (&configmapsyncer.Reconciler{
+		Client: systemNamespaceClstr.GetClient(),
+		Cache:  systemNamespaceClstr.GetCache(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ConfigMap")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

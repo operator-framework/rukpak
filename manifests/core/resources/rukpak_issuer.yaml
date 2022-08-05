@@ -35,3 +35,13 @@ metadata:
 spec:
   ca:
     secretName: rukpak-ca
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    core.rukpak.io/inject-from-secret-name: rukpak-ca
+    core.rukpak.io/inject-from-secret-key: tls.crt
+    core.rukpak.io/inject-to-data-key: ca-bundle.crt
+  name: rukpak-ca
+  namespace: rukpak-system
