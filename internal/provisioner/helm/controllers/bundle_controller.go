@@ -19,12 +19,8 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/fs"
-	"os"
-	"path/filepath"
 
-	"helm.sh/helm/v3/pkg/action"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
@@ -137,57 +133,9 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if unpackResult.State != source.StateUnpacked {
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
 	}
-
-	// Writing chart contents in temp directory for linting
-	chartfs := unpackResult.Bundle
-	tempdir, err := os.MkdirTemp("", bundle.Name)
+	err = validateChart(unpackResult.Bundle)
 	if err != nil {
-		return ctrl.Result{}, err
-	}
-	defer os.RemoveAll(tempdir)
-	var baseDir string
-	err = fs.WalkDir(chartfs, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if path == "." {
-			return nil
-		}
-		if baseDir == "" {
-			baseDir = path
-		}
-		if d.IsDir() {
-			err = os.Mkdir(filepath.Join(tempdir, path), 0750)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		in, err := chartfs.Open(path)
-		if err != nil {
-			return err
-		}
-		defer in.Close()
-		out, err := os.Create(filepath.Join(tempdir, path))
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-		_, err = io.Copy(out, in)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("checking contents error: %v", err))
-	}
-
-	// Run lint
-	lint := action.NewLint()
-	lr := lint.Run([]string{filepath.Join(tempdir, baseDir)}, nil)
-	if len(lr.Errors) != 0 {
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("lint error: %v", lr.Errors[0]))
+		return ctrl.Result{}, updateStatusUnpackFailing(&u, err)
 	}
 	if err := r.Storage.Store(ctx, bundle, unpackResult.Bundle); err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("persist bundle objects: %v", err))
@@ -200,6 +148,18 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	updateStatusUnpacked(&u, unpackResult, contentURL)
 	return ctrl.Result{}, nil
+}
+
+func validateChart(chartfs fs.FS) error {
+	chart, err := getChart(chartfs)
+	if err != nil {
+		return err
+	}
+	err = chart.Validate()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func updateStatusUnpacked(u *updater.Updater, result *source.Result, contentURL string) {
