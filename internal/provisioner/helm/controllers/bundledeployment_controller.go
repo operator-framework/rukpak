@@ -180,7 +180,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	rel, state, err := r.getReleaseState(cl, bd, chrt)
+	rel, state, err := r.getReleaseState(cl, bd, chrt, values)
 	if err != nil {
 		u.UpdateStatus(
 			updater.EnsureCondition(metav1.Condition{
@@ -288,7 +288,7 @@ const (
 	stateError        releaseState = "Error"
 )
 
-func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, chrt *chart.Chart) (*release.Release, releaseState, error) {
+func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, chrt *chart.Chart, values chartutil.Values) (*release.Release, releaseState, error) {
 	currentRelease, err := cl.Get(obj.GetName())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateError, err
@@ -296,7 +296,7 @@ func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterfa
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateNeedsInstall, nil
 	}
-	desiredRelease, err := cl.Upgrade(obj.GetName(), r.ReleaseNamespace, chrt, nil, func(upgrade *action.Upgrade) error {
+	desiredRelease, err := cl.Upgrade(obj.GetName(), r.ReleaseNamespace, chrt, values, func(upgrade *action.Upgrade) error {
 		upgrade.DryRun = true
 		return nil
 	})
@@ -339,9 +339,13 @@ func (r *BundleDeploymentReconciler) loadChart(ctx context.Context, bundle *rukp
 	if err != nil {
 		return nil, err
 	}
+	return getChart(chartfs)
+}
+
+func getChart(chartfs fs.FS) (*chart.Chart, error) {
 	var baseDir string
 	files := []*loader.BufferedFile{}
-	err = fs.WalkDir(chartfs, ".", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(chartfs, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -375,9 +379,6 @@ func (r *BundleDeploymentReconciler) loadChart(ctx context.Context, bundle *rukp
 	}
 	chrt, err := loader.LoadFiles(files)
 	if err != nil {
-		return nil, err
-	}
-	if err = chrt.Validate(); err != nil {
 		return nil, err
 	}
 	return chrt, nil
