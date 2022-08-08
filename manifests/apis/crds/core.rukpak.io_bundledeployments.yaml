@@ -51,6 +51,7 @@ spec:
               provisionerClassName:
                 description: ProvisionerClassName sets the name of the provisioner
                   that should reconcile this BundleDeployment.
+                pattern: ^[a-z][a-z\.\/]*[a-z]$
                 type: string
               template:
                 description: Template describes the generated Bundle that this deployment
@@ -83,6 +84,7 @@ spec:
                       provisionerClassName:
                         description: ProvisionerClassName sets the name of the provisioner
                           that should reconcile this BundleDeployment.
+                        pattern: ^[a-z][a-z\.\/]*[a-z]$
                         type: string
                       source:
                         description: Source defines the configuration for the underlying
