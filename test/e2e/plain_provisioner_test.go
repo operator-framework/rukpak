@@ -61,7 +61,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			By("creating the testing Bundle resource")
 			bundle = &rukpakv1alpha1.Bundle{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "olm-crds-valid",
+					Name: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: "non-existent-class-name",
@@ -74,20 +74,11 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 			}
 			err := c.Create(ctx, bundle)
-			Expect(err).To(BeNil())
+			Expect(err).To(WithTransform(func(e error) string { return e.Error() }, (ContainSubstring(`"olm-crds-valid" is invalid: spec.provisionerClassName`))))
 		})
-		AfterEach(func() {
-			By("deleting the testing Bundle resource")
+		It("the testing Bundle resource is not created", func() {
 			err := c.Delete(ctx, bundle)
-			Expect(err).To(BeNil())
-		})
-		It("should consistently contain an empty status", func() {
-			Consistently(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-					return false
-				}
-				return len(bundle.Status.Conditions) == 0
-			}, 10*time.Second, 1*time.Second).Should(BeTrue())
+			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 	})
 	When("a valid Bundle referencing a remote container image is created", func() {
@@ -204,7 +195,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					bundle.Spec.ProvisionerClassName = "foobar"
 					return c.Update(ctx, bundle)
 				})
-			}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("bundle.spec is immutable")))
+			}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("spec.provisionerClassName: Unsupported value")))
 		})
 	})
 

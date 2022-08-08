@@ -45,6 +45,7 @@ const (
 
 // BundleDeploymentSpec defines the desired state of BundleDeployment
 type BundleDeploymentSpec struct {
+	//+kubebuilder:validation:Enum:={"core.rukpak.io/plain","core.rukpak.io/registry",}
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Template describes the generated Bundle that this deployment will manage.

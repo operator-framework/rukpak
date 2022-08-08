@@ -52,6 +52,9 @@ spec:
               provisionerClassName:
                 description: ProvisionerClassName sets the name of the provisioner
                   that should reconcile this BundleDeployment.
+                enum:
+                - core.rukpak.io/plain
+                - core.rukpak.io/registry
                 type: string
               source:
                 description: Source defines the configuration for the underlying Bundle
