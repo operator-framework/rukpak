@@ -46,9 +46,9 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 		return false, err
 	}
 
-	// cancel is called by the upload goroutine after the upload completes,
-	// thus ensuring the port-forwarding goroutine exits, which allows the
-	// errgroup.Wait() call to unblock.
+	// cancel is called by the upload goroutine before it returns, thus ensuring
+	// the port-forwarding goroutine exits, which allows the errgroup.Wait() call
+	// to unblock.
 	ctx, cancel := context.WithCancel(ctx)
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -70,6 +70,8 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 
 	var bundleModified bool
 	eg.Go(func() error {
+		defer cancel()
+
 		// get the local port. this will wait until the port forwarder is ready.
 		localPort, err := pf.LocalPort(ctx)
 		if err != nil {
@@ -119,7 +121,6 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 			}
 			return fmt.Errorf("unexpected response %q", resp.Status)
 		}
-		cancel()
 		return nil
 	})
 	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
