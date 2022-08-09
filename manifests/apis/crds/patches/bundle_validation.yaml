@@ -1,11 +1,11 @@
-# limit bundle name length up to 40
+# the max bundle name up to 52
+# it allows extra 11 letters for related resource names
 - op: add
   path: /spec/versions/0/schema/openAPIV3Schema/properties/metadata/properties
   value:
     name:
       type: string
-      maxLength: 40
-
+      maxLength: 52
 # Union source type
 - op: add
   path: /spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/source/oneOf
