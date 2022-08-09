@@ -63,7 +63,7 @@ func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
 	automountServiceAccountToken := false
-	pod.SetName(util.PodName(bundle.Name))
+	pod.SetName(bundle.Name)
 	pod.SetNamespace(i.PodNamespace)
 
 	return util.CreateOrRecreate(ctx, i.Client, pod, func() error {

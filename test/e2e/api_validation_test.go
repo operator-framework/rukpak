@@ -23,12 +23,11 @@ var _ = Describe("bundle api validation", func() {
 			err    error
 		)
 		BeforeEach(func() {
-			By("creating the Bundle resource with a long name")
 			ctx = context.Background()
 
 			bundle = &rukpakv1alpha1.Bundle{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "bundlename-0123456789012345678901234567891",
+					Name: "olm-crds-too-long-name-for-the-bundle-1234567890-1234567890",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
@@ -48,10 +47,9 @@ var _ = Describe("bundle api validation", func() {
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the long name bundle creation", func() {
-			Expect(err).To(MatchError(ContainSubstring("metadata.name: Too long: may not be longer than 40")))
+			Expect(err).To(MatchError(ContainSubstring("metadata.name: Too long: may not be longer than 52")))
 		})
 	})
-
 	When("the bundle with multiple sources", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
@@ -244,6 +242,45 @@ var _ = Describe("bundle api validation", func() {
 })
 
 var _ = Describe("bundle deployment api validation", func() {
+	When("the bundledeployment name is too long", func() {
+		var (
+			bd  *rukpakv1alpha1.BundleDeployment
+			ctx context.Context
+			err error
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bd = &rukpakv1alpha1.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "olm-crds-too-long-name-for-the-bundledeployment-1234567890",
+				},
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Template: &rukpakv1alpha1.BundleTemplate{
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: plain.ProvisionerID,
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeImage,
+								Image: &rukpakv1alpha1.ImageSource{
+									Ref: "testdata/bundles/plain-v0:valid",
+								},
+							},
+						},
+					},
+				},
+			}
+			err = c.Create(ctx, bd)
+		})
+		AfterEach(func() {
+			By("deleting the testing BundleDeployment resource for failure case")
+			err = c.Delete(ctx, bd)
+			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
+		})
+		It("should fail the long name bundledeployment creation", func() {
+			Expect(err).To(MatchError(ContainSubstring("metadata.name: Too long: may not be longer than 45")))
+		})
+	})
 	When("a BundleDeployment references an invalid provisioner class name", func() {
 		var (
 			bd  *rukpakv1alpha1.BundleDeployment

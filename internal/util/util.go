@@ -258,7 +258,7 @@ func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBu
 func GenerateTemplateHash(template *rukpakv1alpha1.BundleTemplate) string {
 	hasher := fnv.New32a()
 	DeepHashObject(hasher, template)
-	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+	return rand.SafeEncodeString(fmt.Sprintf("%x", hasher.Sum32())[:6])
 }
 
 func GenerateBundleName(bdName, hash string) string {
@@ -283,10 +283,6 @@ func PodNamespace(defaultNamespace string) string {
 		return defaultNamespace
 	}
 	return string(namespace)
-}
-
-func PodName(bundleName string) string {
-	return fmt.Sprintf("unpack-bundle-%s", bundleName)
 }
 
 func BundleLabels(bundleName string) map[string]string {
