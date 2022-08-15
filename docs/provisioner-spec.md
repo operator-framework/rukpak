@@ -41,7 +41,7 @@ reconciles bundles and bundle deployments that use its name.
 7. A bundle provisioner _must_ populate the `contentURL` field and host a webserver at which the bundle can be fetched.
    - The webserver _must_ deny unauthorized access to the bundle content.
    - The webserver _must_ allow access to the bundle content via the `bundle-reader` cluster role provided by rukpak.
-8. A bundle deployment provisioner _must_ populate and update the `installedBundleName` field in the status to reflect the
+8. A bundle deployment provisioner _must_ populate and update the `activeBundle` field in the status to reflect the
    currently installed bundle. It is up to the provisioner implementation to define what "installed" means for its
    implementation.
 9. A bundle provisioner _should_ implement _all_ concrete source types in the bundle spec. In the event that it does
