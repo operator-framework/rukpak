@@ -46,6 +46,6 @@ spec:
       configmap:
         name: my-configmay
         namespace: rukpak-system
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 EOF
 ```

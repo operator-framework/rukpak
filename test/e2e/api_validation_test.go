@@ -2,17 +2,20 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 )
 
-var _ = Describe("bundle api validating test", func() {
+var _ = Describe("bundle api validation", func() {
 	When("the bundle name is too long", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
@@ -199,6 +202,130 @@ var _ = Describe("bundle api validating test", func() {
 		})
 		It("should fail the bundle creation", func() {
 			Expect(err).To(MatchError(ContainSubstring("\"spec.source.git.ref\" must validate one and only one schema (oneOf). Found none valid")))
+		})
+	})
+	When("a Bundle references an invalid provisioner class name", func() {
+		var (
+			bundle *rukpakv1alpha1.Bundle
+			ctx    context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+		})
+		AfterEach(func() {
+			By("ensuring the testing Bundle does not exist")
+			err := c.Get(ctx, client.ObjectKeyFromObject(bundle), &rukpakv1alpha1.Bundle{})
+			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()), fmt.Sprintf("error was: %v", err))
+		})
+		It("should fail validation", func() {
+			By("creating the testing Bundle resource")
+			bundle = &rukpakv1alpha1.Bundle{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("bundle-invalid-%s", rand.String(6)),
+				},
+				Spec: rukpakv1alpha1.BundleSpec{
+					ProvisionerClassName: "invalid/class-name",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "testdata/bundles/plain-v0:valid",
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bundle)
+			Expect(err).To(And(
+				Not(BeNil()),
+				WithTransform(apierrors.IsInvalid, Equal(true)),
+				MatchError(ContainSubstring(`Invalid value: "invalid/class-name": spec.provisionerClassName`)),
+			))
+		})
+	})
+})
+
+var _ = Describe("bundle deployment api validation", func() {
+	When("a BundleDeployment references an invalid provisioner class name", func() {
+		var (
+			bd  *rukpakv1alpha1.BundleDeployment
+			ctx context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+		})
+		AfterEach(func() {
+			By("ensuring the testing Bundle does not exist")
+			err := c.Get(ctx, client.ObjectKeyFromObject(bd), &rukpakv1alpha1.BundleDeployment{})
+			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()), fmt.Sprintf("error was: %v", err))
+		})
+		It("should fail validation", func() {
+			By("creating the testing BundleDeployment resource")
+			bd = &rukpakv1alpha1.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("bd-invalid-%s", rand.String(6)),
+				},
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+					ProvisionerClassName: "invalid/class-name",
+					Template: &rukpakv1alpha1.BundleTemplate{
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: plain.ProvisionerID,
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeImage,
+								Image: &rukpakv1alpha1.ImageSource{
+									Ref: "testdata/bundles/plain-v0:valid",
+								},
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bd)
+			Expect(err).To(And(
+				Not(BeNil()),
+				WithTransform(apierrors.IsInvalid, Equal(true)),
+				MatchError(ContainSubstring(`Invalid value: "invalid/class-name": spec.provisionerClassName`)),
+			))
+		})
+	})
+	When("a BundleDeployment references an invalid provisioner class name in the bundle template", func() {
+		var (
+			bd  *rukpakv1alpha1.BundleDeployment
+			ctx context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+		})
+		AfterEach(func() {
+			By("ensuring the testing BundleDeployment does not exist")
+			err := c.Get(ctx, client.ObjectKeyFromObject(bd), &rukpakv1alpha1.BundleDeployment{})
+			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()), fmt.Sprintf("error was: %v", err))
+		})
+		It("should fail validation", func() {
+			By("creating the testing BundleDeployment resource")
+			bd = &rukpakv1alpha1.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("bd-invalid-%s", rand.String(6)),
+				},
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Template: &rukpakv1alpha1.BundleTemplate{
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: "invalid/class-name",
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeImage,
+								Image: &rukpakv1alpha1.ImageSource{
+									Ref: "testdata/bundles/plain-v0:valid",
+								},
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bd)
+			Expect(err).To(And(
+				Not(BeNil()),
+				WithTransform(apierrors.IsInvalid, Equal(true)),
+				MatchError(ContainSubstring(`Invalid value: "invalid/class-name": spec.template.spec.provisionerClassName`)),
+			))
 		})
 	})
 })

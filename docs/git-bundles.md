@@ -63,7 +63,7 @@ spec:
         secret:
           name: gitsecret
           insecureSkipVerify: false
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 EOF
 ```
 
@@ -97,7 +97,7 @@ spec:
         secret:
           name: gitsecret
           insecureSkipVerify: false
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 EOF
 ```
 
@@ -118,7 +118,7 @@ spec:
       ref:
         commit: d40082c96e6f0d297aa316d84020d307f95dc453
       repository: https://github.com/operator-framework/combo
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 ```
 
 plain+v0 Bundle that references a git repository by a tag:
@@ -135,7 +135,7 @@ spec:
       ref:
         tag: v0.0.2
       repository: https://github.com/operator-framework/combo
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 ```
 
 plain+v0 Bundle that references a git repository by a branch:
@@ -152,7 +152,7 @@ spec:
       ref:
         branch: main
       repository: https://github.com/operator-framework/combo
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 ```
 
 plain+v0 Bundle that has a different manifest directory than the default:
@@ -170,6 +170,6 @@ spec:
         branch: main
       directory: ./dev/deploy
       repository: https://github.com/exdx/combo-bundle
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 ```
 

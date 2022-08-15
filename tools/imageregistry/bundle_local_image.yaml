@@ -8,4 +8,4 @@ spec:
     image:
       ref: docker-registry.rukpak-e2e.svc.cluster.local:5000/bundles/plain-v0:valid
       pullSecret: registrysecret
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
