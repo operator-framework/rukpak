@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	rukpakctlcmd = "../../bin/linux/rukpakctl "
+	rukpakctlcmd = "../../bin/rukpakctl "
 	testbundles  = "../../testdata/bundles/"
 )
 
