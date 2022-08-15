@@ -9,7 +9,7 @@ the [plain+v0 bundle spec](/docs/plain-bundle-spec.md).
 
 The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
 content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
-the `spec.provisionerClassName` field set to `core.rukpak.io/plain`. This field must be set to the correct provisioner
+the `spec.provisionerClassName` field set to `core-rukpak-io-plain`. This field must be set to the correct provisioner
 name in order for the `plain` provisioner to see and interact with the bundle.
 
 ### Install and apply a specific version of a `plain+v0` bundle
@@ -30,7 +30,7 @@ kind: BundleDeployment
 metadata:
   name: my-bundle-deployment
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
@@ -40,7 +40,7 @@ spec:
         type: image
         image:
           ref: my-bundle@sha256:xyz123
-      provisionerClassName: core.rukpak.io/plain
+      provisionerClassName: core-rukpak-io-plain
 ```
 
 > Note: the generated Bundle will contain the BundleDeployment's metadata.Name as a prefix, followed by
@@ -107,13 +107,13 @@ kind: BundleDeployment
 metadata:
   name: combo
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
         app: combo
     spec:
-      provisionerClassName: core.rukpak.io/plain
+      provisionerClassName: core-rukpak-io-plain
       source:
         image:
           ref: quay.io/operator-framework/combo-bundle:v0.0.1
@@ -218,13 +218,13 @@ kind: BundleDeployment
 metadata:
   name: combo
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
         app: combo
     spec:
-      provisionerClassName: core.rukpak.io/plain
+      provisionerClassName: core-rukpak-io-plain
       source:
         image:
           ref: quay.io/operator-framework/combo-bundle:v0.0.2

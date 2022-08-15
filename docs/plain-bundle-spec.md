@@ -156,7 +156,7 @@ kind: BundleDeployment
 metadata:
   name: my-bundle
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
@@ -166,7 +166,7 @@ spec:
         type: image
         image:
           ref: quay.io/operator-framework/rukpak:example
-      provisionerClassName: core.rukpak.io/plain
+      provisionerClassName: core-rukpak-io-plain
 EOF
 ```
 
@@ -211,7 +211,7 @@ spec:
     image:
       ref: quay.io/my-registry/rukpak:example
       pullSecret: mysecret
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 EOF
 ```
 

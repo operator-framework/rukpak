@@ -9,9 +9,9 @@ the [OLM packaging doc](https://olm.operatorframework.io/docs/tasks/creating-ope
 
 The `registry` provisioner is able to convert a given `registry+v1` bundle onto a cluster in the `plain+v0` format. Instantiation of the
 bundle is then handled by the `plain` provisioner in order to make the content available in the cluster. It does so by reconciling `Bundle`
-types that have the `spec.provisionerClassName` field set to `core.rukpak.io/registry`. This field must be set to the correct provisioner
+types that have the `spec.provisionerClassName` field set to `core-rukpak-io-registry`. This field must be set to the correct provisioner
 name in order for the `registry` provisioner to see and interact with the bundle. Creating a `BundleDeployment` of that `Bundle` would then
-require that you have set the `BundleDeployment` property `spec.provisionerClassName` field to `core.rukpak.io/plain`. For a concrete example
+require that you have set the `BundleDeployment` property `spec.provisionerClassName` field to `core-rukpak-io-plain`. For a concrete example
 of this in action, see the [use cases section](#use-cases)
 
 > Note: Not all `registry+v1` content is supported. This mainly applies to `registry+v1` bundles that enable `AllNamespaces` mode
@@ -37,7 +37,7 @@ kind: BundleDeployment
 metadata:
   name: my-bundle-deployment
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
@@ -47,7 +47,7 @@ spec:
         type: image
         image:
           ref: my-bundle@sha256:xyz123
-      provisionerClassName: core.rukpak.io/registry
+      provisionerClassName: core-rukpak-io-registry
 ```
 
 > Note: The generated Bundle will contain the BundleDeployment's metadata.Name as a prefix, followed by
@@ -114,13 +114,13 @@ kind: BundleDeployment
 metadata:
   name: prometheus
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
         app: prometheus
     spec:
-      provisionerClassName: core.rukpak.io/registry
+      provisionerClassName: core-rukpak-io-registry
       source:
         type: image
         image:
@@ -222,13 +222,13 @@ kind: BundleDeployment
 metadata:
   name: prometheus
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
         app: prometheus
     spec:
-      provisionerClassName: core.rukpak.io/registry
+      provisionerClassName: core-rukpak-io-registry
       source:
         type: image
         image:

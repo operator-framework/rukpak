@@ -31,7 +31,7 @@ spec:
       ref:
         tag: v0.0.2
       repository: https://github.com/operator-framework/combo
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 EOF
 ```
 

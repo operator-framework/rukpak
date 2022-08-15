@@ -30,6 +30,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/cmd/rukpakctl/utils"
+	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 )
 
 type bundleDeploymentOptions struct {
@@ -103,10 +104,10 @@ func bundleDeployment(ctx context.Context, opt bundleDeploymentOptions, args []s
 			GenerateName: namePrefix,
 		},
 		Spec: rukpakv1alpha1.BundleDeploymentSpec{
-			ProvisionerClassName: "core.rukpak.io/plain",
+			ProvisionerClassName: plain.ProvisionerID,
 			Template: &rukpakv1alpha1.BundleTemplate{
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: "core.rukpak.io/plain",
+					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeLocal,
 						Local: &rukpakv1alpha1.LocalSource{

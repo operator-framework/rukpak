@@ -4,7 +4,7 @@
 
 The `helm` provisioner is able to instantiate a given `helm+v3` bundle with a specified helm chart onto a cluster and then install the helm chart,
 in the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
-the `spec.provisionerClassName` field set to `core.rukpak.io/helm`. This field must be set to the correct provisioner
+the `spec.provisionerClassName` field set to `core-rukpak-io-helm`. This field must be set to the correct provisioner
 name in order for the `helm` provisioner to see and interact with the bundle.
 
 ### Install and apply a specific version of a `helm+v3` bundle
@@ -25,7 +25,7 @@ kind: BundleDeployment
 metadata:
   name: my-ahoy
 spec:
-  provisionerClassName: core.rukpak.io/helm
+  provisionerClassName: core-rukpak-io-helm
   config:
     values: |
       # Default values for hello-world.
@@ -55,7 +55,7 @@ spec:
       labels:
         app: my-ahoy
     spec:
-      provisionerClassName: core.rukpak.io/helm
+      provisionerClassName: core-rukpak-io-helm
       source:
         https:
           url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  
@@ -120,13 +120,13 @@ kind: BundleDeployment
 metadata:
   name: my-ahoy
 spec:
-  provisionerClassName: core.rukpak.io/helm
+  provisionerClassName: core-rukpak-io-helm
   template:
     metadata:
       labels:
         app: my-ahoy
     spec:
-      provisionerClassName: core.rukpak.io/helm
+      provisionerClassName: core-rukpak-io-helm
       source:
         https:
           url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz
@@ -224,7 +224,7 @@ kind: BundleDeployment
 metadata:
   name: my-ahoy
 spec:
-  provisionerClassName: core.rukpak.io/helm
+  provisionerClassName: core-rukpak-io-helm
   config:
     values: |
       # Default values for hello-world.
@@ -254,7 +254,7 @@ spec:
       labels:
         app: my-ahoy
     spec:
-      provisionerClassName: core.rukpak.io/helm
+      provisionerClassName: core-rukpak-io-helm
       source:
         https:
           url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  

@@ -18,7 +18,7 @@ to a local directory that contains a bundle.
 rukpakctl run <bundleDeploymentName> <bundleDir>
 ```
 
-By default, `rukpakctl run` assumes that the bundle is a plain bundle and uses `core.rukpak.io/plain` as the
+By default, `rukpakctl run` assumes that the bundle is a plain bundle and uses `core-rukpak-io-plain` as the
 provisioner class names for both the bundle template and the bundle deployment spec.
 
 The `--bundle-provisioner-class` and `--bundle-deployment-provisioner-class` flags can be used to

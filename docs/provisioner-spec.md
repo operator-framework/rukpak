@@ -23,7 +23,9 @@ provisioners must include certain functionality and capabilities.
 ## Requirements
 
 1. A provisioner _must_ define one or more globally unique names for the `Bundle` and `BundleDeployment` controllers it
-runs.
+runs. For the purposes of provisioner class name references, this name must also conform to the
+[DNS label schema](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names) as defined
+in RFC 1123.
 2. A provisioner _should_ use its unique controller names when configuring its watch predicates so that it only
 reconciles bundles and bundle deployments that use its name.
 3. A provisioner is not required to implement controllers for both bundles and bundle deployments.

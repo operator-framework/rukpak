@@ -132,7 +132,7 @@ spec:
     type: image
     image:
       ref: my-bundle@sha256:xyz123
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
 ```
 
 > Note: Bundles are considered immutable once they are created. See the [bundle immutability doc](/docs/bundle-immutability.md)
@@ -161,7 +161,7 @@ kind: BundleDeployment
 metadata:
   name: my-bundle-deployment
 spec:
-  provisionerClassName: core.rukpak.io/plain
+  provisionerClassName: core-rukpak-io-plain
   template:
     metadata:
       labels:
@@ -171,7 +171,7 @@ spec:
         type: image
         image:
           ref: my-bundle@sha256:xyz123
-      provisionerClassName: core.rukpak.io/plain
+      provisionerClassName: core-rukpak-io-plain
 ```
 
 ### Provisioner

@@ -51,7 +51,7 @@ const (
 
 // BundleSpec defines the desired state of Bundle
 type BundleSpec struct {
-	//+kubebuilder:validation:Pattern:=^[a-z][a-z\.\/]*[a-z]$
+	//+kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Source defines the configuration for the underlying Bundle content.

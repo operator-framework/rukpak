@@ -46,7 +46,7 @@ const (
 
 // BundleDeploymentSpec defines the desired state of BundleDeployment
 type BundleDeploymentSpec struct {
-	//+kubebuilder:validation:Pattern:=^[a-z][a-z\.\/]*[a-z]$
+	//+kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Template describes the generated Bundle that this deployment will manage.
