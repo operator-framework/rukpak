@@ -57,9 +57,9 @@ spec:
     spec:
       provisionerClassName: core-rukpak-io-helm
       source:
-        https:
+        http:
           url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  
-        type: https
+        type: http
 ```
 
 For the helm chart, the values file embedded in the `config` can be applied during the installation of the chart.
@@ -73,7 +73,7 @@ will be updated to Unpacked, indicating that all its contents have been stored o
 ```console
 $ kubectl get bundle -l app=my-ahoy
 NAME                 TYPE   PHASE      AGE
-my-ahoy-5764594dc8   https  Unpacked   33s
+my-ahoy-5764594dc8   http   Unpacked   33s
 ```
 
 Now that the bundle has been unpacked, the provisioner is able to create the resources in the bundle on the cluster.
@@ -128,9 +128,9 @@ spec:
     spec:
       provisionerClassName: core-rukpak-io-helm
       source:
-        https:
+        http:
           url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz
-        type: https
+        type: http
 EOF
 ```
 
@@ -154,7 +154,7 @@ Eventually the Bundle should show up as Unpacked:
 ```console
 $ kubectl get bundle -l app=my-ahoy
 NAME                 TYPE   PHASE      AGE
-my-ahoy-5764594dc8   https  Unpacked   33s
+my-ahoy-5764594dc8   http   Unpacked   33s
 ```
 
 Check the BundleDeployment status to ensure that the installation was successful:
@@ -256,9 +256,9 @@ spec:
     spec:
       provisionerClassName: core-rukpak-io-helm
       source:
-        https:
+        http:
           url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  
-        type: https
+        type: http
 ```
 
 ### Deleting the sample chart and Local Kind Cluster
