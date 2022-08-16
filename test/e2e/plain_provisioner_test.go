@@ -435,7 +435,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`found zero objects: plain+v0 bundles are required to contain at least one object`)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`found zero files`)),
 			))
 		})
 	})
@@ -1741,7 +1741,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, And(
 					ContainSubstring(`Failed to unpack the olm-apis`),
-					ContainSubstring(`get objects from bundle manifests: subdirectories are not allowed within the "manifests" directory of the bundle image filesystem: found "manifests/emptydir"`),
+					ContainSubstring(`subdirectories are not allowed`),
 				)),
 			))
 		})

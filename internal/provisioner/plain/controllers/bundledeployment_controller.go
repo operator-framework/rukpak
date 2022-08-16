@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	bundleLib "github.com/operator-framework/rukpak/internal/bundle"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/storage"
@@ -360,21 +361,17 @@ func (r *BundleDeploymentReconciler) loadBundle(ctx context.Context, bundle *ruk
 		return nil, fmt.Errorf("load bundle: %v", err)
 	}
 
-	objects, err := getObjects(bundleFS)
+	plainV0, err := bundleLib.LoadPlainV0(bundleFS)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
 	}
-
-	objs := make([]client.Object, 0, len(objects))
-	for _, obj := range objects {
-		obj := obj
+	for _, obj := range plainV0.Objects {
 		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
 			util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind,
 			util.CoreOwnerNameKey: bdName,
 		}))
-		objs = append(objs, obj)
 	}
-	return objs, nil
+	return plainV0.Objects, nil
 }
 
 type errRequiredResourceNotFound struct {
