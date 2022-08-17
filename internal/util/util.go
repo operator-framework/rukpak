@@ -1,12 +1,14 @@
 package util
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"os"
 	"sort"
 	"time"
@@ -387,13 +389,15 @@ func MergeMaps(maps ...map[string]string) map[string]string {
 	return out
 }
 
-func LoadCertPool(certFile string) (*x509.CertPool, error) {
-	rootCAPEM, err := os.ReadFile(certFile)
+// LoadCertPool loads x509 CertPools from the io.Reader of the root CA file.
+func LoadCertPool(rootCAPEM io.Reader) (*x509.CertPool, error) {
+	certPool := x509.NewCertPool()
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(rootCAPEM)
 	if err != nil {
 		return nil, err
 	}
-	certPool := x509.NewCertPool()
-	for block, rest := pem.Decode(rootCAPEM); block != nil; block, rest = pem.Decode(rest) {
+	for block, rest := pem.Decode(buf.Bytes()); block != nil; block, rest = pem.Decode(rest) {
 		if block.Type != "CERTIFICATE" {
 			continue
 		}
@@ -404,4 +408,21 @@ func LoadCertPool(certFile string) (*x509.CertPool, error) {
 		certPool.AddCert(cert)
 	}
 	return certPool, nil
+}
+
+func LoadRootCAs(bundleCAFile string) (*os.File, *x509.CertPool, error) {
+	var bundleCA *os.File
+	var rootCAs *x509.CertPool
+	var err error
+	if bundleCAFile != "" {
+		bundleCA, err = os.Open(bundleCAFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer bundleCA.Close()
+		if rootCAs, err = LoadCertPool(bundleCA); err != nil {
+			return nil, nil, err
+		}
+	}
+	return bundleCA, rootCAs, nil
 }

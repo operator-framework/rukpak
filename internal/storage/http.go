@@ -3,12 +3,9 @@ package storage
 import (
 	"compress/gzip"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io/fs"
 	"net/http"
-	"time"
 
 	"github.com/nlepage/go-tarfs"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,51 +14,8 @@ import (
 )
 
 type HTTP struct {
-	client      http.Client
-	requestOpts []func(*http.Request)
-}
-
-type HTTPOption func(*HTTP)
-
-func WithInsecureSkipVerify(v bool) HTTPOption {
-	return func(s *HTTP) {
-		tr := s.client.Transport.(*http.Transport)
-		if tr.TLSClientConfig == nil {
-			tr.TLSClientConfig = &tls.Config{}
-		}
-		tr.TLSClientConfig.InsecureSkipVerify = v
-	}
-}
-
-func WithRootCAs(rootCAs *x509.CertPool) HTTPOption {
-	return func(s *HTTP) {
-		tr := s.client.Transport.(*http.Transport)
-		if tr.TLSClientConfig == nil {
-			tr.TLSClientConfig = &tls.Config{}
-		}
-		tr.TLSClientConfig.RootCAs = rootCAs
-	}
-}
-
-func WithBearerToken(token string) HTTPOption {
-	return func(s *HTTP) {
-		s.requestOpts = append(s.requestOpts, func(request *http.Request) {
-			request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-		})
-	}
-}
-
-type HTTPRequestOption func(*http.Request)
-
-func NewHTTP(opts ...HTTPOption) *HTTP {
-	s := &HTTP{client: http.Client{
-		Timeout:   time.Minute,
-		Transport: http.DefaultTransport.(*http.Transport).Clone(),
-	}}
-	for _, f := range opts {
-		f(s)
-	}
-	return s
+	Client      http.Client
+	RequestOpts []func(*http.Request)
 }
 
 func (s *HTTP) Load(ctx context.Context, owner client.Object) (fs.FS, error) {
@@ -70,10 +24,10 @@ func (s *HTTP) Load(ctx context.Context, owner client.Object) (fs.FS, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, f := range s.requestOpts {
+	for _, f := range s.RequestOpts {
 		f(req)
 	}
-	resp, err := s.client.Do(req)
+	resp, err := s.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}

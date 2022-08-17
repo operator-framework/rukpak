@@ -17,9 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/operator-framework/rukpak/internal/util"
+	pkgstorage "github.com/operator-framework/rukpak/pkg/storage"
 )
 
-var _ Storage = &LocalDirectory{}
+var _ pkgstorage.Storage = &LocalDirectory{}
 
 const DefaultBundleCacheDir = "/var/cache/bundles"
 

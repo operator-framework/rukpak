@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -43,6 +42,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
+	utilstorage "github.com/operator-framework/rukpak/pkg/storage/util"
 )
 
 var (
@@ -59,16 +59,17 @@ func init() {
 
 func main() {
 	var (
-		httpBindAddr         string
-		httpExternalAddr     string
-		bundleCAFile         string
-		enableLeaderElection bool
-		probeAddr            string
-		systemNamespace      string
-		unpackImage          string
-		baseUploadManagerURL string
-		rukpakVersion        bool
-		storageDirectory     string
+		httpBindAddr                string
+		httpExternalAddr            string
+		bundleCAFile                string
+		enableLeaderElection        bool
+		probeAddr                   string
+		systemNamespace             string
+		unpackImage                 string
+		baseUploadManagerURL        string
+		rukpakVersion               bool
+		provisionerStorageDirectory string
+		storageDirectory            string
 	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
 	flag.StringVar(&httpExternalAddr, "http-external-address", "http://localhost:8080", "The external address at which the http server is reachable.")
@@ -81,6 +82,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
+	flag.StringVar(&provisionerStorageDirectory, "provisioner-storage-dir", utilstorage.DefaultBundleCacheDir, "The directory that is used to store bundle contents.")
 	flag.StringVar(&storageDirectory, "storage-dir", storage.DefaultBundleCacheDir, "Configures the directory that is used to store Bundle contents.")
 	opts := zap.Options{
 		Development: true,
@@ -127,31 +129,18 @@ func main() {
 	}
 
 	ns := util.PodNamespace(systemNamespace)
-	storageURL, err := url.Parse(fmt.Sprintf("%s/bundles/", httpExternalAddr))
+	var bundleCA *os.File
+	var rootCAs *x509.CertPool
+	bundleCA, rootCAs, err = util.LoadRootCAs(bundleCAFile)
 	if err != nil {
-		setupLog.Error(err, "unable to parse bundle content server URL")
+		setupLog.Error(err, "unable to parse bundle certificate authority file")
 		os.Exit(1)
 	}
-
-	localStorage := &storage.LocalDirectory{
-		RootDirectory: storageDirectory,
-		URL:           *storageURL,
+	bundleStorage, err := utilstorage.NewBundleStorage(mgr, provisionerStorageDirectory, httpExternalAddr, "bundles", utilstorage.WithRootCAs(bundleCA), utilstorage.WithBearerToken(cfg.BearerToken))
+	if err != nil {
+		setupLog.Error(err, "unable to create storage")
+		os.Exit(1)
 	}
-
-	var rootCAs *x509.CertPool
-	if bundleCAFile != "" {
-		var err error
-		if rootCAs, err = util.LoadCertPool(bundleCAFile); err != nil {
-			setupLog.Error(err, "unable to parse bundle certificate authority file")
-			os.Exit(1)
-		}
-	}
-
-	httpLoader := storage.NewHTTP(
-		storage.WithRootCAs(rootCAs),
-		storage.WithBearerToken(cfg.BearerToken),
-	)
-	bundleStorage := storage.WithFallbackLoader(localStorage, httpLoader)
 
 	// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
 	// whatever handlers we want on the existing webserver that

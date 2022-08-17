@@ -1,4 +1,4 @@
-package storage
+package util
 
 import (
 	"context"
@@ -10,7 +10,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"testing/fstest"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -26,7 +30,7 @@ var _ = Describe("HTTP", func() {
 		ctx        context.Context
 		bundle     *rukpakv1alpha1.Bundle
 		testFS     fs.FS
-		localStore *LocalDirectory
+		localStore *storage.LocalDirectory
 		server     *httptest.Server
 	)
 	BeforeEach(func() {
@@ -43,7 +47,7 @@ var _ = Describe("HTTP", func() {
 		Expect(os.MkdirAll(testDir, 0700)).To(Succeed())
 
 		// Setup the local store and store the generated FS.
-		localStore = &LocalDirectory{RootDirectory: testDir}
+		localStore = &storage.LocalDirectory{RootDirectory: testDir}
 		Expect(localStore.Store(ctx, bundle, testFS)).To(Succeed())
 
 		// Create and start the server
@@ -121,7 +125,6 @@ var _ = Describe("HTTP", func() {
 		BeforeEach(func() {
 			certPool := x509.NewCertPool()
 			certPool.AddCert(server.Certificate())
-			opts = append(opts, WithRootCAs(certPool))
 		})
 		Context("with correct bearer token", func() {
 			BeforeEach(func() {
@@ -161,7 +164,7 @@ var _ = Describe("HTTP", func() {
 	})
 })
 
-func newTLSServer(localStore *LocalDirectory, bearerToken string) *httptest.Server {
+func newTLSServer(localStore *storage.LocalDirectory, bearerToken string) *httptest.Server {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Authorization") != fmt.Sprintf("Bearer %s", bearerToken) {
 			resp.WriteHeader(http.StatusUnauthorized)
@@ -175,4 +178,60 @@ func newTLSServer(localStore *LocalDirectory, bearerToken string) *httptest.Serv
 		Path:   "/",
 	}
 	return server
+}
+func generateFS() fs.FS {
+	gen := fstest.MapFS{}
+
+	numFiles := rand.IntnRange(10, 20)
+	for i := 0; i < numFiles; i++ {
+		pathLength := rand.IntnRange(30, 60)
+		filePath := ""
+		for j := 0; j < pathLength; j += rand.IntnRange(5, 10) {
+			filePath = filepath.Join(filePath, rand.String(rand.IntnRange(5, 10)))
+		}
+		gen[filePath] = &fstest.MapFile{
+			Data: []byte(rand.String(rand.IntnRange(1, 400))),
+			Mode: fs.FileMode(rand.IntnRange(0600, 0777)),
+			// Need to do some rounding and location shenanigans here to align with nuances of the tar implementation.
+			ModTime: time.Now().Round(time.Second).Add(time.Duration(-rand.IntnRange(0, 100000)) * time.Second).In(&time.Location{}),
+		}
+	}
+	return &gen
+}
+
+func fsEqual(a, b fs.FS) (bool, error) {
+	aMap := fstest.MapFS{}
+	bMap := fstest.MapFS{}
+
+	walkFunc := func(f fs.FS, m fstest.MapFS) fs.WalkDirFunc {
+		return func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			data, err := fs.ReadFile(f, path)
+			if err != nil {
+				return err
+			}
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			m[path] = &fstest.MapFile{
+				Data:    data,
+				Mode:    d.Type(),
+				ModTime: info.ModTime().UTC(),
+			}
+			return nil
+		}
+	}
+	if err := fs.WalkDir(a, ".", walkFunc(a, aMap)); err != nil {
+		return false, err
+	}
+	if err := fs.WalkDir(b, ".", walkFunc(b, bMap)); err != nil {
+		return false, err
+	}
+	return reflect.DeepEqual(aMap, bMap), nil
 }

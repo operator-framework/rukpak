@@ -15,6 +15,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/util"
+	pkgstorage "github.com/operator-framework/rukpak/pkg/storage"
 )
 
 var _ = Describe("WithFallbackLoader", func() {
@@ -27,7 +28,7 @@ var _ = Describe("WithFallbackLoader", func() {
 		primaryFS      fs.FS
 		fallbackFS     fs.FS
 
-		store Storage
+		store pkgstorage.Storage
 	)
 
 	BeforeEach(func() {
@@ -55,7 +56,7 @@ var _ = Describe("WithFallbackLoader", func() {
 		fallbackFS = generateFS()
 		Expect(fallbackStore.Store(ctx, fallbackBundle, fallbackFS)).To(Succeed())
 
-		store = WithFallbackLoader(primaryStore, fallbackStore)
+		store = pkgstorage.WithFallbackLoader(primaryStore, fallbackStore)
 	})
 
 	It("should find primary bundle", func() {

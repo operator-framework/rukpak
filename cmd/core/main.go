@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -45,10 +44,10 @@ import (
 	plaincontrollers "github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
 	registrycontrollers "github.com/operator-framework/rukpak/internal/provisioner/registry/controllers"
 	"github.com/operator-framework/rukpak/internal/source"
-	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
+	utilstorage "github.com/operator-framework/rukpak/pkg/storage/util"
 )
 
 var (
@@ -89,7 +88,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
-	flag.StringVar(&provisionerStorageDirectory, "provisioner-storage-dir", storage.DefaultBundleCacheDir, "The directory that is used to store bundle contents.")
+	flag.StringVar(&provisionerStorageDirectory, "provisioner-storage-dir", utilstorage.DefaultBundleCacheDir, "The directory that is used to store bundle contents.")
 	flag.StringVar(&uploadStorageDirectory, "upload-storage-dir", uploadmgr.DefaultBundleCacheDir, "The directory that is used to store bundle uploads.")
 	flag.DurationVar(&uploadStorageSyncInterval, "upload-storage-sync-interval", time.Minute, "Interval on which to garbage collect unused uploaded bundles")
 	opts := zap.Options{
@@ -135,40 +134,27 @@ func main() {
 		setupLog.Error(err, "unable to create manager")
 		os.Exit(1)
 	}
-
 	ns := util.PodNamespace(systemNamespace)
-	storageURL, err := url.Parse(fmt.Sprintf("%s/bundles/", httpExternalAddr))
+
+	var bundleCA *os.File
+	var rootCAs *x509.CertPool
+	bundleCA, rootCAs, err = util.LoadRootCAs(bundleCAFile)
 	if err != nil {
-		setupLog.Error(err, "unable to parse bundle content server URL")
+		setupLog.Error(err, "unable to parse bundle certificate authority file")
 		os.Exit(1)
 	}
-
-	localStorage := &storage.LocalDirectory{
-		RootDirectory: provisionerStorageDirectory,
-		URL:           *storageURL,
+	bundleStorage, err := utilstorage.NewBundleStorage(mgr, provisionerStorageDirectory, httpExternalAddr, "bundles", utilstorage.WithRootCAs(bundleCA), utilstorage.WithBearerToken(cfg.BearerToken))
+	if err != nil {
+		setupLog.Error(err, "unable to create storage")
+		os.Exit(1)
 	}
-
-	var rootCAs *x509.CertPool
-	if bundleCAFile != "" {
-		var err error
-		if rootCAs, err = util.LoadCertPool(bundleCAFile); err != nil {
-			setupLog.Error(err, "unable to parse bundle certificate authority file")
-			os.Exit(1)
-		}
-	}
-
-	httpLoader := storage.NewHTTP(
-		storage.WithRootCAs(rootCAs),
-		storage.WithBearerToken(cfg.BearerToken),
-	)
-	bundleStorage := storage.WithFallbackLoader(localStorage, httpLoader)
 
 	// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
 	// whatever handlers we want on the existing webserver that
 	// controller-runtime runs when MetricsBindAddress is configured on the
 	// manager.
-	if err := mgr.AddMetricsExtraHandler("/bundles/", httpLogger(localStorage)); err != nil {
-		setupLog.Error(err, "unable to add bundles http handler to manager")
+	if err := mgr.AddMetricsExtraHandler("/bundles/", httpLogger(bundleStorage)); err != nil {
+		setupLog.Error(err, "unable to add bundle http handler to manager")
 		os.Exit(1)
 	}
 	if err := mgr.AddMetricsExtraHandler("/uploads/", httpLogger(uploadmgr.NewUploadHandler(mgr.GetClient(), uploadStorageDirectory))); err != nil {
