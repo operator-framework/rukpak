@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	pkgsource "github.com/operator-framework/rukpak/pkg/source"
 )
 
 // http is a bundle source that sources bundles from the specified url.
@@ -22,7 +23,7 @@ type HTTP struct {
 }
 
 // Unpack unpacks a bundle by requesting the bundle contents from a specified URL
-func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*pkgsource.Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeHTTP {
 		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeHTTP)
 	}
@@ -67,7 +68,7 @@ func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resu
 	if err != nil {
 		return nil, fmt.Errorf("error creating FS: %s", err)
 	}
-	return &Result{Bundle: fs, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked}, nil
+	return &pkgsource.Result{Bundle: fs, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: pkgsource.StateUnpacked}, nil
 }
 
 // getCredentials reads credentials from the secret specified in the bundle

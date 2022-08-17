@@ -44,11 +44,11 @@ import (
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	plaincontrollers "github.com/operator-framework/rukpak/internal/provisioner/plain/controllers"
 	registrycontrollers "github.com/operator-framework/rukpak/internal/provisioner/registry/controllers"
-	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
+	pkgutil "github.com/operator-framework/rukpak/pkg/source/util"
 )
 
 var (
@@ -199,7 +199,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(mgr, ns, unpackImage, baseUploadManagerURL, rootCAs)
+	unpacker, err := pkgutil.NewDefaultUnpacker(mgr, ns, unpackImage, baseUploadManagerURL, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)

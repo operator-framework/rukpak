@@ -9,6 +9,7 @@ import (
 	"github.com/nlepage/go-tarfs"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	pkgsource "github.com/operator-framework/rukpak/pkg/source"
 )
 
 // Upload is a bundle source that sources bundles from the rukpak upload service.
@@ -20,7 +21,7 @@ type Upload struct {
 
 // Unpack unpacks an uploaded bundle by requesting the bundle contents from a web server hosted
 // by rukpak's upload service.
-func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*pkgsource.Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
 		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeUpload)
 	}
@@ -39,7 +40,7 @@ func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Re
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
-		return &Result{State: StatePending, Message: "waiting for bundle to be uploaded"}, nil
+		return &pkgsource.Result{State: pkgsource.StatePending, Message: "waiting for bundle to be uploaded"}, nil
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: unexpected status %q", action, resp.Status)
@@ -52,5 +53,13 @@ func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Re
 	if err != nil {
 		return nil, fmt.Errorf("untar bundle contents from response: %v", err)
 	}
-	return &Result{Bundle: bundleFS, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked}, nil
+	return &pkgsource.Result{Bundle: bundleFS, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: pkgsource.StateUnpacked}, nil
+}
+
+func NewUpload(client http.Client, baseDownloadURL, bearerToken string) *Upload {
+	return &Upload{
+		client:          client,
+		baseDownloadURL: baseDownloadURL,
+		bearerToken:     bearerToken,
+	}
 }

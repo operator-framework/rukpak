@@ -23,6 +23,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/util"
+	pkgsource "github.com/operator-framework/rukpak/pkg/source"
 )
 
 type Image struct {
@@ -34,7 +35,7 @@ type Image struct {
 
 const imageBundleUnpackContainerName = "bundle"
 
-func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*pkgsource.Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeImage {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
@@ -47,14 +48,14 @@ func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 	if err != nil {
 		return nil, err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
-		return &Result{State: StatePending}, nil
+		return &pkgsource.Result{State: pkgsource.StatePending}, nil
 	}
 
 	switch phase := pod.Status.Phase; phase {
 	case corev1.PodPending:
 		return pendingImagePodResult(pod), nil
 	case corev1.PodRunning:
-		return &Result{State: StateUnpacking}, nil
+		return &pkgsource.Result{State: pkgsource.StateUnpacking}, nil
 	case corev1.PodFailed:
 		return nil, i.failedPodResult(ctx, pod)
 	case corev1.PodSucceeded:
@@ -192,7 +193,7 @@ func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 	return fmt.Errorf("unpack failed: %v", string(logs))
 }
 
-func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Result, error) {
+func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*pkgsource.Result, error) {
 	bundleFS, err := i.getBundleContents(ctx, pod)
 	if err != nil {
 		return nil, fmt.Errorf("get bundle contents: %v", err)
@@ -208,7 +209,7 @@ func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Resul
 		Image: &rukpakv1alpha1.ImageSource{Ref: digest},
 	}
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
+	return &pkgsource.Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: pkgsource.StateUnpacked}, nil
 }
 
 func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
@@ -258,7 +259,7 @@ func (i *Image) handleUnexpectedPod(ctx context.Context, pod *corev1.Pod) error 
 	return fmt.Errorf("unexpected pod phase: %v", pod.Status.Phase)
 }
 
-func pendingImagePodResult(pod *corev1.Pod) *Result {
+func pendingImagePodResult(pod *corev1.Pod) *pkgsource.Result {
 	var messages []string
 	for _, cStatus := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
 		if waiting := cStatus.State.Waiting; waiting != nil {
@@ -267,5 +268,5 @@ func pendingImagePodResult(pod *corev1.Pod) *Result {
 			}
 		}
 	}
-	return &Result{State: StatePending, Message: strings.Join(messages, "; ")}
+	return &pkgsource.Result{State: pkgsource.StatePending, Message: strings.Join(messages, "; ")}
 }

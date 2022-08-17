@@ -43,9 +43,9 @@ import (
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/convert"
 	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
-	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 // BundleReconciler reconciles a Bundle object

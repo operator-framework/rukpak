@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	pkgsource "github.com/operator-framework/rukpak/pkg/source"
 )
 
 type Git struct {
@@ -32,7 +33,7 @@ type Git struct {
 	SecretNamespace string
 }
 
-func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*pkgsource.Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeGit {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
@@ -123,7 +124,7 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 		Git:  resolvedGit,
 	}
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
+	return &pkgsource.Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: pkgsource.StateUnpacked}, nil
 }
 
 func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (transport.AuthMethod, error) {

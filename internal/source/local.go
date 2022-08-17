@@ -13,15 +13,17 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	pkgsource "github.com/operator-framework/rukpak/pkg/source"
 )
 
 type Local struct {
 	client.Client
 	// reader queries the API server directly
-	reader client.Reader
+	Reader client.Reader
 }
 
-func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*pkgsource.Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeLocal {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
@@ -32,7 +34,7 @@ func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 	configMapRef := bundle.Spec.Source.Local.ConfigMapRef
 
 	var cm corev1.ConfigMap
-	if err := o.reader.Get(ctx, client.ObjectKey{Name: configMapRef.Name, Namespace: configMapRef.Namespace}, &cm); err != nil {
+	if err := o.Reader.Get(ctx, client.ObjectKey{Name: configMapRef.Name, Namespace: configMapRef.Namespace}, &cm); err != nil {
 		return nil, fmt.Errorf("could not find configmap %s/%s on the cluster", configMapRef.Namespace, configMapRef.Name)
 	}
 
@@ -74,5 +76,5 @@ func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 		Local: bundle.Spec.Source.Local.DeepCopy(),
 	}
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
+	return &pkgsource.Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: pkgsource.StateUnpacked}, nil
 }
