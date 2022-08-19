@@ -30,6 +30,13 @@ to quickly create a Cobra application.`,
 		newRunCmd(),
 	)
 
+	// Only add the alpha command if its non-nil. It will be nil if
+	// it has no subcommands. We structure it this way because alpha
+	// commands can come and go.
+	if alphaCmd := newAlphaCmd(); alphaCmd != nil {
+		rootCmd.AddCommand(alphaCmd)
+	}
+
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
