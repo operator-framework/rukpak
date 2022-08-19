@@ -1,6 +1,6 @@
 package helm
 
 const (
-	// ProvisionerID is the unique plain provisioner ID
+	// ProvisionerID is the unique helm provisioner ID
 	ProvisionerID = "core-rukpak-io-helm"
 )
