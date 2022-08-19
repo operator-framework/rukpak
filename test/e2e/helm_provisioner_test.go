@@ -293,7 +293,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Chart.yaml file is missing")),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("wrong chart directory")),
 			))
 		})
 	})
@@ -491,6 +491,125 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
 			))
 
+		})
+	})
+	When("a BundleDeployment targets an invalid Bundle with 2 charts in Github", func() {
+		var (
+			bd  *rukpakv1alpha1.BundleDeployment
+			ctx context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bd = &rukpakv1alpha1.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "test-",
+				},
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+					ProvisionerClassName: helm.ProvisionerID,
+					Template: &rukpakv1alpha1.BundleTemplate{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app.kubernetes.io/name": "test",
+							},
+						},
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: helm.ProvisionerID,
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeGit,
+								Git: &rukpakv1alpha1.GitSource{
+									Repository: "https://github.com/kube-reporting/metering-operator",
+									Directory:  "./charts",
+									Ref: rukpakv1alpha1.GitRef{
+										Branch: "master",
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bd)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing resources")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
+		})
+
+		It("should fail rolling out the bundle contents", func() {
+			By("eventually writing an installation state back to the bundledeployment status")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("wrong chart directory")),
+			))
+		})
+	})
+	When("a BundleDeployment targets an invalid directory in Github", func() {
+		var (
+			bd  *rukpakv1alpha1.BundleDeployment
+			ctx context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bd = &rukpakv1alpha1.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "test-",
+				},
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+					ProvisionerClassName: helm.ProvisionerID,
+					Template: &rukpakv1alpha1.BundleTemplate{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app.kubernetes.io/name": "test",
+							},
+						},
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: helm.ProvisionerID,
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeGit,
+								Git: &rukpakv1alpha1.GitSource{
+									Repository: "https://github.com/kube-reporting/metering-operator",
+									Ref: rukpakv1alpha1.GitRef{
+										Branch: "master",
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bd)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing resources")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
+		})
+
+		It("should fail rolling out the bundle contents", func() {
+			By("eventually writing an installation state back to the bundledeployment status")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("wrong chart directory")),
+			))
 		})
 	})
 })

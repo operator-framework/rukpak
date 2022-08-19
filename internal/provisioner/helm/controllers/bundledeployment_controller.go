@@ -353,11 +353,15 @@ func getChart(chartfs fs.FS) (*chart.Chart, error) {
 			return nil
 		}
 		if baseDir == "" {
+			// capture the chart directory path
 			baseDir = path
 			return nil
 		}
 		if d.IsDir() {
 			return nil
+		}
+		if !strings.HasPrefix(path, baseDir) {
+			return fmt.Errorf("wrong chart directory: %s", baseDir)
 		}
 		f, err := chartfs.Open(path)
 		if err != nil {
@@ -368,7 +372,7 @@ func getChart(chartfs fs.FS) (*chart.Chart, error) {
 			return err
 		}
 		bf := loader.BufferedFile{
-			Name: path[len(baseDir)+1:],
+			Name: strings.TrimPrefix(path, baseDir+"/"),
 			Data: data,
 		}
 		files = append(files, &bf)
