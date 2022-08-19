@@ -5,27 +5,16 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"hash/fnv"
 	"log"
 	"os"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/rukpakctl"
-	"github.com/operator-framework/rukpak/internal/util"
 )
 
 // newRunCmd creates the run command
@@ -76,62 +65,20 @@ one version to the next.
 
 			cfg := ctrl.GetConfigOrDie()
 
-			sch := scheme.Scheme
-			if err := rukpakv1alpha1.AddToScheme(sch); err != nil {
-				log.Fatal(err)
+			r := rukpakctl.Run{
+				Config:            cfg,
+				SystemNamespace:   systemNamespace,
+				UploadServiceName: uploadServiceName,
+				CASecretName:      caSecretName,
 			}
-			cl, err := client.New(cfg, client.Options{Scheme: sch})
+			_, err := r.Run(ctx, bundleDeploymentName, os.DirFS(bundleDir), rukpakctl.RunOptions{
+				BundleDeploymentProvisionerClassName: bundleDeploymentProvisionerClassName,
+				BundleProvisionerClassName:           bundleProvisionerClassName,
+				Log:                                  func(format string, a ...interface{}) { fmt.Printf(format, a...) },
+			})
 			if err != nil {
 				log.Fatal(err)
 			}
-
-			bundleFS := os.DirFS(bundleDir)
-			digest := fnv.New64a()
-			if err := util.FSToTarGZ(digest, bundleFS); err != nil {
-				log.Fatal(err)
-			}
-
-			bundleLabels := map[string]string{
-				"app":          bundleDeploymentName,
-				"bundleDigest": fmt.Sprintf("%x", digest.Sum(nil)),
-			}
-
-			bd := buildBundleDeployment(bundleDeploymentName, bundleLabels, bundleDeploymentProvisionerClassName, bundleProvisionerClassName)
-			if err := cl.Patch(ctx, bd, client.Apply, client.ForceOwnership, client.FieldOwner("rukpakctl")); err != nil {
-				log.Fatalf("apply bundle deployment: %v", err)
-			}
-			fmt.Printf("bundledeployment.core.rukpak.io %q applied\n", bundleDeploymentName)
-
-			rukpakCAs, err := rukpakctl.GetClusterCA(ctx, cl, types.NamespacedName{Namespace: systemNamespace, Name: caSecretName})
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			dynCl, err := dynamic.NewForConfig(cfg)
-			if err != nil {
-				log.Fatalf("build dynamic client: %v", err)
-			}
-
-			bundleName, err := getBundleName(ctx, dynCl, bundleLabels)
-			if err != nil {
-				log.Fatalf("failed to get bundle name: %v", err)
-			}
-			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      uploadServiceName,
-				UploadServiceNamespace: systemNamespace,
-				Cfg:                    cfg,
-				RootCAs:                rukpakCAs,
-			}
-			modified, err := bu.Upload(ctx, bundleName, bundleFS)
-			if err != nil {
-				log.Fatalf("failed to upload bundle: %v", err)
-			}
-			if !modified {
-				fmt.Printf("bundle %q is already up-to-date\n", bundleName)
-				return
-			}
-
-			fmt.Printf("successfully uploaded bundle content for %q\n", bundleName)
 		},
 	}
 	cmd.Flags().StringVar(&systemNamespace, "system-namespace", "rukpak-system", "the namespace in which the rukpak controllers are deployed.")
@@ -140,49 +87,4 @@ one version to the next.
 	cmd.Flags().StringVar(&bundleDeploymentProvisionerClassName, "bundle-deployment-provisioner-class", plain.ProvisionerID, "Provisioner class name to set on bundle deployment.")
 	cmd.Flags().StringVar(&bundleProvisionerClassName, "bundle-provisioner-class", plain.ProvisionerID, "Provisioner class name to set on bundle.")
 	return cmd
-}
-
-func buildBundleDeployment(bdName string, bundleLabels map[string]string, biPCN, bPNC string) *unstructured.Unstructured {
-	// We use unstructured here to avoid problems of serializing default values when sending patches to the apiserver.
-	// If you use a typed object, any default values from that struct get serialized into the JSON patch, which could
-	// cause unrelated fields to be patched back to the default value even though that isn't the intention. Using an
-	// unstructured ensures that the patch contains only what is specified. Using unstructured like this is basically
-	// identical to "kubectl apply -f"
-	return &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": rukpakv1alpha1.GroupVersion.String(),
-		"kind":       rukpakv1alpha1.BundleDeploymentKind,
-		"metadata": map[string]interface{}{
-			"name": bdName,
-		},
-		"spec": map[string]interface{}{
-			"provisionerClassName": biPCN,
-			"template": map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"labels": bundleLabels,
-				},
-				"spec": map[string]interface{}{
-					"provisionerClassName": bPNC,
-					"source": map[string]interface{}{
-						"type":   rukpakv1alpha1.SourceTypeUpload,
-						"upload": &rukpakv1alpha1.UploadSource{},
-					},
-				},
-			},
-		},
-	}}
-}
-
-func getBundleName(ctx context.Context, dynCl dynamic.Interface, bundleLabels map[string]string) (string, error) {
-	watch, err := dynCl.Resource(rukpakv1alpha1.GroupVersion.WithResource("bundles")).Watch(ctx, metav1.ListOptions{Watch: true, LabelSelector: labels.FormatLabels(bundleLabels)})
-	if err != nil {
-		return "", fmt.Errorf("watch bundles: %v", err)
-	}
-	defer watch.Stop()
-
-	select {
-	case evt := <-watch.ResultChan():
-		return evt.Object.(client.Object).GetName(), nil
-	case <-ctx.Done():
-		return "", ctx.Err()
-	}
 }
