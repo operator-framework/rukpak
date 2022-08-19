@@ -20,6 +20,7 @@ REGISTRY_NAMESPACE=rukpak-e2e
 DNS_NAME=$(REGISTRY_NAME).$(REGISTRY_NAMESPACE).svc.cluster.local
 
 CONTAINER_RUNTIME ?= docker
+KUBECTL ?= kubectl
 
 # kernel-style V=1 build verbosity
 ifeq ("$(origin V)", "command line")
@@ -106,7 +107,7 @@ kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 kind-cluster-cleanup: kind ## Delete the kind cluster
 	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
 
-image-registry: ## Setup in-cluster image registry 
+image-registry: ## Setup in-cluster image registry
 	./tools/imageregistry/setup_imageregistry.sh ${KIND_CLUSTER_NAME}
 
 ###################
@@ -119,22 +120,22 @@ image-registry: ## Setup in-cluster image registry
 install: generate cert-mgr install-manifests wait ## Install rukpak
 
 install-manifests:
-	kubectl apply -k manifests
+	$(KUBECTL) apply -k manifests
 
 wait:
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-webhooks --timeout=60s
-	kubectl wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/helm-provisioner --timeout=60s
-	kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
+	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
+	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-webhooks --timeout=60s
+	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/helm-provisioner --timeout=60s
+	$(KUBECTL) wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
 run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
 
 cert-mgr: ## Install the certification manager
-	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
-	kubectl wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
+	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
+	$(KUBECTL) wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
 
 uninstall: ## Remove all rukpak resources from the cluster
-	kubectl delete -k manifests
+	$(KUBECTL) delete -k manifests
 
 ##################
 # Build and Load #
@@ -204,7 +205,7 @@ release: goreleaser substitute ## Run goreleaser
 
 quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
 quickstart: generate ## Generate the installation release manifests
-	kubectl kustomize manifests | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
+	$(KUBECTL) kustomize manifests | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
 
 ################
 # Hack / Tools #
@@ -242,4 +243,3 @@ $(GORELEASER): $(TOOLS_DIR)/go.mod # Build goreleaser from tools folder.
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/goreleaser github.com/goreleaser/goreleaser
 $(KIND): $(TOOLS_DIR)/go.mod
 	cd $(TOOLS_DIR); go build -tags=tools -o $(BIN_DIR)/kind sigs.k8s.io/kind
-
