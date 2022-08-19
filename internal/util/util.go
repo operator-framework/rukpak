@@ -285,10 +285,6 @@ func PodNamespace(defaultNamespace string) string {
 	return string(namespace)
 }
 
-func BundleLabels(bundleName string) map[string]string {
-	return map[string]string{"core.rukpak.io/bundle-name": bundleName}
-}
-
 func newLabelSelector(name, kind string) labels.Selector {
 	kindRequirement, err := labels.NewRequirement(CoreOwnerKindKey, selection.Equals, []string{kind})
 	if err != nil {
