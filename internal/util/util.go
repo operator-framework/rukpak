@@ -175,35 +175,52 @@ func MapBundleDeploymentToBundles(ctx context.Context, c client.Client, bd rukpa
 	return bundles
 }
 
-func MapBundleToBundleDeployments(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) []*rukpakv1alpha1.BundleDeployment {
+// MapBundleToBundleDeployment is responsible for finding the BundleDeployment resource
+// that's managing this Bundle in the cluster. In the case that this Bundle is a standalone
+// resource, then no BundleDeployment will be returned as static creation of Bundle
+// resources is not a supported workflow right now.
+func MapBundleToBundleDeployment(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) *rukpakv1alpha1.BundleDeployment {
+	// check whether this is a standalone bundle that was created outside
+	// of the normal BundleDeployment controller reconciliation process.
+	if bundleOwnerType := b.Labels[CoreOwnerKindKey]; bundleOwnerType != rukpakv1alpha1.BundleDeploymentKind {
+		return nil
+	}
+	bundleOwnerName := b.Labels[CoreOwnerNameKey]
+	if bundleOwnerName == "" {
+		return nil
+	}
+
 	bundleDeployments := &rukpakv1alpha1.BundleDeploymentList{}
 	if err := c.List(ctx, bundleDeployments); err != nil {
 		return nil
 	}
-	var bds []*rukpakv1alpha1.BundleDeployment
 	for _, bd := range bundleDeployments.Items {
 		bd := bd
 
-		bundles := MapBundleDeploymentToBundles(ctx, c, bd)
-		for _, bundle := range bundles.Items {
-			if bundle.GetName() == b.GetName() {
-				bds = append(bds, &bd)
-			}
+		if bd.GetName() == bundleOwnerName {
+			return bd.DeepCopy()
 		}
 	}
-	return bds
+	return nil
 }
 
-func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, log logr.Logger) handler.MapFunc {
+// MapBundleToBundleDeploymentHandler is responsible for requeuing a BundleDeployment resource
+// when a new Bundle event has been encountered. In the case that the Bundle resource is a
+// standalone resource, then no BundleDeployment will be returned as static creation of Bundle
+// resources is not a supported workflow right now. The provisionerClassName parameter is used
+// to filter out BundleDeployments that the caller shouldn't be watching.
+func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, log logr.Logger, provisionerClassName string) handler.MapFunc {
 	return func(object client.Object) []reconcile.Request {
 		b := object.(*rukpakv1alpha1.Bundle)
 
-		var requests []reconcile.Request
-		matchingBDs := MapBundleToBundleDeployments(ctx, cl, *b)
-		for _, bd := range matchingBDs {
-			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(bd)})
+		managingBD := MapBundleToBundleDeployment(ctx, cl, *b)
+		if managingBD == nil {
+			return nil
 		}
-		return requests
+		if managingBD.Spec.ProvisionerClassName != provisionerClassName {
+			return nil
+		}
+		return []reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(managingBD)}}
 	}
 }
 

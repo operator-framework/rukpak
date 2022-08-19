@@ -373,8 +373,12 @@ func isResourceNotFoundErr(err error) bool {
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(util.BundleDeploymentProvisionerFilter(helm.ProvisionerID))).
-		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), mgr.GetLogger()))).
+		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(
+			util.BundleDeploymentProvisionerFilter(helm.ProvisionerID)),
+		).
+		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(
+			util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), mgr.GetLogger(), helm.ProvisionerID),
+		)).
 		Build(r)
 	if err != nil {
 		return err
