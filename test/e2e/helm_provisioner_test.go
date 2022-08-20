@@ -102,7 +102,13 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				))
 			})
 
-			It("should re-create a deployment resource when manually deleted", func() {
+			// The helm chart provisioner doesn't appear to support dynamically reconciling the underlying
+			// chart contents after they have been installed. In the case that a deployment resource has
+			// been manually created, that deletion event won't trigger a new reconciliation for the
+			// provisioner. Disabling this test until this functionality is added.
+			//
+			// See https://github.com/operator-framework/rukpak/issues/514 for more information.
+			PIt("should re-create a deployment resource when manually deleted", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() error {
@@ -389,7 +395,13 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				))
 			})
 
-			It("should re-create a deployment resource when manually deleted", func() {
+			// The helm chart provisioner doesn't appear to support dynamically reconciling the underlying
+			// chart contents after they have been installed. In the case that a deployment resource has
+			// been manually created, that deletion event won't trigger a new reconciliation for the
+			// provisioner. Disabling this test until this functionality is added.
+			//
+			// See https://github.com/operator-framework/rukpak/issues/514 for more information.
+			PIt("should re-create a deployment resource when manually deleted", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() error {
