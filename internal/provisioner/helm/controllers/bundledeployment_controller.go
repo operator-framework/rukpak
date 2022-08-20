@@ -155,8 +155,8 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		u.UpdateStatus(
 			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInvalidBundleContent,
-				Status:  metav1.ConditionTrue,
+				Type:    rukpakv1alpha1.TypeHasValidBundle,
+				Status:  metav1.ConditionFalse,
 				Reason:  rukpakv1alpha1.ReasonReadingContentFailed,
 				Message: err.Error(),
 			}))
