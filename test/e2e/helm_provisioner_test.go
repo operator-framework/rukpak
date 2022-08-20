@@ -76,59 +76,64 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("instantiated bundle")),
 			))
+		})
 
-			By("eventually install helm chart successfully")
-			deployment := &appsv1.Deployment{}
+		When("the underlying helm chart contains a deployment manifest", func() {
+			It("should eventually result in an available deployment resource", func() {
+				By("eventually install helm chart successfully")
+				deployment := &appsv1.Deployment{}
 
-			Eventually(func() (*appsv1.DeploymentCondition, error) {
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
-					return nil, err
-				}
-				for _, c := range deployment.Status.Conditions {
-					if c.Type == appsv1.DeploymentAvailable {
-						return &c, nil
+				Eventually(func() (*appsv1.DeploymentCondition, error) {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+						return nil, err
 					}
-				}
-				return nil, nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
-				WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
-			))
-
-			By("eventually recreate deleted resource in the helm chart")
-			deployment = &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: defaultSystemNamespace,
-					Name:      bd.GetName() + "-hello-world",
-				},
-			}
-
-			By("deleting resource in the helm chart")
-			Expect(c.Delete(ctx, deployment)).To(BeNil())
-
-			By("eventually recreate deleted resource in the helm chart")
-			Eventually(func() (*appsv1.DeploymentCondition, error) {
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
-					return nil, err
-				}
-				for _, c := range deployment.Status.Conditions {
-					if c.Type == appsv1.DeploymentAvailable {
-						return &c, nil
+					for _, c := range deployment.Status.Conditions {
+						if c.Type == appsv1.DeploymentAvailable {
+							return &c, nil
+						}
 					}
-				}
-				return nil, nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
-				WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
-			))
+					return nil, nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
+					WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
+				))
+			})
+
+			It("should re-create a deployment resource when manually deleted", func() {
+				deployment := &appsv1.Deployment{}
+
+				Eventually(func() error {
+					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment)
+				}).Should(Succeed())
+
+				By("deleting the deployment resource in the helm chart")
+				Expect(c.Delete(ctx, deployment)).To(BeNil())
+
+				By("verifying the deleted deployment resource in the helm chart gets recreated")
+				Eventually(func() (*appsv1.DeploymentCondition, error) {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+						return nil, err
+					}
+					for _, c := range deployment.Status.Conditions {
+						if c.Type == appsv1.DeploymentAvailable {
+							return &c, nil
+						}
+					}
+					return nil, nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
+					WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
+				))
+			})
 		})
 	})
+
 	When("a BundleDeployment targets a Bundle with an invalid url", func() {
 		var (
 			bd  *rukpakv1alpha1.BundleDeployment
@@ -358,57 +363,61 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("instantiated bundle")),
 			))
+		})
 
-			By("eventually install helm chart successfully")
-			deployment := &appsv1.Deployment{}
+		When("the underlying helm chart contains a deployment manifest", func() {
+			It("should eventually result in an available deployment resource", func() {
+				By("eventually install helm chart successfully")
+				deployment := &appsv1.Deployment{}
 
-			Eventually(func() (*appsv1.DeploymentCondition, error) {
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
-					return nil, err
-				}
-				for _, c := range deployment.Status.Conditions {
-					if c.Type == appsv1.DeploymentAvailable {
-						return &c, nil
+				Eventually(func() (*appsv1.DeploymentCondition, error) {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+						return nil, err
 					}
-				}
-				return nil, nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
-				WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
-			))
-
-			By("eventually recreate deleted resource in the helm chart")
-			deployment = &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: defaultSystemNamespace,
-					Name:      bd.GetName() + "-hello-world",
-				},
-			}
-
-			By("deleting resource in the helm chart")
-			Expect(c.Delete(ctx, deployment)).To(BeNil())
-
-			By("eventually recreate deleted resource in the helm chart")
-			Eventually(func() (*appsv1.DeploymentCondition, error) {
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
-					return nil, err
-				}
-				for _, c := range deployment.Status.Conditions {
-					if c.Type == appsv1.DeploymentAvailable {
-						return &c, nil
+					for _, c := range deployment.Status.Conditions {
+						if c.Type == appsv1.DeploymentAvailable {
+							return &c, nil
+						}
 					}
-				}
-				return nil, nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
-				WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
-				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
-			))
+					return nil, nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
+					WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
+				))
+			})
+
+			It("should re-create a deployment resource when manually deleted", func() {
+				deployment := &appsv1.Deployment{}
+
+				Eventually(func() error {
+					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment)
+				}).Should(Succeed())
+
+				By("deleting the deployment resource in the helm chart")
+				Expect(c.Delete(ctx, deployment)).To(BeNil())
+
+				By("verifying the deleted deployment resource in the helm chart gets recreated")
+				Eventually(func() (*appsv1.DeploymentCondition, error) {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+						return nil, err
+					}
+					for _, c := range deployment.Status.Conditions {
+						if c.Type == appsv1.DeploymentAvailable {
+							return &c, nil
+						}
+					}
+					return nil, nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *appsv1.DeploymentCondition) appsv1.DeploymentConditionType { return c.Type }, Equal(appsv1.DeploymentAvailable)),
+					WithTransform(func(c *appsv1.DeploymentCondition) corev1.ConditionStatus { return c.Status }, Equal(corev1.ConditionTrue)),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
+					WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
+				))
+			})
 		})
 	})
 	When("a BundleDeployment targets a valid Bundle with values", func() {
