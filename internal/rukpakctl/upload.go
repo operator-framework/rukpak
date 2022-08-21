@@ -70,7 +70,10 @@ func (bu *BundleUploader) Upload(ctx context.Context, bundleName string, bundleF
 
 	var bundleModified bool
 	eg.Go(func() error {
-		defer cancel()
+		defer func() {
+			cancel()
+			bundleWriter.Close()
+		}()
 
 		// get the local port. this will wait until the port forwarder is ready.
 		localPort, err := pf.LocalPort(ctx)

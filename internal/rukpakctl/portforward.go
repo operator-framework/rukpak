@@ -3,15 +3,19 @@ package rukpakctl
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
@@ -55,18 +59,29 @@ func NewServicePortForwarder(cfg *rest.Config, service types.NamespacedName, por
 func (pf *ServicePortForwarder) Start(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	endpoints, err := pf.cl.CoreV1().Endpoints(pf.serviceNamespace).Get(ctx, pf.serviceName, metav1.GetOptions{})
-	if err != nil {
+	var subset corev1.EndpointSubset
+	if err := wait.PollImmediateUntil(time.Second*1, func() (bool, error) {
+		endpoints, err := pf.cl.CoreV1().Endpoints(pf.serviceNamespace).Get(ctx, pf.serviceName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		if len(endpoints.Subsets) == 0 || len(endpoints.Subsets[0].Addresses) == 0 {
+			return false, nil
+		}
+		subset = endpoints.Subsets[0]
+		return true, nil
+	}, ctx.Done()); err != nil {
+		if errors.Is(err, ctx.Err()) {
+			return fmt.Errorf("could not find available endpoint for %s service", pf.serviceName)
+		}
 		return err
 	}
 
-	if len(endpoints.Subsets) == 0 || len(endpoints.Subsets[0].Addresses) == 0 {
-		return fmt.Errorf("could not find available endpoint for %s service", pf.serviceName)
-	}
-	podName := endpoints.Subsets[0].Addresses[0].TargetRef.Name
+	podName := subset.Addresses[0].TargetRef.Name
 	port := pf.port.IntVal
 	if port == 0 {
-		for _, p := range endpoints.Subsets[0].Ports {
+		for _, p := range subset.Ports {
 			if p.Name == pf.port.StrVal {
 				port = p.Port
 				break
