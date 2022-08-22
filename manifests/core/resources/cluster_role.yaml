@@ -7,9 +7,6 @@ metadata:
 rules:
 - nonResourceURLs:
   - /bundles/*
-  verbs:
-  - get
-- nonResourceURLs:
   - /uploads/*
   verbs:
   - get
