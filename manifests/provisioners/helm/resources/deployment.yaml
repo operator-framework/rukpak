@@ -26,6 +26,7 @@ spec:
             - "--upstream=http://127.0.0.1:8080/"
             - "--logtostderr=true"
             - "--v=1"
+            - "--client-ca-file=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
             - "--tls-cert-file=/etc/pki/tls/tls.crt"
             - "--tls-private-key-file=/etc/pki/tls/tls.key"
           ports:
@@ -40,6 +41,8 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/helm"]
           args:
+            - "--unpack-image=quay.io/operator-framework/rukpak:latest"
+            - "--base-upload-manager-url=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
             - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(HELM_PROVISIONER_SERVICE_NAME).$(HELM_PROVISIONER_SERVICE_NAMESPACE).svc"

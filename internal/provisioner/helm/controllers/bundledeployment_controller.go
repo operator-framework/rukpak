@@ -21,14 +21,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
-	"io/ioutil"
 	"strings"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
@@ -340,48 +337,6 @@ func (r *BundleDeploymentReconciler) loadChart(ctx context.Context, bundle *rukp
 		return nil, err
 	}
 	return getChart(chartfs)
-}
-
-func getChart(chartfs fs.FS) (*chart.Chart, error) {
-	var baseDir string
-	files := []*loader.BufferedFile{}
-	err := fs.WalkDir(chartfs, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if path == "." {
-			return nil
-		}
-		if baseDir == "" {
-			baseDir = path
-			return nil
-		}
-		if d.IsDir() {
-			return nil
-		}
-		f, err := chartfs.Open(path)
-		if err != nil {
-			return err
-		}
-		data, err := ioutil.ReadAll(f)
-		if err != nil {
-			return err
-		}
-		bf := loader.BufferedFile{
-			Name: path[len(baseDir)+1:],
-			Data: data,
-		}
-		files = append(files, &bf)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	chrt, err := loader.LoadFiles(files)
-	if err != nil {
-		return nil, err
-	}
-	return chrt, nil
 }
 
 type errRequiredResourceNotFound struct {

@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io/fs"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,7 +49,7 @@ type BundleReconciler struct {
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=list;watch;update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles/finalizers,verbs=update
-//+kubebuilder:rbac:verbs=get,urls=/bundles/*
+//+kubebuilder:rbac:verbs=get,urls=/bundles/*;/uploads/*
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=list;watch;create;delete
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
 //+kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
@@ -130,14 +129,29 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("source bundle content: %v", err))
 	}
-	if unpackResult.State != source.StateUnpacked {
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
+	switch unpackResult.State {
+	case source.StatePending:
+		updateStatusUnpackPending(&u, unpackResult)
+		return ctrl.Result{}, nil
+	case source.StateUnpacking:
+		updateStatusUnpacking(&u, unpackResult)
+		return ctrl.Result{}, nil
 	}
-	err = validateChart(unpackResult.Bundle)
+
+	// Helm expects an FS whose root contains a single chart directory. Depending on how
+	// the bundle is sourced, the FS may or may not contain this single chart directory in
+	// its root (e.g. charts uploaded via 'rukpakctl run <bdName> <chartDir>') would not.
+	// This FS wrapper adds this base directory unless the FS already has a base directory.
+	chartFS, err := util.EnsureBaseDirFS(unpackResult.Bundle, "chart")
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, err)
 	}
-	if err := r.Storage.Store(ctx, bundle, unpackResult.Bundle); err != nil {
+
+	_, err = getChart(chartFS)
+	if err != nil {
+		return ctrl.Result{}, updateStatusUnpackFailing(&u, err)
+	}
+	if err := r.Storage.Store(ctx, bundle, chartFS); err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("persist bundle objects: %v", err))
 	}
 
@@ -150,16 +164,32 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return ctrl.Result{}, nil
 }
 
-func validateChart(chartfs fs.FS) error {
-	chart, err := getChart(chartfs)
-	if err != nil {
-		return err
-	}
-	err = chart.Validate()
-	if err != nil {
-		return err
-	}
-	return nil
+func updateStatusUnpackPending(u *updater.Updater, result *source.Result) {
+	u.UpdateStatus(
+		updater.EnsureResolvedSource(nil),
+		updater.EnsureContentURL(""),
+		updater.SetPhase(rukpakv1alpha1.PhasePending),
+		updater.EnsureCondition(metav1.Condition{
+			Type:    rukpakv1alpha1.TypeUnpacked,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonUnpackPending,
+			Message: result.Message,
+		}),
+	)
+}
+
+func updateStatusUnpacking(u *updater.Updater, result *source.Result) {
+	u.UpdateStatus(
+		updater.EnsureResolvedSource(nil),
+		updater.EnsureContentURL(""),
+		updater.SetPhase(rukpakv1alpha1.PhaseUnpacking),
+		updater.EnsureCondition(metav1.Condition{
+			Type:    rukpakv1alpha1.TypeUnpacked,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonUnpacking,
+			Message: result.Message,
+		}),
+	)
 }
 
 func updateStatusUnpacked(u *updater.Updater, result *source.Result, contentURL string) {
