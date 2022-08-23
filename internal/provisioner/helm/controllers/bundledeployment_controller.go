@@ -42,10 +42,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/pkg/api/v1alpha1"
 	helm "github.com/operator-framework/rukpak/internal/provisioner/helm/types"
 	"github.com/operator-framework/rukpak/internal/storage"
-	updater "github.com/operator-framework/rukpak/internal/updater/bundle-deployment"
+	updater "github.com/operator-framework/rukpak/pkg/updater/bundle-deployment"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 

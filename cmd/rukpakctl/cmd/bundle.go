@@ -28,7 +28,7 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/pkg/api/v1alpha1"
 	"github.com/operator-framework/rukpak/cmd/rukpakctl/utils"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 )
