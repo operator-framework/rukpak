@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	helm "github.com/operator-framework/rukpak/internal/provisioner/helm/types"
@@ -223,9 +225,14 @@ func updateStatusUnpackFailing(u *updater.Updater, err error) error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	l := mgr.GetLogger().WithName("controller.bundle")
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
 			util.BundleProvisionerFilter(helm.ProvisionerID),
 		)).
+		// The default image source unpacker creates Pod's ownerref'd to its bundle, so
+		// we need to watch pods to ensure we reconcile events coming from these
+		// pods.
+		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, helm.ProvisionerID, &rukpakv1alpha1.Bundle{})).
 		Complete(r)
 }
