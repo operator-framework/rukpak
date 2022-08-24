@@ -43,8 +43,8 @@ import (
 	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
-	updater "github.com/operator-framework/rukpak/internal/updater/bundle"
 	"github.com/operator-framework/rukpak/internal/util"
+	updater "github.com/operator-framework/rukpak/pkg/updater/bundle"
 )
 
 // BundleReconciler reconciles a Bundle object

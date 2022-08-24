@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/updater"
+	"github.com/operator-framework/rukpak/pkg/updater"
 )
 
 func NewBundleUpdater(client client.Client) Updater {
