@@ -17,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/pkg/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 

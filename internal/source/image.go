@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/pkg/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 

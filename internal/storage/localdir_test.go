@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/pkg/api/v1alpha1"
 )
 
 var _ = Describe("LocalDirectory", func() {

@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/pkg/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/util"
 
 	"github.com/go-git/go-billy/v5/memfs"
