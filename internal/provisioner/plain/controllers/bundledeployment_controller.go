@@ -49,8 +49,8 @@ import (
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/storage"
-	updater "github.com/operator-framework/rukpak/internal/updater/bundle-deployment"
 	"github.com/operator-framework/rukpak/internal/util"
+	updater "github.com/operator-framework/rukpak/pkg/updater/bundle-deployment"
 )
 
 // BundleDeploymentReconciler reconciles a BundleDeployment object
