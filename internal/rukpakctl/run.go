@@ -72,7 +72,7 @@ func (r *Run) Run(ctx context.Context, bundleDeploymentName string, bundle fs.FS
 		"bundleDigest": fmt.Sprintf("%x", digest.Sum(nil)),
 	}
 
-	bd := buildBundleDeployment(bundleDeploymentName, bundleLabels, plain.ProvisionerID, plain.ProvisionerID)
+	bd := buildBundleDeployment(bundleDeploymentName, bundleLabels, opts.BundleDeploymentProvisionerClassName, opts.BundleProvisionerClassName)
 	if err := cl.Patch(ctx, bd, client.Apply, client.ForceOwnership, client.FieldOwner("rukpakctl")); err != nil {
 		return false, fmt.Errorf("apply bundle deployment: %v", err)
 	}
