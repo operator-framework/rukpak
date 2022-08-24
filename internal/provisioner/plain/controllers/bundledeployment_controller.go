@@ -101,6 +101,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			l.Error(err, "failed to update status")
 		}
 	}()
+	u.UpdateStatus(updater.EnsureObservedGeneration(bd.Generation))
 
 	bundle, allBundles, err := util.ReconcileDesiredBundle(ctx, r.Client, bd)
 	if err != nil {
