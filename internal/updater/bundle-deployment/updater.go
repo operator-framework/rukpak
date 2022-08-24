@@ -69,3 +69,13 @@ func EnsureInstalledName(bundleName string) UpdateStatusFunc {
 		return true
 	}
 }
+
+func EnsureObservedGeneration(observedGeneration int64) UpdateStatusFunc {
+	return func(status *rukpakv1alpha1.BundleDeploymentStatus) bool {
+		if status.ObservedGeneration == observedGeneration {
+			return false
+		}
+		status.ObservedGeneration = observedGeneration
+		return true
+	}
+}

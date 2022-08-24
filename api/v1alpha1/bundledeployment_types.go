@@ -66,8 +66,9 @@ type BundleTemplate struct {
 
 // BundleDeploymentStatus defines the observed state of BundleDeployment
 type BundleDeploymentStatus struct {
-	Conditions   []metav1.Condition `json:"conditions,omitempty"`
-	ActiveBundle string             `json:"activeBundle,omitempty"`
+	Conditions         []metav1.Condition `json:"conditions,omitempty"`
+	ActiveBundle       string             `json:"activeBundle,omitempty"`
+	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 }
 
 //+kubebuilder:object:root=true
