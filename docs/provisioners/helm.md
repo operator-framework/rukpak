@@ -2,10 +2,20 @@
 
 ## Summary
 
-The `helm` provisioner is able to instantiate a given `helm+v3` bundle with a specified helm chart onto a cluster and then install the helm chart,
-in the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
+The `helm` provisioner is able to instantiate a given `helm+v3` bundle onto a cluster and then install the referred helm chart
+on the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core-rukpak-io-helm`. This field must be set to the correct provisioner
 name in order for the `helm` provisioner to see and interact with the bundle.
+
+Supported source types for a helm bundle currently include the following:
+
+* A container image
+* A directory in a git repository
+* A [http](../sources/http.md)
+* An [upload](../uploading-bundles.md)
+
+Additional source types, such as a local volume are on the roadmap. These source types
+all present the same content, a directory containing a helm chart, in a different ways.
 
 ### Install and apply a specific version of a `helm+v3` bundle
 
@@ -16,7 +26,7 @@ name in order for the `helm` provisioner to see and interact with the bundle.
 The `helm` provisioner can install and make available a specific `helm+v3` bundle in the cluster.
 
 Simply create a `BundleDeployment` resource that contains the desired specification of a Bundle resource.
-The `helm` provisioner will retrieve the specific helm chart and instantiate the Bundle onto the cluster, and eventually install the helm chart
+The `helm` provisioner will retrieve the referred helm chart and instantiate the Bundle onto the cluster, and eventually install the helm chart
  on the cluster.
 
 ```yaml
@@ -88,9 +98,24 @@ my-ahoy   my-ahoy-5764594dc8   InstallationSucceeded   48s
 
 > Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
 
-## Running locally
+## Quick Start
 
 ### Setup
+
+#### Prepare sample github repository
+
+Fork `https://github.com/helm/examples` github repository into any origanization that you have write access.
+
+Set a YOUR_ORG environment variable for convenience.
+```bash
+export YOUR_ORG="your goranization name"
+```
+
+Edit `https://github.com/$YOUR_ORG/examples/blob/main/charts/hello-world/Chart.yaml` and update `version: 0.1.0` to `version: 0.1.1` and
+commit the change into `v0.1.1` branch.
+
+
+#### Install rukpak for expertiment
 
 To experiment with the `helm` provisioner locally, take the following steps to
 create a local [kind](https://kind.sigs.k8s.io/) cluster and deploy the provisioner onto it:
@@ -129,8 +154,12 @@ spec:
       provisionerClassName: core-rukpak-io-helm
       source:
         http:
-          url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz
-        type: http
+        git:
+          ref:
+            branch: main
+          repository: https://github.com/akihikokuroda/examples
+          directory: ./charts
+        type: git
 EOF
 ```
 
@@ -154,7 +183,7 @@ Eventually the Bundle should show up as Unpacked:
 ```console
 $ kubectl get bundle -l app=my-ahoy
 NAME                 TYPE   PHASE      AGE
-my-ahoy-5764594dc8   http   Unpacked   33s
+my-ahoy-5764594dc8   git    Unpacked   33s
 ```
 
 Check the BundleDeployment status to ensure that the installation was successful:
@@ -171,9 +200,12 @@ NAME      ACTIVE BUNDLE        INSTALL STATE           AGE
 my-ahoy   my-ahoy-5764594dc8   InstallationSucceeded   48s
 ```
 
-From there, check out the my-ahoy deployment and ensure that the operator is present on the cluster:
+From there, ensure that the helm chart is installed and the operator is present on the cluster:
 
 ```bash
+# Check the installed helm chart
+helm list
+
 # Check the my-ahoy deployment
 kubectl get deployments.apps my-ahoy-hello-world
 
@@ -184,6 +216,10 @@ kubectl get deployments.apps my-ahoy-hello-world -o yaml | grep 'image:' | xargs
 The deployment should show ready and available:
 
 ```console
+$ helm list
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
+my-ahoy rukpak-system   1               2022-08-27 22:08:23.310271084 +0000 UTC deployed        hello-world-0.1.0       1.16.0
+
 $ kubectl get deployments.apps my-ahoy-hello-world
 NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
 my-ahoy-hello-world   1/1     1            1           102s
@@ -194,31 +230,21 @@ $ kubectl get deployments.apps my-ahoy-hello-world -o yaml | grep 'image:' | xar
 
 This means the operator should be successfully installed.
 
-The `helm` provisioner continually reconciles BundleDeployment resources. Next, let's try deleting the my-ahoy-hello-world deployment:
+Delete BundleDeployment for the next step
+```bash
+kubectl delete bundledeployment my-ahoy
+```
+
+```console
+bundledeployment.core.rukpak.io "my-ahoy" deleted
+```
+
+### Add a values file
+
+Add a values file into the BundleDeployment to override some default values:
 
 ```bash
-kubectl delete deployments.apps my-ahoy-hello-world
-```
-
-A message saying the deployment was deleted should be returned:
-
-```console
-$ kubectl delete deployments.apps my-ahoy-hello-world
-deployment.apps "my-ahoy-hello-world" deleted
-```
-
-The provisioner ensures that all resources required for the BundleDeployment to run are accounted for on-cluster.
-So if we check for the deployment again, it will be back on the cluster:
-
-```console
-$ kubectl get deployment my-ahoy-hello-world
-NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
-my-ahoy-hello-world   1/1     1            1           7s
-```
-
-The values file for the chart can be applied during install.  The values can be embeded in the `config` section of BundleDeployment.
-
-```yaml
+kubectl apply -f -<<EOF
 apiVersion: core.rukpak.io/v1alpha1
 kind: BundleDeployment
 metadata:
@@ -236,7 +262,7 @@ spec:
         pullPolicy: IfNotPresent
         # Overrides the image tag whose default is the chart appVersion.
         tag: ""
-      nameOverride: "formvalues"
+      nameOverride: "fromvalues"
       fullnameOverride: ""
       serviceAccount:
         # Specifies whether a service account should be created
@@ -256,9 +282,211 @@ spec:
     spec:
       provisionerClassName: core-rukpak-io-helm
       source:
-        http:
-          url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  
-        type: http
+        git:
+          ref:
+            branch: main
+          repository: https://github.com/akihikokuroda/examples
+          directory: ./charts
+        type: git
+EOF
+```
+
+This values file is updating the `nameOverride`
+
+```console
+bundledeployment.core.rukpak.io/my-ahoy created
+```
+
+Check the name of the deployment:
+
+```bash
+kubectl get deployment
+```
+
+```console
+NAME                 READY   UP-TO-DATE   AVAILABLE   AGE
+core                 1/1     1            1           20h
+helm-provisioner     1/1     1            1           20h
+my-ahoy-fromvalues   1/1     1            1           36s
+rukpak-webhooks      1/1     1            1           20h
+```
+
+The name of the deployment is `my-ahoy-fromvalues` now
+
+### Update the values file
+
+Change this a value in the values file.  Update the `nameOverride` to `name1`
+
+```bash
+kubectl apply -f -<<EOF
+apiVersion: core.rukpak.io/v1alpha1
+kind: BundleDeployment
+metadata:
+  name: my-ahoy
+spec:
+  provisionerClassName: core-rukpak-io-helm
+  config:
+    values: |
+      # Default values for hello-world.
+      # This is a YAML-formatted file.
+      # Declare variables to be passed into your templates.
+      replicaCount: 1
+      image:
+        repository: nginx
+        pullPolicy: IfNotPresent
+        # Overrides the image tag whose default is the chart appVersion.
+        tag: ""
+      nameOverride: "name1"
+      fullnameOverride: ""
+      serviceAccount:
+        # Specifies whether a service account should be created
+        create: true
+        # Annotations to add to the service account
+        annotations: {}
+        # The name of the service account to use.
+        # If not set and create is true, a name is generated using the fullname template
+        name: ""
+      service:
+        type: ClusterIP
+        port: 80
+  template:
+    metadata:
+      labels:
+        app: my-ahoy
+    spec:
+      provisionerClassName: core-rukpak-io-helm
+      source:
+        git:
+          ref:
+            branch: main
+          repository: https://github.com/akihikokuroda/examples
+          directory: ./charts
+        type: git
+EOF
+```
+
+```console
+bundledeployment.core.rukpak.io/my-ahoy configured
+```
+
+Check the name of the deployment
+
+```bash
+kubectl get deployment
+```
+
+```console
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+core               1/1     1            1           20h
+helm-provisioner   1/1     1            1           20h
+my-ahoy-name1      1/1     1            1           56s
+rukpak-webhooks    1/1     1            1           20h
+```
+
+Now the name of the deployment is `my-ahoy-name1`
+
+### Upgrade the helm chart
+
+Check the helm chart version install now
+
+```bash
+# Check the installed helm chart
+helm list
+```
+
+```console
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
+my-ahoy rukpak-system   2               2022-08-27 22:14:50.56889877 +0000 UTC  deployed        hello-world-0.1.0       1.16.0
+```
+
+Now the helm chart version is `hello-world-0.1.0`.  Change the git branch to `v0.1.1` from `main`
+
+```bash
+kubectl apply -f -<<EOF
+apiVersion: core.rukpak.io/v1alpha1
+kind: BundleDeployment
+metadata:
+  name: my-ahoy
+spec:
+  provisionerClassName: core-rukpak-io-helm
+  config:
+    values: |
+      # Default values for hello-world.
+      # This is a YAML-formatted file.
+      # Declare variables to be passed into your templates.
+      replicaCount: 1
+      image:
+        repository: nginx
+        pullPolicy: IfNotPresent
+        # Overrides the image tag whose default is the chart appVersion.
+        tag: ""
+      nameOverride: "name1"
+      fullnameOverride: ""
+      serviceAccount:
+        # Specifies whether a service account should be created
+        create: true
+        # Annotations to add to the service account
+        annotations: {}
+        # The name of the service account to use.
+        # If not set and create is true, a name is generated using the fullname template
+        name: ""
+      service:
+        type: ClusterIP
+        port: 80
+  template:
+    metadata:
+      labels:
+        app: my-ahoy
+    spec:
+      provisionerClassName: core-rukpak-io-helm
+      source:
+        git:
+          ref:
+            branch: v0.1.1
+          repository: https://github.com/akihikokuroda/examples
+          directory: ./charts
+        type: git
+EOF
+```
+
+```console
+bundledeployment.core.rukpak.io/my-ahoy configured
+```
+
+Check the helm chart version, again
+
+```bash
+# Check the installed helm chart
+helm list
+```
+
+```console
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
+my-ahoy rukpak-system   3               2022-08-27 22:12:51.056782394 +0000 UTC deployed        hello-world-0.1.1       1.16.0
+```
+
+Now the helm chart version is `hello-world-0.1.1`.
+
+### Reconcile deployed resources
+
+The `helm` provisioner continually reconciles BundleDeployment resources. Next, let's try deleting the my-ahoy-name1 deployment:
+
+```bash
+kubectl delete deployments.apps my-ahoy-name1
+```
+
+A message saying the deployment was deleted should be returned:
+
+```console
+deployment.apps "my-ahoy-name1" deleted
+```
+
+The provisioner ensures that all resources required for the BundleDeployment to run are accounted for on-cluster.
+So if we check for the deployment again, it will be back on the cluster:
+
+```console
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+my-ahoy-name1         1/1     1            1           7s
 ```
 
 ### Deleting the sample chart and Local Kind Cluster
