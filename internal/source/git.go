@@ -39,41 +39,21 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	if bundle.Spec.Source.Git == nil {
 		return nil, fmt.Errorf("bundle source git configuration is unset")
 	}
-	gitsource := bundle.Spec.Source.Git
-	if gitsource.Repository == "" {
-		// This should never happen because the validation webhook rejects git bundles without repository
-		return nil, errors.New("missing git source information: repository must be provided")
-	}
-
-	// Set options for clone
 	progress := bytes.Buffer{}
-	cloneOpts := git.CloneOptions{
-		URL:             gitsource.Repository,
-		Progress:        &progress,
-		Tags:            git.NoTags,
-		InsecureSkipTLS: bundle.Spec.Source.Git.Auth.InsecureSkipVerify,
+	// Set options for clone
+	cloneOpts, err := r.createCloneOptions(bundle, progress)
+	if err != nil {
+		return nil, fmt.Errorf("bundle clone options error: %v", err)
 	}
-
-	if bundle.Spec.Source.Git.Auth.Secret.Name != "" {
-		auth, err := r.configAuth(ctx, bundle)
-		if err != nil {
-			return nil, fmt.Errorf("configuring Auth error: %w", err)
-		}
-		cloneOpts.Auth = auth
+	// Retrieve Secret and set cloneOpts.Auth
+	auth, err := r.configAuth(ctx, bundle)
+	if err != nil {
+		return nil, fmt.Errorf("bundle clone options auth error: %v", err)
 	}
-
-	if gitsource.Ref.Branch != "" {
-		cloneOpts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", gitsource.Ref.Branch))
-		cloneOpts.SingleBranch = true
-		cloneOpts.Depth = 1
-	} else if gitsource.Ref.Tag != "" {
-		cloneOpts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", gitsource.Ref.Tag))
-		cloneOpts.SingleBranch = true
-		cloneOpts.Depth = 1
-	}
+	cloneOpts.Auth = auth
 
 	// Clone
-	repo, err := git.CloneContext(ctx, memory.NewStorage(), memfs.New(), &cloneOpts)
+	repo, err := git.CloneContext(ctx, memory.NewStorage(), memfs.New(), cloneOpts)
 	if err != nil {
 		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
 	}
@@ -83,6 +63,7 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	}
 
 	// Checkout commit
+	gitsource := bundle.Spec.Source.Git
 	if gitsource.Ref.Commit != "" {
 		commitHash := plumbing.NewHash(gitsource.Ref.Commit)
 		if err := wt.Reset(&git.ResetOptions{
@@ -126,8 +107,40 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
 }
 
+func (r *Git) createCloneOptions(bundle *rukpakv1alpha1.Bundle, progress bytes.Buffer) (*git.CloneOptions, error) {
+	gitsource := bundle.Spec.Source.Git
+	if gitsource.Repository == "" {
+		// This should never happen because the validation webhook rejects git bundles without repository
+		return nil, errors.New("missing git source information: repository must be provided")
+	}
+
+	cloneOpts := git.CloneOptions{
+		URL:             gitsource.Repository,
+		Progress:        &progress,
+		Tags:            git.NoTags,
+		InsecureSkipTLS: bundle.Spec.Source.Git.Auth.InsecureSkipVerify,
+	}
+
+	if gitsource.Ref.Branch != "" && gitsource.Ref.Tag != "" {
+		return nil, errors.New("git branch and tag cannot be set simultaneously")
+	}
+	if gitsource.Ref.Branch != "" {
+		cloneOpts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", gitsource.Ref.Branch))
+		cloneOpts.SingleBranch = true
+		cloneOpts.Depth = 1
+	} else if gitsource.Ref.Tag != "" {
+		cloneOpts.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/tags/%s", gitsource.Ref.Tag))
+		cloneOpts.SingleBranch = true
+		cloneOpts.Depth = 1
+	}
+	return &cloneOpts, nil
+}
+
 func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (transport.AuthMethod, error) {
 	var auth transport.AuthMethod
+	if bundle.Spec.Source.Git.Auth.Secret.Name == "" {
+		return nil, nil
+	}
 	if strings.HasPrefix(bundle.Spec.Source.Git.Repository, "http") {
 		userName, password, err := r.getCredentials(ctx, bundle)
 		if err != nil {
@@ -156,6 +169,7 @@ func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (tr
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			},
 		}
+		return auth, nil
 	} else if host != nil {
 		_, _, pubKey, _, _, err := ssh.ParseKnownHosts(host)
 		if err != nil {

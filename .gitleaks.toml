@@ -1,0 +1,3 @@
+[[rules.allowlist]]
+description = "ignore testdata private key"
+paths = "testdata/source/git/private-key.pem"
