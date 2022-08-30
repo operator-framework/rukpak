@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/static:debug
+FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 
 COPY helm helm

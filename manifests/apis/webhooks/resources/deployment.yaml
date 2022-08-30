@@ -15,9 +15,17 @@ spec:
       labels:
         app: webhooks
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: webhooks-admin
       containers:
         - name: webhooks
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ "ALL" ]
           command: ["/webhooks"]
           image: quay.io/operator-framework/rukpak:latest
           imagePullPolicy: IfNotPresent
