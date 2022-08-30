@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -94,6 +95,8 @@ func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bund
 		pod.Spec.Containers[0].Command = []string{"/bin/unpack", "--bundle-dir", "/"}
 		pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}}
 
+		addSecurityContext(pod)
+
 		if bundle.Spec.Source.Image.ImagePullSecretName != "" {
 			pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: bundle.Spec.Source.Image.ImagePullSecretName}}
 		}
@@ -102,18 +105,6 @@ func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bund
 		}
 		return nil
 	})
-}
-
-func pendingImagePodResult(pod *corev1.Pod) *Result {
-	var messages []string
-	for _, cStatus := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
-		if waiting := cStatus.State.Waiting; waiting != nil {
-			if waiting.Reason == "ErrImagePull" || waiting.Reason == "ImagePullBackOff" {
-				messages = append(messages, waiting.Message)
-			}
-		}
-	}
-	return &Result{State: StatePending, Message: strings.Join(messages, "; ")}
 }
 
 func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
@@ -189,4 +180,66 @@ func (i *Image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error)
 func (i *Image) handleUnexpectedPod(ctx context.Context, pod *corev1.Pod) error {
 	_ = i.Client.Delete(ctx, pod)
 	return fmt.Errorf("unexpected pod phase: %v", pod.Status.Phase)
+}
+
+func pendingImagePodResult(pod *corev1.Pod) *Result {
+	var messages []string
+	for _, cStatus := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
+		if waiting := cStatus.State.Waiting; waiting != nil {
+			if waiting.Reason == "ErrImagePull" || waiting.Reason == "ImagePullBackOff" {
+				messages = append(messages, waiting.Message)
+			}
+		}
+	}
+	return &Result{State: StatePending, Message: strings.Join(messages, "; ")}
+}
+
+// addSecurityContext is responsible for taking a container and defining the
+// relevant security context values. By having a function do this, we can keep
+// that configuration easily consistent and maintainable.
+func addSecurityContext(pod *corev1.Pod) {
+	// Check that pod is defined before proceeding
+	if pod == nil {
+		return
+	}
+
+	// Add security context for overall pod
+	pod.Spec.SecurityContext = &corev1.PodSecurityContext{
+		// TODO (tyslaton): Address unpacker pod allowing root users for image sources
+		//
+		// In our current implementation, we are creating a pod that uses the image
+		// provided by an image source. This pod is not always guaranteed to run as a
+		// non-root user and thus will fail to initialize if running as root in a PSA
+		// restricted namespace due to violations. As it currently stands, our compliance
+		// with PSA is baseline which allows for pods to run as root users. However,
+		// all RukPak processes and resources, except this unpacker pod for image sources,
+		// are runnable in a PSA restricted environment. We should consider ways to make
+		// this PSA definition either configurable or workable in a restricted namespace.
+		//
+		// See https://github.com/operator-framework/rukpak/pull/539 for more detail.
+		RunAsNonRoot: pointer.Bool(false),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+
+	// Add security context for containers
+	for i := range pod.Spec.InitContainers {
+		pod.Spec.InitContainers[i].SecurityContext = &corev1.SecurityContext{
+			AllowPrivilegeEscalation: pointer.Bool(false),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
+		}
+	}
+
+	// Add security context for containers
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].SecurityContext = &corev1.SecurityContext{
+			AllowPrivilegeEscalation: pointer.Bool(false),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
+		}
+	}
 }
