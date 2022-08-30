@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
@@ -218,12 +219,18 @@ func (f *billyFS) ReadFile(name string) ([]byte, error) {
 }
 
 func (f *billyFS) Open(path string) (fs.File, error) {
+	fi, err := f.Filesystem.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if fi.IsDir() {
+		return &billyDirFile{billyFile{nil, fi}, f, path}, nil
+	}
 	file, err := f.Filesystem.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	fi, err := f.Filesystem.Stat(path)
-	return &billyFile{file, fi, err}, nil
+	return &billyFile{file, fi}, nil
 }
 
 func (f *billyFS) ReadDir(name string) ([]fs.DirEntry, error) {
@@ -240,10 +247,34 @@ func (f *billyFS) ReadDir(name string) ([]fs.DirEntry, error) {
 
 type billyFile struct {
 	billy.File
-	fi    os.FileInfo
-	fiErr error
+	fi os.FileInfo
 }
 
 func (b billyFile) Stat() (fs.FileInfo, error) {
-	return b.fi, b.fiErr
+	return b.fi, nil
+}
+
+func (b billyFile) Close() error {
+	if b.File == nil {
+		return nil
+	}
+	return b.File.Close()
+}
+
+type billyDirFile struct {
+	billyFile
+	fs   *billyFS
+	path string
+}
+
+func (d *billyDirFile) ReadDir(n int) ([]fs.DirEntry, error) {
+	entries, err := d.fs.ReadDir(d.path)
+	if n <= 0 || n > len(entries) {
+		n = len(entries)
+	}
+	return entries[:n], err
+}
+
+func (d billyDirFile) Read(data []byte) (int, error) {
+	return 0, &fs.PathError{Op: "read", Path: d.path, Err: syscall.EISDIR}
 }
