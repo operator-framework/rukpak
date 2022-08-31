@@ -107,10 +107,19 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 		bundleFS = &billyFS{sub}
 	}
 
+	commitHash, err := repo.ResolveRevision("HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("resolve commit hash: %v", err)
+	}
+
+	resolvedGit := bundle.Spec.Source.Git.DeepCopy()
+	resolvedGit.Ref = rukpakv1alpha1.GitRef{
+		Commit: commitHash.String(),
+	}
+
 	resolvedSource := &rukpakv1alpha1.BundleSource{
 		Type: rukpakv1alpha1.SourceTypeGit,
-		// TODO: improve git source implementation to return result with commit hash.
-		Git: bundle.Spec.Source.Git.DeepCopy(),
+		Git:  resolvedGit,
 	}
 
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil

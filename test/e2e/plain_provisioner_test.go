@@ -534,24 +534,42 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
-				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return err
-					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return errors.New("bundle is not unpacked")
-					}
+				By("eventually unpacking the bundle", func() {
+					Eventually(func() error {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return err
+						}
+						if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+							return errors.New("bundle is not unpacked")
+						}
 
-					provisionerPods := &corev1.PodList{}
-					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
-						return err
-					}
-					if len(provisionerPods.Items) != 1 {
-						return errors.New("expected exactly 1 provisioner pod")
-					}
+						provisionerPods := &corev1.PodList{}
+						if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
+							return err
+						}
+						if len(provisionerPods.Items) != 1 {
+							return errors.New("expected exactly 1 provisioner pod")
+						}
 
-					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
-				}).Should(BeNil())
+						return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+					}).Should(BeNil())
+				})
+
+				By("eventually writing a non-empty commit hash to the status", func() {
+					Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return nil, err
+						}
+						return bundle.Status.ResolvedSource, nil
+					}).Should(And(
+						Not(BeNil()),
+						WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeGit)),
+						WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.GitSource { return s.Git }, And(
+							Not(BeNil()),
+							WithTransform(func(i *rukpakv1alpha1.GitSource) string { return i.Ref.Commit }, Not(Equal(""))),
+						)),
+					))
+				})
 			})
 		})
 
@@ -587,24 +605,42 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
-				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return err
-					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return errors.New("bundle is not unpacked")
-					}
+				By("eventually unpacking the bundle", func() {
+					Eventually(func() error {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return err
+						}
+						if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
+							return errors.New("bundle is not unpacked")
+						}
 
-					provisionerPods := &corev1.PodList{}
-					if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
-						return err
-					}
-					if len(provisionerPods.Items) != 1 {
-						return errors.New("expected exactly 1 provisioner pod")
-					}
+						provisionerPods := &corev1.PodList{}
+						if err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"}); err != nil {
+							return err
+						}
+						if len(provisionerPods.Items) != 1 {
+							return errors.New("expected exactly 1 provisioner pod")
+						}
 
-					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
-				}).Should(BeNil())
+						return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+					}).Should(BeNil())
+				})
+
+				By("eventually writing a non-empty commit hash to the status", func() {
+					Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+							return nil, err
+						}
+						return bundle.Status.ResolvedSource, nil
+					}).Should(And(
+						Not(BeNil()),
+						WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeGit)),
+						WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.GitSource { return s.Git }, And(
+							Not(BeNil()),
+							WithTransform(func(i *rukpakv1alpha1.GitSource) string { return i.Ref.Commit }, Not(Equal(""))),
+						)),
+					))
+				})
 			})
 		})
 
