@@ -12,6 +12,17 @@ content of the bundle available in the cluster. It does so by reconciling `Bundl
 the `spec.provisionerClassName` field set to `core-rukpak-io-plain`. This field must be set to the correct provisioner
 name in order for the `plain` provisioner to see and interact with the bundle.
 
+Supported source types for a plain bundle currently include the following:
+
+* A container image
+* A directory in a git repository
+* A [http](../sources/http.md)
+* A [configmap](local-bundles.md)
+* An [upload](../uploading-bundles.md)
+
+Additional source types, such as a local volume are on the roadmap. These source types
+all present the same content, a directory containing a plain bundle, in a different ways.
+
 ### Install and apply a specific version of a `plain+v0` bundle
 
 > :warning: Anyone with the ability to create or update BundleDeployment objects can become cluster admin. It's important
