@@ -1,0 +1,31 @@
+name: stale
+on:
+  workflow_dispatch:
+  schedule:
+    # The start of everyday
+    - cron: '0 0 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v5.1.1
+        id: stale
+        with:
+          # PR configuration
+          days-before-pr-stale: 30
+          stale-pr-message: 'This PR has become stale because it has been open for 30 days with no activity. Please provide an update, merge, close, or add the lifecycle/frozen label to this PR before it is automatically closed.'
+          days-before-pr-close: 30
+          close-pr-message: 'This PR has been closed as no updates were detected after 30 days of being stale. Please feel free to reopen this PR if necessary.'
+          stale-pr-label: lifecycle/stale
+          exempt-pr-labels: lifecycle/frozen
+          close-pr-label: lifecycle/rotten
+
+          # Issue configuration
+          days-before-issue-stale: 60
+          stale-issue-message: 'This issue has become stale because it has been open 60 days with no activity. The maintainers of this repo will remove this label during issue triage. Adding the lifecycle/frozen label will cause this issue to ignore lifecycle events.'
+          days-before-issue-close: -1
+          stale-issue-label: lifecycle/stale
+          exempt-issue-labels: lifecycle/frozen
+      - name: Print outputs
+        run: echo ${{ join(steps.stale.outputs.*, ',') }}
