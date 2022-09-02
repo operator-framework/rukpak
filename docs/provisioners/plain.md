@@ -2,7 +2,8 @@
 
 ## Summary
 
-The `plain` provisioner is a core rukpak provisioner that knows how to interact with bundles of a particular format.
+The `plain` provisioner is one of core rukpak [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner)
+that knows how to interact with bundles of a particular format.
 These `plain+v0` bundles, or plain bundles, are simply container images containing a set of static Kubernetes YAML
 manifests in a given directory. For more information on the `plain+v0` format, see
 the [plain+v0 bundle spec](/docs/plain-bundle-spec.md).
@@ -11,6 +12,17 @@ The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a clust
 content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core-rukpak-io-plain`. This field must be set to the correct provisioner
 name in order for the `plain` provisioner to see and interact with the bundle.
+
+Supported source types for a plain bundle currently include the following:
+
+* A container image
+* A directory in a git repository
+* A [http](../sources/http.md)
+* A [configmap](local-bundles.md)
+* An [upload](../uploading-bundles.md)
+
+Additional source types, such as a local volume are on the roadmap. These source types
+all present the same content, a directory containing a plain bundle, in a different ways.
 
 ### Install and apply a specific version of a `plain+v0` bundle
 
