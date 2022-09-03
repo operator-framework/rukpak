@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"os"
 	"sort"
 	"time"
@@ -301,7 +300,7 @@ func SortBundlesByCreation(bundles *rukpakv1alpha1.BundleList) {
 // automatically for Pods at runtime. If that file doesn't exist, then
 // return the @defaultNamespace namespace parameter.
 func PodNamespace(defaultNamespace string) string {
-	namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		return defaultNamespace
 	}

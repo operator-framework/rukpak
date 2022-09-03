@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -797,7 +796,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				if info.IsDir() {
 					return nil
 				}
-				c, err := ioutil.ReadFile(path)
+				c, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
@@ -935,7 +934,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				if info.IsDir() {
 					return nil
 				}
-				c, err := ioutil.ReadFile(path)
+				c, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}

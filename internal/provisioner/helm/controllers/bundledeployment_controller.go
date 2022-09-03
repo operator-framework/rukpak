@@ -309,7 +309,7 @@ func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterfa
 	return currentRelease, stateUnchanged, nil
 }
 
-func (r *BundleDeploymentReconciler) loadValues(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) (chartutil.Values, error) {
+func (r *BundleDeploymentReconciler) loadValues(_ context.Context, bd *rukpakv1alpha1.BundleDeployment) (chartutil.Values, error) {
 	data, err := bd.Spec.Config.MarshalJSON()
 	if err != nil {
 		return nil, err
