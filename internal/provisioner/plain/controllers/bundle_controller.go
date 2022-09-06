@@ -268,9 +268,10 @@ func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
 			util.BundleProvisionerFilter(plain.ProvisionerID),
 		)).
-		// The default unpacker creates Pod's ownerref'd to its bundle, so
-		// we need to watch pods to ensure we reconcile events coming from these
-		// pods.
-		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, plain.ProvisionerID, &rukpakv1alpha1.Bundle{})).
-		Complete(r)
+		// The default image source unpacker creates a Job, which creates a pod,
+		// resulting in an ownerRef chain from Bundle to Pod. We'll watch pods
+		// directly because we care about events at the granularity of the pod,
+		// and we'll map those pod events back up the ownerRef chain to the root
+		// bundle.
+		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapUnpackPodToBundleHandler(context.Background(), mgr.GetClient(), l, plain.ProvisionerID)).Complete(r)
 }

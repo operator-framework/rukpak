@@ -149,7 +149,42 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 
-		It("should re-create underlying system resources", func() {
+		It("should re-create underlying job", func() {
+			var (
+				job *batchv1.Job
+			)
+
+			By("getting the underlying bundle unpacking job")
+			selector := util.NewBundleLabelSelector(bundle)
+			Eventually(func() bool {
+				jobs := &batchv1.JobList{}
+				if err := c.List(ctx, jobs, &client.ListOptions{
+					Namespace:     defaultSystemNamespace,
+					LabelSelector: selector,
+				}); err != nil {
+					return false
+				}
+				if len(jobs.Items) != 1 {
+					return false
+				}
+				job = &jobs.Items[0]
+				return true
+			}).Should(BeTrue())
+
+			By("storing the job's original UID")
+			originalUID := job.GetUID()
+
+			By("deleting the underlying job and waiting for it to be re-created")
+			err := c.Delete(context.Background(), job)
+			Expect(err).To(BeNil())
+
+			By("verifying the job's UID has changed")
+			Eventually(func() (types.UID, error) {
+				err := c.Get(ctx, client.ObjectKeyFromObject(job), job)
+				return job.GetUID(), err
+			}).ShouldNot(Equal(originalUID))
+		})
+		It("should re-create underlying pod", func() {
 			var (
 				pod *corev1.Pod
 			)
@@ -180,8 +215,17 @@ var _ = Describe("plain provisioner bundle", func() {
 
 			By("verifying the pod's UID has changed")
 			Eventually(func() (types.UID, error) {
-				err := c.Get(ctx, client.ObjectKeyFromObject(pod), pod)
-				return pod.GetUID(), err
+				pods := &corev1.PodList{}
+				if err := c.List(ctx, pods, &client.ListOptions{
+					Namespace:     defaultSystemNamespace,
+					LabelSelector: selector,
+				}); err != nil {
+					return "", err
+				}
+				if len(pods.Items) != 1 {
+					return "", fmt.Errorf("found %d pods, expected 1", len(pods.Items))
+				}
+				return pods.Items[0].UID, nil
 			}).ShouldNot(Equal(originalUID))
 		})
 		It("should block spec.source updates", func() {
@@ -302,44 +346,18 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		It("checks the bundle's phase is stuck in pending", func() {
-			By("waiting until the pod is reporting ImagePullBackOff state")
-			Eventually(func() bool {
-				pod := &corev1.Pod{}
-				if err := c.Get(ctx, types.NamespacedName{
-					Name:      bundle.GetName(),
-					Namespace: defaultSystemNamespace,
-				}, pod); err != nil {
-					return false
-				}
-				if pod.Status.Phase != corev1.PodPending {
-					return false
-				}
-				for _, status := range pod.Status.ContainerStatuses {
-					if status.State.Waiting != nil && status.State.Waiting.Reason == "ImagePullBackOff" {
-						return true
-					}
-				}
-				return false
-			}).Should(BeTrue())
-
-			By("waiting for the bundle to report back that state")
-			Eventually(func() bool {
+			By("waiting for the bundle to report back-off pulling image")
+			Eventually(func() (*rukpakv1alpha1.Bundle, error) {
 				err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
-				if err != nil {
-					return false
-				}
-				if bundle.Status.Phase != rukpakv1alpha1.PhasePending {
-					return false
-				}
-				unpackPending := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.PhaseUnpacked)
-				if unpackPending == nil {
-					return false
-				}
-				if unpackPending.Message != fmt.Sprintf(`Back-off pulling image "%s"`, bundle.Spec.Source.Image.Ref) {
-					return false
-				}
-				return true
-			}).Should(BeTrue())
+				return bundle, err
+			}).Should(And(
+				WithTransform(func(b *rukpakv1alpha1.Bundle) string { return b.Status.Phase }, Equal(rukpakv1alpha1.PhasePending)),
+				WithTransform(func(b *rukpakv1alpha1.Bundle) *metav1.Condition {
+					return meta.FindStatusCondition(b.Status.Conditions, rukpakv1alpha1.TypeUnpacked)
+				}, And(
+					Not(BeNil()),
+					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`Back-off pulling image`)))),
+			))
 		})
 	})
 

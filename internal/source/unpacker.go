@@ -116,7 +116,7 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, unpackImage string, baseUpl
 		rukpakv1alpha1.SourceTypeImage: &Image{
 			Client:       mgr.GetClient(),
 			KubeClient:   kubeClient,
-			PodNamespace: namespace,
+			JobNamespace: namespace,
 			UnpackImage:  unpackImage,
 		},
 		rukpakv1alpha1.SourceTypeGit: &Git{

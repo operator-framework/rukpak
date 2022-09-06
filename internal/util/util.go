@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -112,67 +112,28 @@ type ProvisionerClassNameGetter interface {
 	ProvisionerClassName() string
 }
 
-// MapOwneeToOwnerProvisionerHandler is a handler implementation that finds an owner reference in the event object that
-// references the provided owner. If a reference for the provided owner is found AND that owner's provisioner class name
-// matches the provided provisionerClassName, this handler enqueues a request for that owner to be reconciled.
-func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, log logr.Logger, provisionerClassName string, owner ProvisionerClassNameGetter) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-		gvks, unversioned, err := cl.Scheme().ObjectKinds(owner)
-		if err != nil {
-			log.Error(err, "get GVKs for owner")
-			return nil
-		}
-		if unversioned {
-			log.Error(err, "owner cannot be an unversioned type")
+func MapUnpackPodToBundleHandler(ctx context.Context, c client.Client, log logr.Logger, provisionerClassName string) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
+		pod := object.(*corev1.Pod)
+		if _, hasRukpakOwnerKindLabel := pod.Labels[CoreOwnerKindKey]; !hasRukpakOwnerKindLabel {
 			return nil
 		}
 
-		type ownerInfo struct {
-			key types.NamespacedName
-			gvk schema.GroupVersionKind
-		}
-		var oi *ownerInfo
-
-	refLoop:
-		for _, ref := range obj.GetOwnerReferences() {
-			gv, err := schema.ParseGroupVersion(ref.APIVersion)
-			if err != nil {
-				log.Error(err, fmt.Sprintf("parse group version %q", ref.APIVersion))
-				return nil
-			}
-			refGVK := gv.WithKind(ref.Kind)
-			for _, gvk := range gvks {
-				if refGVK == gvk && ref.Controller != nil && *ref.Controller {
-					oi = &ownerInfo{
-						key: types.NamespacedName{Name: ref.Name},
-						gvk: gvk,
-					}
-					break refLoop
-				}
-			}
-		}
-		if oi == nil {
+		bundleName, hasRukpakOwnerNameLabel := pod.Labels[CoreOwnerNameKey]
+		if !hasRukpakOwnerNameLabel {
 			return nil
 		}
-		if err := cl.Get(ctx, oi.key, owner); err != nil {
-			log.Error(err, "get owner", "kind", oi.gvk, "name", oi.key.Name)
+		bundleKey := types.NamespacedName{Name: bundleName}
+		bundle := &rukpakv1alpha1.Bundle{}
+		if err := c.Get(ctx, bundleKey, bundle); err != nil {
+			log.Error(err, "map unpack pod to bundle: get bundle", "pod", client.ObjectKeyFromObject(pod), "bundle", bundleKey)
 			return nil
 		}
-		if owner.ProvisionerClassName() != provisionerClassName {
+		if bundle.ProvisionerClassName() != provisionerClassName {
 			return nil
 		}
-		return []reconcile.Request{{NamespacedName: oi.key}}
+		return []reconcile.Request{{NamespacedName: bundleKey}}
 	})
-}
-
-func MapBundleDeploymentToBundles(ctx context.Context, c client.Client, bd rukpakv1alpha1.BundleDeployment) *rukpakv1alpha1.BundleList {
-	bundles := &rukpakv1alpha1.BundleList{}
-	if err := c.List(ctx, bundles, &client.ListOptions{
-		LabelSelector: NewBundleDeploymentLabelSelector(&bd),
-	}); err != nil {
-		return nil
-	}
-	return bundles
 }
 
 // MapBundleToBundleDeployment is responsible for finding the BundleDeployment resource
