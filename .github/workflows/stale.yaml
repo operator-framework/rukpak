@@ -27,5 +27,6 @@ jobs:
           days-before-issue-close: -1
           stale-issue-label: lifecycle/stale
           exempt-issue-labels: lifecycle/frozen
+          exempt-issue-milestones: icebox
       - name: Print outputs
         run: echo ${{ join(steps.stale.outputs.*, ',') }}
