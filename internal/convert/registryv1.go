@@ -190,6 +190,9 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 			supportedInstallModes.Insert(string(im.Type))
 		}
 	}
+	if !supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
+		return nil, fmt.Errorf("AllNamespace install mode must be enabled")
+	}
 	if targetNamespaces == nil {
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
 			targetNamespaces = []string{""}

@@ -1,0 +1,19 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    capabilities: Basic Install
+    description: Creates and maintains an OpenShift Update Service instance
+    operatorframework.io/suggested-namespace: openshift-update-service
+  name: update-service-operator.v5.0.0
+  namespace: placeholder
+spec:
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: false
+    type: AllNamespaces

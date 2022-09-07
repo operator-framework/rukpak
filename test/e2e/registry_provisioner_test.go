@@ -75,4 +75,59 @@ var _ = Describe("registry provisioner bundle", func() {
 			))
 		})
 	})
+	When("a BundleDeployment targets an invalid registry+v1 Bundle", func() {
+		var (
+			bd  *rukpakv1alpha1.BundleDeployment
+			ctx context.Context
+		)
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bd = &rukpakv1alpha1.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cincinnati",
+				},
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Template: &rukpakv1alpha1.BundleTemplate{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app.kubernetes.io/name": "cincinnati",
+							},
+						},
+						Spec: rukpakv1alpha1.BundleSpec{
+							ProvisionerClassName: registry.ProvisionerID,
+							Source: rukpakv1alpha1.BundleSource{
+								Type: rukpakv1alpha1.SourceTypeImage,
+								Image: &rukpakv1alpha1.ImageSource{
+									Ref: "testdata/bundles/registry:invalid",
+								},
+							},
+						},
+					},
+				},
+			}
+			err := c.Create(ctx, bd)
+			Expect(err).To(BeNil())
+		})
+		AfterEach(func() {
+			By("deleting the testing BI resource")
+			Expect(c.Delete(ctx, bd)).To(BeNil())
+		})
+
+		It("should eventually write a failed conversion state to the bundledeployment status", func() {
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("convert registry+v1 bundle to plain+v0 bundle: AllNamespace install mode must be enabled")),
+			))
+		})
+	})
 })
