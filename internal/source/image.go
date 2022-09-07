@@ -12,9 +12,12 @@ import (
 
 	"github.com/nlepage/go-tarfs"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	applyconfigurationcorev1 "k8s.io/client-go/applyconfigurations/core/v1"
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -62,49 +65,122 @@ func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 }
 
 func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
-	controllerRef := metav1.NewControllerRef(bundle, bundle.GroupVersionKind())
-	automountServiceAccountToken := false
-	pod.SetName(bundle.Name)
-	pod.SetNamespace(i.PodNamespace)
+	existingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: i.PodNamespace, Name: bundle.Name}}
+	if err := i.Client.Get(ctx, client.ObjectKeyFromObject(existingPod), existingPod); client.IgnoreNotFound(err) != nil {
+		return controllerutil.OperationResultNone, err
+	}
 
-	return util.CreateOrRecreate(ctx, i.Client, pod, func() error {
-		pod.SetLabels(map[string]string{
+	podApplyConfig := i.getDesiredPodApplyConfig(bundle)
+	updatedPod, err := i.KubeClient.CoreV1().Pods(i.PodNamespace).Apply(ctx, podApplyConfig, metav1.ApplyOptions{Force: true, FieldManager: "rukpak-core"})
+	if err != nil {
+		if !apierrors.IsInvalid(err) {
+			return controllerutil.OperationResultNone, err
+		}
+		if err := i.Client.Delete(ctx, existingPod); err != nil {
+			return controllerutil.OperationResultNone, err
+		}
+		updatedPod, err = i.KubeClient.CoreV1().Pods(i.PodNamespace).Apply(ctx, podApplyConfig, metav1.ApplyOptions{Force: true, FieldManager: "rukpak-core"})
+		if err != nil {
+			return controllerutil.OperationResultNone, err
+		}
+	}
+
+	// make sure the passed in pod value is updated with the latest
+	// version of the pod
+	*pod = *updatedPod
+
+	// compare existingPod to newPod and return an appropriate
+	// OperatorResult value.
+	newPod := updatedPod.DeepCopy()
+	unsetNonComparedPodFields(existingPod, newPod)
+	if equality.Semantic.DeepEqual(existingPod, newPod) {
+		return controllerutil.OperationResultNone, nil
+	}
+	return controllerutil.OperationResultUpdated, nil
+}
+
+func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyconfigurationcorev1.PodApplyConfiguration {
+	// TODO (tyslaton): Address unpacker pod allowing root users for image sources
+	//
+	// In our current implementation, we are creating a pod that uses the image
+	// provided by an image source. This pod is not always guaranteed to run as a
+	// non-root user and thus will fail to initialize if running as root in a PSA
+	// restricted namespace due to violations. As it currently stands, our compliance
+	// with PSA is baseline which allows for pods to run as root users. However,
+	// all RukPak processes and resources, except this unpacker pod for image sources,
+	// are runnable in a PSA restricted environment. We should consider ways to make
+	// this PSA definition either configurable or workable in a restricted namespace.
+	//
+	// See https://github.com/operator-framework/rukpak/pull/539 for more detail.
+	containerSecurityContext := applyconfigurationcorev1.SecurityContext().
+		WithAllowPrivilegeEscalation(false).
+		WithCapabilities(applyconfigurationcorev1.Capabilities().
+			WithDrop("ALL"),
+		)
+
+	podApply := applyconfigurationcorev1.Pod(bundle.Name, i.PodNamespace).
+		WithLabels(map[string]string{
 			util.CoreOwnerKindKey: bundle.Kind,
 			util.CoreOwnerNameKey: bundle.Name,
-		})
-		pod.SetOwnerReferences([]metav1.OwnerReference{*controllerRef})
-		pod.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
-		pod.Spec.RestartPolicy = corev1.RestartPolicyNever
+		}).
+		WithOwnerReferences(v1.OwnerReference().
+			WithName(bundle.Name).
+			WithKind(bundle.Kind).
+			WithAPIVersion(bundle.APIVersion).
+			WithUID(bundle.UID).
+			WithController(true).
+			WithBlockOwnerDeletion(true),
+		).
+		WithSpec(applyconfigurationcorev1.PodSpec().
+			WithAutomountServiceAccountToken(false).
+			WithRestartPolicy(corev1.RestartPolicyNever).
+			WithInitContainers(applyconfigurationcorev1.Container().
+				WithName("install-unpacker").
+				WithImage(i.UnpackImage).
+				WithImagePullPolicy(corev1.PullIfNotPresent).
+				WithCommand("cp", "-Rv", "/unpack", "/bin/unpack").
+				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
+					WithName("util").
+					WithMountPath("/bin"),
+				).
+				WithSecurityContext(containerSecurityContext),
+			).
+			WithContainers(applyconfigurationcorev1.Container().
+				WithName(imageBundleUnpackContainerName).
+				WithImage(bundle.Spec.Source.Image.Ref).
+				WithCommand("/bin/unpack", "--bundle-dir", "/").
+				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
+					WithName("util").
+					WithMountPath("/bin"),
+				).
+				WithSecurityContext(containerSecurityContext),
+			).
+			WithVolumes(applyconfigurationcorev1.Volume().
+				WithName("util").
+				WithEmptyDir(applyconfigurationcorev1.EmptyDirVolumeSource()),
+			).
+			WithSecurityContext(applyconfigurationcorev1.PodSecurityContext().
+				WithRunAsNonRoot(false).
+				WithSeccompProfile(applyconfigurationcorev1.SeccompProfile().
+					WithType(corev1.SeccompProfileTypeRuntimeDefault),
+				),
+			),
+		)
 
-		if len(pod.Spec.InitContainers) != 1 {
-			pod.Spec.InitContainers = make([]corev1.Container, 1)
-		}
+	if bundle.Spec.Source.Image.ImagePullSecretName != "" {
+		podApply.Spec = podApply.Spec.WithImagePullSecrets(
+			applyconfigurationcorev1.LocalObjectReference().WithName(bundle.Spec.Source.Image.ImagePullSecretName),
+		)
+	}
+	return podApply
+}
 
-		pod.Spec.InitContainers[0].Name = "install-unpacker"
-		pod.Spec.InitContainers[0].Image = i.UnpackImage
-		pod.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
-		pod.Spec.InitContainers[0].Command = []string{"cp", "-Rv", "/unpack", "/bin/unpack"}
-		pod.Spec.InitContainers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}}
-
-		if len(pod.Spec.Containers) != 1 {
-			pod.Spec.Containers = make([]corev1.Container, 1)
-		}
-
-		pod.Spec.Containers[0].Name = imageBundleUnpackContainerName
-		pod.Spec.Containers[0].Image = bundle.Spec.Source.Image.Ref
-		pod.Spec.Containers[0].Command = []string{"/bin/unpack", "--bundle-dir", "/"}
-		pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "util", MountPath: "/bin"}}
-
-		addSecurityContext(pod)
-
-		if bundle.Spec.Source.Image.ImagePullSecretName != "" {
-			pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: bundle.Spec.Source.Image.ImagePullSecretName}}
-		}
-		pod.Spec.Volumes = []corev1.Volume{
-			{Name: "util", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-		}
-		return nil
-	})
+func unsetNonComparedPodFields(pods ...*corev1.Pod) {
+	for _, p := range pods {
+		p.APIVersion = ""
+		p.Kind = ""
+		p.Status = corev1.PodStatus{}
+	}
 }
 
 func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
@@ -192,54 +268,4 @@ func pendingImagePodResult(pod *corev1.Pod) *Result {
 		}
 	}
 	return &Result{State: StatePending, Message: strings.Join(messages, "; ")}
-}
-
-// addSecurityContext is responsible for taking a container and defining the
-// relevant security context values. By having a function do this, we can keep
-// that configuration easily consistent and maintainable.
-func addSecurityContext(pod *corev1.Pod) {
-	// Check that pod is defined before proceeding
-	if pod == nil {
-		return
-	}
-
-	// Add security context for overall pod
-	pod.Spec.SecurityContext = &corev1.PodSecurityContext{
-		// TODO (tyslaton): Address unpacker pod allowing root users for image sources
-		//
-		// In our current implementation, we are creating a pod that uses the image
-		// provided by an image source. This pod is not always guaranteed to run as a
-		// non-root user and thus will fail to initialize if running as root in a PSA
-		// restricted namespace due to violations. As it currently stands, our compliance
-		// with PSA is baseline which allows for pods to run as root users. However,
-		// all RukPak processes and resources, except this unpacker pod for image sources,
-		// are runnable in a PSA restricted environment. We should consider ways to make
-		// this PSA definition either configurable or workable in a restricted namespace.
-		//
-		// See https://github.com/operator-framework/rukpak/pull/539 for more detail.
-		RunAsNonRoot: pointer.Bool(false),
-		SeccompProfile: &corev1.SeccompProfile{
-			Type: corev1.SeccompProfileTypeRuntimeDefault,
-		},
-	}
-
-	// Add security context for containers
-	for i := range pod.Spec.InitContainers {
-		pod.Spec.InitContainers[i].SecurityContext = &corev1.SecurityContext{
-			AllowPrivilegeEscalation: pointer.Bool(false),
-			Capabilities: &corev1.Capabilities{
-				Drop: []corev1.Capability{"ALL"},
-			},
-		}
-	}
-
-	// Add security context for containers
-	for i := range pod.Spec.Containers {
-		pod.Spec.Containers[i].SecurityContext = &corev1.SecurityContext{
-			AllowPrivilegeEscalation: pointer.Bool(false),
-			Capabilities: &corev1.Capabilities{
-				Drop: []corev1.Capability{"ALL"},
-			},
-		}
-	}
 }
