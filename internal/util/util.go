@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -117,13 +118,14 @@ type ProvisionerClassNameGetter interface {
 // matches the provided provisionerClassName, this handler enqueues a request for that owner to be reconciled.
 func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, log logr.Logger, provisionerClassName string, owner ProvisionerClassNameGetter) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-		gvks, unversioned, err := cl.Scheme().ObjectKinds(owner)
+		ownerGVK, err := apiutil.GVKForObject(owner, cl.Scheme())
 		if err != nil {
-			log.Error(err, "get GVKs for owner")
+			log.Error(err, "map ownee to owner: lookup GVK for owner")
 			return nil
 		}
-		if unversioned {
-			log.Error(err, "owner cannot be an unversioned type")
+		owneeGVK, err := apiutil.GVKForObject(obj, cl.Scheme())
+		if err != nil {
+			log.Error(err, "map ownee to owner: lookup GVK for ownee")
 			return nil
 		}
 
@@ -133,29 +135,33 @@ func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, lo
 		}
 		var oi *ownerInfo
 
-	refLoop:
 		for _, ref := range obj.GetOwnerReferences() {
 			gv, err := schema.ParseGroupVersion(ref.APIVersion)
 			if err != nil {
-				log.Error(err, fmt.Sprintf("parse group version %q", ref.APIVersion))
+				log.Error(err, fmt.Sprintf("map ownee to owner: parse ownee's owner reference group version %q", ref.APIVersion))
 				return nil
 			}
 			refGVK := gv.WithKind(ref.Kind)
-			for _, gvk := range gvks {
-				if refGVK == gvk && ref.Controller != nil && *ref.Controller {
-					oi = &ownerInfo{
-						key: types.NamespacedName{Name: ref.Name},
-						gvk: gvk,
-					}
-					break refLoop
+			if refGVK == ownerGVK && ref.Controller != nil && *ref.Controller {
+				oi = &ownerInfo{
+					key: types.NamespacedName{Name: ref.Name},
+					gvk: ownerGVK,
 				}
+				break
 			}
 		}
 		if oi == nil {
 			return nil
 		}
-		if err := cl.Get(ctx, oi.key, owner); err != nil {
-			log.Error(err, "get owner", "kind", oi.gvk, "name", oi.key.Name)
+
+		if err := cl.Get(ctx, oi.key, owner); client.IgnoreNotFound(err) != nil {
+			log.Info("map ownee to owner: get owner",
+				"ownee", client.ObjectKeyFromObject(obj),
+				"owneeKind", owneeGVK,
+				"owner", oi.key,
+				"ownerKind", oi.gvk,
+				"error", err.Error(),
+			)
 			return nil
 		}
 		if owner.ProvisionerClassName() != provisionerClassName {
