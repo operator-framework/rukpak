@@ -2,8 +2,8 @@ name: stale
 on:
   workflow_dispatch:
   schedule:
-    # The start of everyday
-    - cron: '0 0 * * *'
+    # The start of everyday and at hour 12
+    - cron: '00 00,12 * * *'
 
 jobs:
   stale:
@@ -27,5 +27,3 @@ jobs:
           days-before-issue-close: -1
           stale-issue-label: lifecycle/stale
           exempt-issue-labels: lifecycle/frozen
-      - name: Print outputs
-        run: echo ${{ join(steps.stale.outputs.*, ',') }}
