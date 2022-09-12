@@ -29,6 +29,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,7 +51,6 @@ import (
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
-	updater "github.com/operator-framework/rukpak/pkg/updater/bundle-deployment"
 )
 
 // BundleDeploymentReconciler reconciles a BundleDeployment object
@@ -82,37 +82,40 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
 
-	bd := &rukpakv1alpha1.BundleDeployment{}
-	if err := r.Get(ctx, req.NamespacedName, bd); err != nil {
+	existingBD := &rukpakv1alpha1.BundleDeployment{}
+	if err := r.Get(ctx, req.NamespacedName, existingBD); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	defer func() {
-		bd := bd.DeepCopy()
-		bd.ObjectMeta.ManagedFields = nil
-		bd.Spec.Template = nil
-		if err := r.Status().Patch(ctx, bd, client.Apply, client.FieldOwner(plain.ProvisionerID)); err != nil {
-			l.Error(err, "failed to patch status")
-		}
-	}()
 
-	u := updater.NewBundleDeploymentUpdater(r.Client)
-	defer func() {
-		if err := u.Apply(ctx, bd); err != nil {
-			l.Error(err, "failed to update status")
+	reconciledBD := existingBD.DeepCopy()
+	res, reconcileErr := r.reconcile(ctx, reconciledBD)
+
+	if !equality.Semantic.DeepEqual(existingBD.Status, reconciledBD.Status) {
+		if updateErr := r.Client.Status().Update(ctx, reconciledBD); updateErr != nil {
+			return res, utilerrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
-	}()
-	u.UpdateStatus(updater.EnsureObservedGeneration(bd.Generation))
+	}
+	existingBD.Status, reconciledBD.Status = rukpakv1alpha1.BundleDeploymentStatus{}, rukpakv1alpha1.BundleDeploymentStatus{}
+	if !equality.Semantic.DeepEqual(existingBD, reconciledBD) {
+		if updateErr := r.Client.Update(ctx, reconciledBD); updateErr != nil {
+			return res, utilerrors.NewAggregate([]error{reconcileErr, updateErr})
+		}
+	}
+
+	return res, reconcileErr
+}
+
+func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) (ctrl.Result, error) {
+	bd.Status.ObservedGeneration = bd.Generation
 
 	bundle, allBundles, err := util.ReconcileDesiredBundle(ctx, r.Client, bd)
 	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeHasValidBundle,
-				Status:  metav1.ConditionUnknown,
-				Reason:  rukpakv1alpha1.ReasonReconcileFailed,
-				Message: err.Error(),
-			}),
-		)
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
+			Status:  metav1.ConditionUnknown,
+			Reason:  rukpakv1alpha1.ReasonReconcileFailed,
+			Message: err.Error(),
+		})
 		return ctrl.Result{}, err
 	}
 	if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
@@ -127,33 +130,30 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				message = fmt.Sprintf("%s: %s", message, c.Message)
 			}
 		}
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeHasValidBundle,
-				Status:  status,
-				Reason:  reason,
-				Message: message,
-			}),
-		)
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
+			Status:  status,
+			Reason:  reason,
+			Message: message,
+		})
 		return ctrl.Result{}, nil
 	}
-	u.UpdateStatus(
-		updater.EnsureCondition(metav1.Condition{
-			Type:    rukpakv1alpha1.TypeHasValidBundle,
-			Status:  metav1.ConditionTrue,
-			Reason:  rukpakv1alpha1.ReasonUnpackSuccessful,
-			Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
-		}))
+
+	meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeHasValidBundle,
+		Status:  metav1.ConditionTrue,
+		Reason:  rukpakv1alpha1.ReasonUnpackSuccessful,
+		Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
+	})
 
 	desiredObjects, err := r.loadBundle(ctx, bundle, bd.GetName())
 	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeHasValidBundle,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonBundleLoadFailed,
-				Message: err.Error(),
-			}))
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonBundleLoadFailed,
+			Message: err.Error(),
+		})
 		return ctrl.Result{}, err
 	}
 
@@ -163,13 +163,12 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	for _, obj := range desiredObjects {
 		jsonData, err := yaml.Marshal(obj)
 		if err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeHasValidBundle,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonReadingContentFailed,
-					Message: err.Error(),
-				}))
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeHasValidBundle,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonReadingContentFailed,
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, err
 		}
 		hash := sha256.Sum256(jsonData)
@@ -183,25 +182,23 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	cl, err := r.ActionClientGetter.ActionClientFor(bd)
 	bd.SetNamespace("")
 	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonErrorGettingClient,
-				Message: err.Error(),
-			}))
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeInstalled,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonErrorGettingClient,
+			Message: err.Error(),
+		})
 		return ctrl.Result{}, err
 	}
 
 	rel, state, err := r.getReleaseState(cl, bd, chrt)
 	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonErrorGettingReleaseState,
-				Message: err.Error(),
-			}))
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeInstalled,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonErrorGettingReleaseState,
+			Message: err.Error(),
+		})
 		return ctrl.Result{}, err
 	}
 
@@ -215,13 +212,12 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonInstallFailed,
-					Message: err.Error(),
-				}))
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInstalled,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonInstallFailed,
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
@@ -230,13 +226,12 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
-					Message: err.Error(),
-				}))
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInstalled,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, err
 		}
 	case stateUnchanged:
@@ -244,13 +239,12 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonReconcileFailed,
-					Message: err.Error(),
-				}))
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInstalled,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonReconcileFailed,
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, err
 		}
 	default:
@@ -260,13 +254,12 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	for _, obj := range desiredObjects {
 		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-					Message: err.Error(),
-				}))
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInstalled,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, err
 		}
 
@@ -287,29 +280,25 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			}
 			return nil
 		}(); err != nil {
-			u.UpdateStatus(
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-					Message: err.Error(),
-				}))
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInstalled,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
+				Message: err.Error(),
+			})
 			return ctrl.Result{}, err
 		}
 	}
-	u.UpdateStatus(
-		updater.EnsureCondition(metav1.Condition{
-			Type:    rukpakv1alpha1.TypeInstalled,
-			Status:  metav1.ConditionTrue,
-			Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-			Message: fmt.Sprintf("instantiated bundle %s successfully", bundle.GetName()),
-		}),
-		updater.EnsureInstalledName(bundle.GetName()),
-	)
+	meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeInstalled,
+		Status:  metav1.ConditionTrue,
+		Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
+		Message: fmt.Sprintf("instantiated bundle %s successfully", bundle.GetName()),
+	})
+	bd.Status.ActiveBundle = bundle.GetName()
 
 	if err := r.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
-		l.Error(err, "failed to delete old bundles")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to delete old bundles: %v", err)
 	}
 
 	return ctrl.Result{}, nil
