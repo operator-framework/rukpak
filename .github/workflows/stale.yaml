@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   schedule:
     # The start of everyday and at hour 12
-    - cron: '00 00,12 * * *'
+    - cron: '00 00 * * *'
 
 jobs:
   stale:
@@ -12,9 +12,12 @@ jobs:
       - uses: actions/stale@v5.1.1
         id: stale
         with:
+          # Overall configuration
+          operations-per-run: 100
+
           # PR configuration
           days-before-pr-stale: 30
-          stale-pr-message: 'This PR has become stale because it has been open for 30 days with no activity. Please provide an update, merge, close, or add the lifecycle/frozen label to this PR before it is automatically closed.'
+          stale-pr-message: 'This PR has become stale because it has been open for 30 days with no activity. Please update this PR or remove the `lifecycle/stale` label before it is automatically closed in 30 days. Adding the `lifecycle/frozen` label will cause this PR to ignore lifecycle events.'
           days-before-pr-close: 30
           close-pr-message: 'This PR has been closed as no updates were detected after 30 days of being stale. Please feel free to reopen this PR if necessary.'
           stale-pr-label: lifecycle/stale
@@ -23,7 +26,7 @@ jobs:
 
           # Issue configuration
           days-before-issue-stale: 60
-          stale-issue-message: 'This issue has become stale because it has been open 60 days with no activity. The maintainers of this repo will remove this label during issue triage. Adding the lifecycle/frozen label will cause this issue to ignore lifecycle events.'
+          stale-issue-message: 'This issue has become stale because it has been open 60 days with no activity. The maintainers of this repo will remove this label during issue triage or it will be removed automatically after an update. Adding the `lifecycle/frozen` label will cause this issue to ignore lifecycle events.'
           days-before-issue-close: -1
           stale-issue-label: lifecycle/stale
           exempt-issue-labels: lifecycle/frozen
