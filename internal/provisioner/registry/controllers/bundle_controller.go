@@ -26,6 +26,8 @@ import (
 	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,7 +46,6 @@ import (
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
-	updater "github.com/operator-framework/rukpak/pkg/updater/bundle"
 )
 
 // BundleReconciler reconciles a Bundle object
@@ -74,163 +75,152 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	l := log.FromContext(ctx)
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
-	bundle := &rukpakv1alpha1.Bundle{}
-	if err := r.Get(ctx, req.NamespacedName, bundle); err != nil {
+	existingBundle := &rukpakv1alpha1.Bundle{}
+	if err := r.Get(ctx, req.NamespacedName, existingBundle); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	u := updater.NewBundleUpdater(r.Client)
-	defer func() {
-		if err := u.Apply(ctx, bundle); err != nil {
-			l.Error(err, "failed to update status")
-		}
-	}()
-	u.UpdateStatus(updater.EnsureObservedGeneration(bundle.Generation))
+	reconciledBundle := existingBundle.DeepCopy()
+	res, reconcileErr := r.reconcile(ctx, reconciledBundle)
 
-	finalizerResult, err := r.Finalizers.Finalize(ctx, bundle)
-	if err != nil {
-		u.UpdateStatus(
-			updater.EnsureResolvedSource(nil),
-			updater.EnsureContentURL(""),
-			updater.SetPhase(rukpakv1alpha1.PhaseFailing),
-			updater.EnsureCondition(metav1.Condition{
-				Type:    rukpakv1alpha1.TypeUnpacked,
-				Status:  metav1.ConditionUnknown,
-				Reason:  rukpakv1alpha1.ReasonProcessingFinalizerFailed,
-				Message: err.Error(),
-			}),
-		)
-		return ctrl.Result{}, err
-	}
-	var (
-		finalizerUpdateErrs []error
-	)
 	// Update the status subresource before updating the main object. This is
 	// necessary because, in many cases, the main object update will remove the
 	// finalizer, which will cause the core Kubernetes deletion logic to
 	// complete. Therefore, we need to make the status update prior to the main
 	// object update to ensure that the status update can be processed before
 	// a potential deletion.
-	if finalizerResult.StatusUpdated {
-		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Status().Update(ctx, bundle))
+	if !equality.Semantic.DeepEqual(existingBundle.Status, reconciledBundle.Status) {
+		if updateErr := r.Client.Status().Update(ctx, reconciledBundle); updateErr != nil {
+			return res, apimacherrors.NewAggregate([]error{reconcileErr, updateErr})
+		}
+	}
+	existingBundle.Status, reconciledBundle.Status = rukpakv1alpha1.BundleStatus{}, rukpakv1alpha1.BundleStatus{}
+	if !equality.Semantic.DeepEqual(existingBundle, reconciledBundle) {
+		if updateErr := r.Client.Update(ctx, reconciledBundle); updateErr != nil {
+			return res, apimacherrors.NewAggregate([]error{reconcileErr, updateErr})
+		}
+	}
+	return res, reconcileErr
+}
+
+func (r *BundleReconciler) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (ctrl.Result, error) {
+	bundle.Status.ObservedGeneration = bundle.Generation
+
+	finalizedBundle := bundle.DeepCopy()
+	finalizerResult, err := r.Finalizers.Finalize(ctx, finalizedBundle)
+	if err != nil {
+		bundle.Status.ResolvedSource = nil
+		bundle.Status.ContentURL = ""
+		bundle.Status.Phase = rukpakv1alpha1.PhaseFailing
+		meta.SetStatusCondition(&bundle.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeUnpacked,
+			Status:  metav1.ConditionUnknown,
+			Reason:  rukpakv1alpha1.ReasonProcessingFinalizerFailed,
+			Message: err.Error(),
+		})
+		return ctrl.Result{}, err
 	}
 	if finalizerResult.Updated {
-		finalizerUpdateErrs = append(finalizerUpdateErrs, r.Update(ctx, bundle))
+		// The only thing outside the status that should ever change when handling finalizers
+		// is the list of finalizers in the object's metadata. In particular, we'd expect
+		// finalizers to be added or removed.
+		bundle.ObjectMeta.Finalizers = finalizedBundle.ObjectMeta.Finalizers
+	}
+	if finalizerResult.StatusUpdated {
+		bundle.Status = finalizedBundle.Status
 	}
 	if finalizerResult.Updated || finalizerResult.StatusUpdated || !bundle.GetDeletionTimestamp().IsZero() {
-		err := apimacherrors.NewAggregate(finalizerUpdateErrs)
-		if err != nil {
-			u.UpdateStatus(
-				updater.EnsureResolvedSource(nil),
-				updater.EnsureContentURL(""),
-				updater.SetPhase(rukpakv1alpha1.PhaseFailing),
-				updater.EnsureCondition(metav1.Condition{
-					Type:    rukpakv1alpha1.TypeUnpacked,
-					Status:  metav1.ConditionUnknown,
-					Reason:  rukpakv1alpha1.ReasonProcessingFinalizerFailed,
-					Message: err.Error(),
-				}),
-			)
-		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	unpackResult, err := r.Unpacker.Unpack(ctx, bundle)
 	if err != nil {
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("source bundle content: %v", err))
+		return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("source bundle content: %v", err))
 	}
 	switch unpackResult.State {
 	case source.StatePending:
-		updateStatusUnpackPending(&u, unpackResult)
+		updateStatusUnpackPending(&bundle.Status, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacking:
-		updateStatusUnpacking(&u, unpackResult)
+		updateStatusUnpacking(&bundle.Status, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacked:
 		plainFS, err := convert.RegistryV1ToPlain(unpackResult.Bundle)
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err))
 		}
 
 		objects, err := getObjects(plainFS)
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get objects from bundle manifests: %v", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("get objects from bundle manifests: %v", err))
 		}
 		if len(objects) == 0 {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, errors.New("invalid bundle: found zero objects: "+
+			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, errors.New("invalid bundle: found zero objects: "+
 				"plain+v0 bundles are required to contain at least one object"))
 		}
 
 		if err := r.Storage.Store(ctx, bundle, plainFS); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("persist bundle objects: %v", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("persist bundle objects: %v", err))
 		}
 
 		contentURL, err := r.Storage.URLFor(ctx, bundle)
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("get content URL: %v", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("get content URL: %v", err))
 		}
 
-		updateStatusUnpacked(&u, unpackResult, contentURL)
+		updateStatusUnpacked(&bundle.Status, unpackResult, contentURL)
 		return ctrl.Result{}, nil
 	default:
-		return ctrl.Result{}, updateStatusUnpackFailing(&u, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
+		return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
 	}
 }
 
-func updateStatusUnpackPending(u *updater.Updater, result *source.Result) {
-	u.UpdateStatus(
-		updater.EnsureResolvedSource(nil),
-		updater.EnsureContentURL(""),
-		updater.SetPhase(rukpakv1alpha1.PhasePending),
-		updater.EnsureCondition(metav1.Condition{
-			Type:    rukpakv1alpha1.TypeUnpacked,
-			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonUnpackPending,
-			Message: result.Message,
-		}),
-	)
+func updateStatusUnpackPending(status *rukpakv1alpha1.BundleStatus, result *source.Result) {
+	status.ResolvedSource = nil
+	status.ContentURL = ""
+	status.Phase = rukpakv1alpha1.PhasePending
+	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeUnpacked,
+		Status:  metav1.ConditionFalse,
+		Reason:  rukpakv1alpha1.ReasonUnpackPending,
+		Message: result.Message,
+	})
 }
 
-func updateStatusUnpacking(u *updater.Updater, result *source.Result) {
-	u.UpdateStatus(
-		updater.EnsureResolvedSource(nil),
-		updater.EnsureContentURL(""),
-		updater.SetPhase(rukpakv1alpha1.PhaseUnpacking),
-		updater.EnsureCondition(metav1.Condition{
-			Type:    rukpakv1alpha1.TypeUnpacked,
-			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonUnpacking,
-			Message: result.Message,
-		}),
-	)
+func updateStatusUnpacking(status *rukpakv1alpha1.BundleStatus, result *source.Result) {
+	status.ResolvedSource = nil
+	status.ContentURL = ""
+	status.Phase = rukpakv1alpha1.PhaseUnpacking
+	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeUnpacked,
+		Status:  metav1.ConditionFalse,
+		Reason:  rukpakv1alpha1.ReasonUnpacking,
+		Message: result.Message,
+	})
 }
 
-func updateStatusUnpacked(u *updater.Updater, result *source.Result, contentURL string) {
-	u.UpdateStatus(
-		updater.EnsureResolvedSource(result.ResolvedSource),
-		updater.EnsureContentURL(contentURL),
-		updater.SetPhase(rukpakv1alpha1.PhaseUnpacked),
-		updater.EnsureCondition(metav1.Condition{
-			Type:    rukpakv1alpha1.TypeUnpacked,
-			Status:  metav1.ConditionTrue,
-			Reason:  rukpakv1alpha1.ReasonUnpackSuccessful,
-			Message: result.Message,
-		}),
-	)
+func updateStatusUnpacked(status *rukpakv1alpha1.BundleStatus, result *source.Result, contentURL string) {
+	status.ResolvedSource = result.ResolvedSource
+	status.ContentURL = contentURL
+	status.Phase = rukpakv1alpha1.PhaseUnpacked
+	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeUnpacked,
+		Status:  metav1.ConditionTrue,
+		Reason:  rukpakv1alpha1.ReasonUnpackSuccessful,
+		Message: result.Message,
+	})
 }
 
-func updateStatusUnpackFailing(u *updater.Updater, err error) error {
-	u.UpdateStatus(
-		updater.EnsureResolvedSource(nil),
-		updater.EnsureContentURL(""),
-		updater.SetPhase(rukpakv1alpha1.PhaseFailing),
-		updater.EnsureCondition(metav1.Condition{
-			Type:    rukpakv1alpha1.TypeUnpacked,
-			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonUnpackFailed,
-			Message: err.Error(),
-		}),
-	)
+func updateStatusUnpackFailing(status *rukpakv1alpha1.BundleStatus, err error) error {
+	status.ResolvedSource = nil
+	status.ContentURL = ""
+	status.Phase = rukpakv1alpha1.PhaseFailing
+	meta.SetStatusCondition(&status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeUnpacked,
+		Status:  metav1.ConditionFalse,
+		Reason:  rukpakv1alpha1.ReasonUnpackFailed,
+		Message: err.Error(),
+	})
 	return err
 }
 

@@ -170,16 +170,6 @@ func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, lo
 	})
 }
 
-func MapBundleDeploymentToBundles(ctx context.Context, c client.Client, bd rukpakv1alpha1.BundleDeployment) *rukpakv1alpha1.BundleList {
-	bundles := &rukpakv1alpha1.BundleList{}
-	if err := c.List(ctx, bundles, &client.ListOptions{
-		LabelSelector: NewBundleDeploymentLabelSelector(&bd),
-	}); err != nil {
-		return nil
-	}
-	return bundles
-}
-
 // MapBundleToBundleDeployment is responsible for finding the BundleDeployment resource
 // that's managing this Bundle in the cluster. In the case that this Bundle is a standalone
 // resource, then no BundleDeployment will be returned as static creation of Bundle
