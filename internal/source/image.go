@@ -138,10 +138,10 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyco
 				WithName("install-unpacker").
 				WithImage(i.UnpackImage).
 				WithImagePullPolicy(corev1.PullIfNotPresent).
-				WithCommand("cp", "-Rv", "/unpack", "/bin/unpack").
+				WithCommand("cp", "-Rv", "/unpack", "/util/bin/unpack").
 				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
 					WithName("util").
-					WithMountPath("/bin"),
+					WithMountPath("/util/bin"),
 				).
 				WithSecurityContext(containerSecurityContext),
 			).
