@@ -30,10 +30,10 @@ import (
 )
 
 // Validate is a wrapper for doing four things:
-// 	1. Retrieving the existing version of the specified CRD where it exists.
-// 	2. Calling validateCRDCompatibility() on the newCrd.
-// 	3. Calling safeStorageVersionUpgrade() on the newCrd.
-// 	4. Reporting any errors that it encounters along the way.
+//  1. Retrieving the existing version of the specified CRD where it exists.
+//  2. Calling validateCRDCompatibility() on the newCrd.
+//  3. Calling safeStorageVersionUpgrade() on the newCrd.
+//  4. Reporting any errors that it encounters along the way.
 func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.CustomResourceDefinition) error {
 	oldCRD := &apiextensionsv1.CustomResourceDefinition{}
 
@@ -68,11 +68,11 @@ func keys(m map[string]apiextensionsv1.CustomResourceDefinitionVersion) sets.Str
 }
 
 // validateCRDCompatibility runs through the following cases to test:
-//   1. New CRD removes version that Old CRD had => Must ensure nothing is stored at removed version
-//   2. New CRD changes a version that Old CRD has => Must validate existing CRs with new schema
-//   3. New CRD adds a version that Old CRD does not have =>
-//      - If conversion strategy is None, ensure existing CRs validate with new schema.
-//      - If conversion strategy is Webhook, allow update (assume webhook handles conversion correctly)
+//  1. New CRD removes version that Old CRD had => Must ensure nothing is stored at removed version
+//  2. New CRD changes a version that Old CRD has => Must validate existing CRs with new schema
+//  3. New CRD adds a version that Old CRD does not have =>
+//     - If conversion strategy is None, ensure existing CRs validate with new schema.
+//     - If conversion strategy is Webhook, allow update (assume webhook handles conversion correctly)
 func validateCRDCompatibility(ctx context.Context, cl client.Client, oldCRD *apiextensionsv1.CustomResourceDefinition, newCRD *apiextensionsv1.CustomResourceDefinition) error {
 	oldVersions := map[string]apiextensionsv1.CustomResourceDefinitionVersion{}
 	newVersions := map[string]apiextensionsv1.CustomResourceDefinitionVersion{}
