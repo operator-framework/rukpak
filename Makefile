@@ -12,7 +12,7 @@ TESTDATA_DIR := testdata
 VERSION_PATH := $(PKG)/internal/version
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 PKGS = $(shell go list ./...)
-export CERT_MGR_VERSION ?= v1.7.1
+export CERT_MGR_VERSION ?= v1.9.0
 RUKPAK_NAMESPACE ?= rukpak-system
 
 REGISTRY_NAME="docker-registry"
