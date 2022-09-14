@@ -140,7 +140,7 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
 		}))
 
-	values, err := r.loadValues(ctx, bd)
+	values, err := loadValues(bd)
 	if err != nil {
 		u.UpdateStatus(
 			updater.EnsureCondition(metav1.Condition{
@@ -309,7 +309,7 @@ func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterfa
 	return currentRelease, stateUnchanged, nil
 }
 
-func (r *BundleDeploymentReconciler) loadValues(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) (chartutil.Values, error) {
+func loadValues(bd *rukpakv1alpha1.BundleDeployment) (chartutil.Values, error) {
 	data, err := bd.Spec.Config.MarshalJSON()
 	if err != nil {
 		return nil, err
