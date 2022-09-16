@@ -2,7 +2,7 @@
 
 ## Summary
 
-The `helm` provisioner is one of the [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner) of rukpak.
+The `helm` provisioner is one of the [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner) of RukPak.
 It instantiates a given `helm+v3` bundle onto a cluster and then install the referred helm chart
 on the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core-rukpak-io-helm`. This field must be set to the correct provisioner
@@ -116,7 +116,7 @@ Edit `https://github.com/$YOUR_ORG/examples/blob/main/charts/hello-world/Chart.y
 commit the change into `v0.1.1` branch.
 
 
-#### Install rukpak for expertiment
+#### Install RukPak for expertiment
 
 To experiment with the `helm` provisioner locally, take the following steps to
 create a local [kind](https://kind.sigs.k8s.io/) cluster and deploy the provisioner onto it:

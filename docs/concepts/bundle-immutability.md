@@ -2,13 +2,13 @@
 
 ## Overview
 
-A Bundle object, once accepted by the api-server, is considered an immutable artifact by the rest of the rukpak system.
+A Bundle object, once accepted by the api-server, is considered an immutable artifact by the rest of the RukPak system.
 This behavior is meant to enforce the notion that a Bundle represents some unique, static piece of content that should
 be sourced onto the cluster. A user can have confidence, therefore, that a particular Bundle is pointing to a specific
 set of manifests, and cannot be updated without creating a new Bundle. This property is true for both standalone Bundles
 and dynamic Bundles created via an embedded BundleTemplate.
 
-Bundle immutability is enforced via the core rukpak webhook. This webhook watches Bundle events, and for any update to a
+Bundle immutability is enforced via the core RukPak webhook. This webhook watches Bundle events, and for any update to a
 Bundle, checks whether the spec of the existing Bundle is semantically equal to that in the proposed updated Bundle. If
 they are not equal, the update is rejected by the webhook. Note that other Bundle fields, such as metadata or status,
 can and will be updated during the Bundle's lifecycle -- it's only the spec that is considered immutable.

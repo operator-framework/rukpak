@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document is meant to define the helm bundle format as a reference for those publishing helm bundles
+This document is meant to define the `registry` bundle format as a reference for those publishing `registry` bundles
 for use with RukPak. For more information on the concept of a bundle, click [here](https://github.com/operator-framework/rukpak#bundle).
 
 The `registry+v1` bundles, or `registry` bundles, contains a set of static Kubernetes YAML

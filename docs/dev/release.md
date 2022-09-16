@@ -1,10 +1,10 @@
-# Releasing RukPkak
+# Releasing RukPak
 
-This guide outlines the release process for the rukpak project.
+This guide outlines the release process for the RukPak project.
 
 ## Overview
 
-The rukpak project uses [GoReleaser](https://goreleaser.com/) to automatically produce multi-arch container images and release artifacts during the release process.
+The RukPak project uses [GoReleaser](https://goreleaser.com/) to automatically produce multi-arch container images and release artifacts during the release process.
 
 In order to create a new minor version release, simply create a valid [semver tag][semver] locally, push that tag up to the upstream repository remote, and let automation handle the rest.
 

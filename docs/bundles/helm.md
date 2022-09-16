@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document is meant to define the helm bundle format as a reference for those publishing helm bundles
+This document is meant to define the `helm` bundle format as a reference for those publishing `helm` bundles
 for use with RukPak. For more information on the concept of a bundle, click [here](https://github.com/operator-framework/rukpak#bundle).
 
 A helm bundle is a [helm chart](https://helm.sh/docs/chart_template_guide/getting_started/#charts).

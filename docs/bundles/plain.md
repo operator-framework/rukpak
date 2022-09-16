@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document is meant to define the helm bundle format as a reference for those publishing helm bundles
+This document is meant to define the `plain` bundle format as a reference for those publishing `plain` bundles
 for use with RukPak. For more information on the concept of a bundle, click [here](https://github.com/operator-framework/rukpak#bundle).
 
 A plain bundle is simply a collection of static, arbitrary, Kubernetes YAML manifests in a given directory.

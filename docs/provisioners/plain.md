@@ -2,7 +2,7 @@
 
 ## Summary
 
-The `plain` provisioner is one of core rukpak [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner)
+The `plain` provisioner is one of core RukPak [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner)
 that knows how to interact with bundles of a particular format.
 These `plain+v0` bundles, or plain bundles, are simply container images containing a set of static Kubernetes YAML
 manifests in a given directory. For more information on the `plain+v0` format, see
