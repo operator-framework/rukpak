@@ -11,6 +11,7 @@ builds:
   - id: unpack
     main: ./cmd/unpack
     binary: unpack
+    tags: $GO_BUILD_TAGS
     goos:
     - linux
     goarch:
@@ -23,6 +24,7 @@ builds:
   - id: helm
     main: ./cmd/helm
     binary: helm
+    tags: $GO_BUILD_TAGS
     goos:
       - linux
     goarch:
@@ -35,6 +37,7 @@ builds:
   - id: core
     main: ./cmd/core
     binary: core
+    tags: $GO_BUILD_TAGS
     goos:
     - linux
     goarch:
@@ -47,6 +50,7 @@ builds:
   - id: webhooks
     main: ./cmd/webhooks
     binary: webhooks
+    tags: $GO_BUILD_TAGS
     goos:
       - linux
     goarch:
@@ -59,6 +63,7 @@ builds:
   - id: crdvalidator
     main: ./cmd/crdvalidator
     binary: crdvalidator
+    tags: $GO_BUILD_TAGS
     goos:
     - linux
     goarch:
@@ -71,6 +76,7 @@ builds:
   - id: rukpakctl
     main: ./cmd/rukpakctl
     binary: rukpakctl
+    tags: $GO_BUILD_TAGS
     goos:
       - linux
     goarch:

@@ -36,9 +36,9 @@ import (
 )
 
 const (
-	// TODO: make this is a CLI flag?
-	defaultSystemNamespace = "rukpak-system"
-	testdataDir            = "../../testdata"
+	defaultSystemNamespace   = util.DefaultSystemNamespace
+	defaultUploadServiceName = util.DefaultUploadServiceName
+	testdataDir              = "../../testdata"
 )
 
 func Logf(f string, v ...interface{}) {
@@ -1024,7 +1024,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      "core",
+				UploadServiceName:      defaultUploadServiceName,
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
@@ -1082,7 +1082,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 
 			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      "core",
+				UploadServiceName:      defaultUploadServiceName,
 				UploadServiceNamespace: defaultSystemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,

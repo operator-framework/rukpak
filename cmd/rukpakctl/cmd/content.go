@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 type options struct {
@@ -80,7 +81,7 @@ func newContentCmd() *cobra.Command {
 			}
 		},
 	}
-	contentCmd.Flags().StringVar(&opt.namespace, "namespace", "rukpak-system", "namespace to run content query job.")
+	contentCmd.Flags().StringVar(&opt.namespace, "namespace", util.DefaultSystemNamespace, "namespace to run content query job.")
 	return contentCmd
 }
 
