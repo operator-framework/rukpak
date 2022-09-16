@@ -1,4 +1,4 @@
-# HackMD Notes
+# Designs
 
 This file contains links to a series of designs that were written during the course of RukPak development. Most design
 documents are written using HackMD, and then shared here. These design docs provide further context on the features and
