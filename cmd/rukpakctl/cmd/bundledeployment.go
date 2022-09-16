@@ -31,6 +31,7 @@ import (
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/cmd/rukpakctl/utils"
 	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 type bundleDeploymentOptions struct {
@@ -80,7 +81,7 @@ func newBundleDeploymentCmd() *cobra.Command {
 			}
 		},
 	}
-	bdCmd.Flags().StringVar(&bundleDeploymentOpt.namespace, "namespace", "rukpak-system", "namespace for target or work resources")
+	bdCmd.Flags().StringVar(&bundleDeploymentOpt.namespace, "namespace", util.DefaultSystemNamespace, "namespace for target or work resources")
 	return bdCmd
 }
 
