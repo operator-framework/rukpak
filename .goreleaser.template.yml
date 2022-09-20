@@ -34,6 +34,18 @@ builds:
       - s390x
     ldflags:
       - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
+  - id: kustomize
+    main: ./cmd/kustomize
+    binary: kustomize
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+      - s390x
+    ldflags:
+      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: core
     main: ./cmd/core
     binary: core
@@ -146,6 +158,7 @@ release:
     kubectl apply -f https://github.com/operator-framework/rukpak/releases/download/{{ .Tag }}/rukpak.yaml
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/core --timeout=60s
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/helm-provisioner --timeout=60s
+    kubectl wait --for=condition=Available --namespace=rukpak-system deployment/kustomize-provisioner --timeout=60s
     kubectl wait --for=condition=Available --namespace=rukpak-system deployment/rukpak-webhooks --timeout=60s
     kubectl wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
     ```

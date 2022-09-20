@@ -1,0 +1,14 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kustomize-provisioner
+  namespace: rukpak-system
+spec:
+  secretName: kustomize-provisioner-cert
+  dnsNames:
+    - $(KUSTOMIZE_PROVISIONER_SERVICE_NAME).$(KUSTOMIZE_PROVISIONER_SERVICE_NAMESPACE).svc
+    - $(KUSTOMIZE_PROVISIONER_SERVICE_NAME).$(KUSTOMIZE_PROVISIONER_SERVICE_NAMESPACE).svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: rukpak-ca-issuer

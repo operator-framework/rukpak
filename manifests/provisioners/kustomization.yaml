@@ -1,3 +1,4 @@
 bases:
 - ./helm
+- ./kustomize
 

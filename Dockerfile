@@ -8,5 +8,6 @@ COPY unpack unpack
 COPY webhooks webhooks
 COPY crdvalidator crdvalidator
 COPY rukpakctl rukpakctl
+COPY kustomize kustomize
 
 EXPOSE 8080
