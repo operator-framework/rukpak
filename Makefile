@@ -71,11 +71,17 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... output:stdout > ./manifests/apis/webhooks/resources/webhook.yaml
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=core-admin \
+		paths=./internal/provisioner/bundle/... \
+		paths=./internal/provisioner/bundledeployment/... \
 		paths=./internal/provisioner/plain/... \
 		paths=./internal/provisioner/registry/... \
 		paths=./internal/uploadmgr/... \
 			output:stdout > ./manifests/core/resources/cluster_role.yaml
-	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin paths=./internal/provisioner/helm/... output:stdout > ./manifests/provisioners/helm/resources/cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin \
+		paths=./internal/provisioner/bundle/... \
+		paths=./internal/provisioner/bundledeployment/... \
+		paths=./internal/provisioner/helm/... \
+		    output:stdout > ./manifests/provisioners/helm/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code

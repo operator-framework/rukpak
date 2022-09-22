@@ -11,8 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	plain "github.com/operator-framework/rukpak/internal/provisioner/plain/types"
-	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
+	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	"github.com/operator-framework/rukpak/internal/provisioner/registry"
 )
 
 var _ = Describe("registry provisioner bundle", func() {
