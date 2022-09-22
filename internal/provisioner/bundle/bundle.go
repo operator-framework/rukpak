@@ -1,60 +1,125 @@
-/*
-Copyright 2021.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-package controllers
+package bundle
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
-	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/finalizer"
+	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/convert"
-	registry "github.com/operator-framework/rukpak/internal/provisioner/registry/types"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
-// BundleReconciler reconciles a Bundle object
-type BundleReconciler struct {
-	client.Client
-	Scheme     *runtime.Scheme
-	Storage    storage.Storage
-	Finalizers finalizer.Finalizers
-	Unpacker   source.Unpacker
+type Option func(*bundleProvisioner)
+
+func WithHandler(h Handler) Option {
+	return func(b *bundleProvisioner) {
+		b.handler = h
+	}
+}
+
+func WithProvisionerID(provisionerID string) Option {
+	return func(b *bundleProvisioner) {
+		b.provisionerID = provisionerID
+	}
+}
+
+func WithStorage(s storage.Storage) Option {
+	return func(b *bundleProvisioner) {
+		b.storage = s
+	}
+}
+
+func WithUnpacker(u source.Unpacker) Option {
+	return func(b *bundleProvisioner) {
+		b.unpacker = u
+	}
+}
+
+func WithFinalizers(f crfinalizer.Finalizers) Option {
+	return func(b *bundleProvisioner) {
+		b.finalizers = f
+	}
+}
+
+func SetupProvisioner(mgr manager.Manager, opts ...Option) error {
+	b := &bundleProvisioner{
+		cl: mgr.GetClient(),
+	}
+
+	for _, o := range opts {
+		o(b)
+	}
+
+	b.setDefaults()
+
+	if err := b.validateConfig(); err != nil {
+		return fmt.Errorf("invalid configuration: %v", err)
+	}
+
+	controllerName := fmt.Sprintf("controller.bundle.%s", b.provisionerID)
+	l := mgr.GetLogger().WithName(controllerName)
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
+		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
+			util.BundleProvisionerFilter(b.provisionerID),
+		)).
+		// The default image source unpacker creates Pod's ownerref'd to its bundle, so
+		// we need to watch pods to ensure we reconcile events coming from these
+		// pods.
+		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, b.provisionerID, &rukpakv1alpha1.Bundle{})).
+		Complete(b)
+}
+
+func (p *bundleProvisioner) setDefaults() {
+	if p.handler == nil {
+		p.handler = HandlerFunc(func(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) { return fsys, nil })
+	}
+}
+
+func (p *bundleProvisioner) validateConfig() error {
+	errs := []error{}
+	if p.handler == nil {
+		errs = append(errs, errors.New("converter is unset"))
+	}
+	if p.provisionerID == "" {
+		errs = append(errs, errors.New("provisioner ID is unset"))
+	}
+	if p.unpacker == nil {
+		errs = append(errs, errors.New("unpacker is unset"))
+	}
+	if p.storage == nil {
+		errs = append(errs, errors.New("storage is unset"))
+	}
+	if p.finalizers == nil {
+		errs = append(errs, errors.New("finalizer handler is unset"))
+	}
+	return apimacherrors.NewAggregate(errs)
+}
+
+type bundleProvisioner struct {
+	handler       Handler
+	provisionerID string
+
+	cl         client.Client
+	storage    storage.Storage
+	finalizers crfinalizer.Finalizers
+	unpacker   source.Unpacker
 }
 
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=list;watch;update;patch
@@ -71,17 +136,17 @@ type BundleReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (p *bundleProvisioner) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
 	existingBundle := &rukpakv1alpha1.Bundle{}
-	if err := r.Get(ctx, req.NamespacedName, existingBundle); err != nil {
+	if err := p.cl.Get(ctx, req.NamespacedName, existingBundle); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	reconciledBundle := existingBundle.DeepCopy()
-	res, reconcileErr := r.reconcile(ctx, reconciledBundle)
+	res, reconcileErr := p.reconcile(ctx, reconciledBundle)
 
 	// Update the status subresource before updating the main object. This is
 	// necessary because, in many cases, the main object update will remove the
@@ -90,24 +155,24 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// object update to ensure that the status update can be processed before
 	// a potential deletion.
 	if !equality.Semantic.DeepEqual(existingBundle.Status, reconciledBundle.Status) {
-		if updateErr := r.Client.Status().Update(ctx, reconciledBundle); updateErr != nil {
+		if updateErr := p.cl.Status().Update(ctx, reconciledBundle); updateErr != nil {
 			return res, apimacherrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
 	}
 	existingBundle.Status, reconciledBundle.Status = rukpakv1alpha1.BundleStatus{}, rukpakv1alpha1.BundleStatus{}
 	if !equality.Semantic.DeepEqual(existingBundle, reconciledBundle) {
-		if updateErr := r.Client.Update(ctx, reconciledBundle); updateErr != nil {
+		if updateErr := p.cl.Update(ctx, reconciledBundle); updateErr != nil {
 			return res, apimacherrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
 	}
 	return res, reconcileErr
 }
 
-func (r *BundleReconciler) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (ctrl.Result, error) {
+func (p *bundleProvisioner) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (ctrl.Result, error) {
 	bundle.Status.ObservedGeneration = bundle.Generation
 
 	finalizedBundle := bundle.DeepCopy()
-	finalizerResult, err := r.Finalizers.Finalize(ctx, finalizedBundle)
+	finalizerResult, err := p.finalizers.Finalize(ctx, finalizedBundle)
 	if err != nil {
 		bundle.Status.ResolvedSource = nil
 		bundle.Status.ContentURL = ""
@@ -133,7 +198,7 @@ func (r *BundleReconciler) reconcile(ctx context.Context, bundle *rukpakv1alpha1
 		return ctrl.Result{}, nil
 	}
 
-	unpackResult, err := r.Unpacker.Unpack(ctx, bundle)
+	unpackResult, err := p.unpacker.Unpack(ctx, bundle)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("source bundle content: %v", err))
 	}
@@ -145,25 +210,16 @@ func (r *BundleReconciler) reconcile(ctx context.Context, bundle *rukpakv1alpha1
 		updateStatusUnpacking(&bundle.Status, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacked:
-		plainFS, err := convert.RegistryV1ToPlain(unpackResult.Bundle)
+		storeFS, err := p.handler.Handle(ctx, unpackResult.Bundle, bundle)
 		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err))
+			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, err)
 		}
 
-		objects, err := getObjects(plainFS)
-		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("get objects from bundle manifests: %v", err))
-		}
-		if len(objects) == 0 {
-			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, errors.New("invalid bundle: found zero objects: "+
-				"plain+v0 bundles are required to contain at least one object"))
+		if err := p.storage.Store(ctx, bundle, storeFS); err != nil {
+			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("persist bundle content: %v", err))
 		}
 
-		if err := r.Storage.Store(ctx, bundle, plainFS); err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("persist bundle objects: %v", err))
-		}
-
-		contentURL, err := r.Storage.URLFor(ctx, bundle)
+		contentURL, err := p.storage.URLFor(ctx, bundle)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("get content URL: %v", err))
 		}
@@ -222,51 +278,4 @@ func updateStatusUnpackFailing(status *rukpakv1alpha1.BundleStatus, err error) e
 		Message: err.Error(),
 	})
 	return err
-}
-
-func getObjects(bundleFS fs.FS) ([]client.Object, error) {
-	var objects []client.Object
-	const manifestsDir = "manifests"
-
-	entries, err := fs.ReadDir(bundleFS, manifestsDir)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range entries {
-		if e.IsDir() {
-			return nil, fmt.Errorf("subdirectories are not allowed within the %q directory of the bundle image filesystem: found %q", manifestsDir, filepath.Join(manifestsDir, e.Name()))
-		}
-		fileData, err := fs.ReadFile(bundleFS, filepath.Join(manifestsDir, e.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		dec := apimachyaml.NewYAMLOrJSONDecoder(bytes.NewReader(fileData), 1024)
-		for {
-			obj := unstructured.Unstructured{}
-			err := dec.Decode(&obj)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				return nil, fmt.Errorf("read %q: %v", e.Name(), err)
-			}
-			objects = append(objects, &obj)
-		}
-	}
-	return objects, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *BundleReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	l := mgr.GetLogger().WithName("controller.bundle")
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
-			util.BundleProvisionerFilter(registry.ProvisionerID),
-		)).
-		// The default unpacker creates Pod's ownerref'd to its bundle, so
-		// we need to watch pods to ensure we reconcile events coming from these
-		// pods.
-		Watches(&crsource.Kind{Type: &corev1.Pod{}}, util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, registry.ProvisionerID, &rukpakv1alpha1.Bundle{})).
-		Complete(r)
 }

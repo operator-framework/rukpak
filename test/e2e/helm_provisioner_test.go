@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	helm "github.com/operator-framework/rukpak/internal/provisioner/helm/types"
+	"github.com/operator-framework/rukpak/internal/provisioner/helm"
 )
 
 var _ = Describe("helm provisioner bundledeployment", func() {

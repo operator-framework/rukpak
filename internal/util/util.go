@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"os"
 	"sort"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/cli-runtime/pkg/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -404,4 +406,25 @@ func LoadCertPool(certFile string) (*x509.CertPool, error) {
 		certPool.AddCert(cert)
 	}
 	return certPool, nil
+}
+
+func ManifestObjects(r io.Reader, name string) ([]client.Object, error) {
+	result := resource.NewLocalBuilder().Flatten().Unstructured().Stream(r, name).Do()
+	if err := result.Err(); err != nil {
+		return nil, err
+	}
+	infos, err := result.Infos()
+	if err != nil {
+		return nil, err
+	}
+	return infosToObjects(infos), nil
+}
+
+func infosToObjects(infos []*resource.Info) []client.Object {
+	objects := make([]client.Object, 0, len(infos))
+	for _, info := range infos {
+		clientObject := info.Object.(client.Object)
+		objects = append(objects, clientObject)
+	}
+	return objects
 }

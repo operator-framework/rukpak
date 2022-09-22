@@ -38,7 +38,9 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/finalizer"
-	"github.com/operator-framework/rukpak/internal/provisioner/helm/controllers"
+	"github.com/operator-framework/rukpak/internal/provisioner/bundle"
+	"github.com/operator-framework/rukpak/internal/provisioner/bundledeployment"
+	"github.com/operator-framework/rukpak/internal/provisioner/helm"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -187,27 +189,35 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.BundleReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		Storage:    bundleStorage,
-		Finalizers: bundleFinalizers,
-		Unpacker:   unpacker,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind)
-		os.Exit(1)
+	commonBundleProvisionerOptions := []bundle.Option{
+		bundle.WithUnpacker(unpacker),
+		bundle.WithFinalizers(bundleFinalizers),
+		bundle.WithStorage(bundleStorage),
 	}
 
 	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	if err = (&controllers.BundleDeploymentReconciler{
-		Client:             mgr.GetClient(),
-		Reader:             mgr.GetAPIReader(),
-		Scheme:             mgr.GetScheme(),
-		BundleStorage:      bundleStorage,
-		ReleaseNamespace:   ns,
-		ActionClientGetter: helmclient.NewActionClientGetter(cfgGetter),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind)
+	acg := helmclient.NewActionClientGetter(cfgGetter)
+	commonBDProvisionerOptions := []bundledeployment.Option{
+		bundledeployment.WithReleaseNamespace(ns),
+		bundledeployment.WithActionClientGetter(acg),
+		bundledeployment.WithStorage(bundleStorage),
+	}
+
+	if err := bundle.SetupProvisioner(mgr, append(
+		commonBundleProvisionerOptions,
+		bundle.WithProvisionerID(helm.ProvisionerID),
+		bundle.WithHandler(bundle.HandlerFunc(helm.HandleBundle)),
+	)...); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", helm.ProvisionerID)
+		os.Exit(1)
+	}
+
+	if err := bundledeployment.SetupProvisioner(mgr, append(
+		commonBDProvisionerOptions,
+		bundledeployment.WithProvisionerID(helm.ProvisionerID),
+		bundledeployment.WithHandler(bundledeployment.HandlerFunc(helm.HandleBundleDeployment)),
+	)...); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", helm.ProvisionerID)
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

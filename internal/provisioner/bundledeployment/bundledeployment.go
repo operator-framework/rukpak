@@ -1,3 +1,41 @@
+package bundledeployment
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+
+	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+	"github.com/operator-framework/rukpak/internal/storage"
+	"github.com/operator-framework/rukpak/internal/util"
+)
+
 /*
 Copyright 2021.
 
@@ -14,52 +52,102 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+type Option func(bd *bundledeploymentProvisioner)
 
-import (
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"strings"
+func WithHandler(h Handler) Option {
+	return func(b *bundledeploymentProvisioner) {
+		b.handler = h
+	}
+}
 
-	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chartutil"
-	"helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/storage/driver"
-	"k8s.io/apimachinery/pkg/api/equality"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+func WithProvisionerID(provisionerID string) Option {
+	return func(b *bundledeploymentProvisioner) {
+		b.provisionerID = provisionerID
+	}
+}
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	helm "github.com/operator-framework/rukpak/internal/provisioner/helm/types"
-	"github.com/operator-framework/rukpak/internal/storage"
-	"github.com/operator-framework/rukpak/internal/util"
-)
+func WithStorage(s storage.Storage) Option {
+	return func(b *bundledeploymentProvisioner) {
+		b.storage = s
+	}
+}
 
-// BundleDeploymentReconciler reconciles a BundleDeployment object
-type BundleDeploymentReconciler struct {
-	client.Client
-	Reader client.Reader
+func WithActionClientGetter(acg helmclient.ActionClientGetter) Option {
+	return func(b *bundledeploymentProvisioner) {
+		b.acg = acg
+	}
+}
 
-	Scheme     *runtime.Scheme
-	Controller controller.Controller
+func WithReleaseNamespace(releaseNamespace string) Option {
+	return func(bd *bundledeploymentProvisioner) {
+		bd.releaseNamespace = releaseNamespace
+	}
+}
 
-	ActionClientGetter helmclient.ActionClientGetter
-	BundleStorage      storage.Storage
-	ReleaseNamespace   string
+func SetupProvisioner(mgr manager.Manager, opts ...Option) error {
+	bd := &bundledeploymentProvisioner{
+		cl:               mgr.GetClient(),
+		dynamicWatchGVKs: map[schema.GroupVersionKind]struct{}{},
+	}
+
+	for _, o := range opts {
+		o(bd)
+	}
+
+	if err := bd.validateConfig(); err != nil {
+		return fmt.Errorf("invalid configuration: %v", err)
+	}
+
+	controllerName := fmt.Sprintf("controller.bundle.%s", bd.provisionerID)
+	l := mgr.GetLogger().WithName(controllerName)
+	controller, err := ctrl.NewControllerManagedBy(mgr).
+		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(
+			util.BundleDeploymentProvisionerFilter(bd.provisionerID)),
+		).
+		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(
+			util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), l, bd.provisionerID)),
+		).
+		Build(bd)
+	if err != nil {
+		return err
+	}
+	bd.controller = controller
+	return nil
+}
+
+func (p *bundledeploymentProvisioner) validateConfig() error {
+	errs := []error{}
+	if p.handler == nil {
+		errs = append(errs, errors.New("converter is unset"))
+	}
+	if p.provisionerID == "" {
+		errs = append(errs, errors.New("provisioner ID is unset"))
+	}
+	if p.acg == nil {
+		errs = append(errs, errors.New("action client getter is unset"))
+	}
+	if p.storage == nil {
+		errs = append(errs, errors.New("storage is unset"))
+	}
+	if p.releaseNamespace == "" {
+		errs = append(errs, errors.New("release namespace is unset"))
+	}
+	return utilerrors.NewAggregate(errs)
+}
+
+// bundledeploymentProvisioner reconciles a BundleDeployment object
+type bundledeploymentProvisioner struct {
+	cl client.Client
+
+	handler          Handler
+	provisionerID    string
+	acg              helmclient.ActionClientGetter
+	storage          storage.Storage
+	releaseNamespace string
+
+	controller        controller.Controller
+	dynamicWatchMutex sync.RWMutex
+	dynamicWatchGVKs  map[schema.GroupVersionKind]struct{}
 }
 
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch
@@ -72,27 +160,27 @@ type BundleDeploymentReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (p *bundledeploymentProvisioner) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
 
 	existingBD := &rukpakv1alpha1.BundleDeployment{}
-	if err := r.Get(ctx, req.NamespacedName, existingBD); err != nil {
+	if err := p.cl.Get(ctx, req.NamespacedName, existingBD); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	reconciledBD := existingBD.DeepCopy()
-	res, reconcileErr := r.reconcile(ctx, reconciledBD)
+	res, reconcileErr := p.reconcile(ctx, reconciledBD)
 
 	if !equality.Semantic.DeepEqual(existingBD.Status, reconciledBD.Status) {
-		if updateErr := r.Client.Status().Update(ctx, reconciledBD); updateErr != nil {
+		if updateErr := p.cl.Status().Update(ctx, reconciledBD); updateErr != nil {
 			return res, utilerrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
 	}
 	existingBD.Status, reconciledBD.Status = rukpakv1alpha1.BundleDeploymentStatus{}, rukpakv1alpha1.BundleDeploymentStatus{}
 	if !equality.Semantic.DeepEqual(existingBD, reconciledBD) {
-		if updateErr := r.Client.Update(ctx, reconciledBD); updateErr != nil {
+		if updateErr := p.cl.Update(ctx, reconciledBD); updateErr != nil {
 			return res, utilerrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
 	}
@@ -100,10 +188,10 @@ func (r *BundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return res, reconcileErr
 }
 
-func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) (ctrl.Result, error) {
+func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) (ctrl.Result, error) {
 	bd.Status.ObservedGeneration = bd.Generation
 
-	bundle, allBundles, err := util.ReconcileDesiredBundle(ctx, r.Client, bd)
+	bundle, allBundles, err := util.ReconcileDesiredBundle(ctx, p.cl, bd)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 			Type:    rukpakv1alpha1.TypeHasValidBundle,
@@ -141,30 +229,30 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 		Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
 	})
 
-	values, err := loadValues(bd)
-	if err != nil {
-		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-			Type:    rukpakv1alpha1.TypeInstalled,
-			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonInstallFailed,
-			Message: err.Error(),
-		})
-		return ctrl.Result{}, err
-	}
-
-	chrt, err := r.loadChart(ctx, bundle)
+	bundleFS, err := p.storage.Load(ctx, bundle)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 			Type:    rukpakv1alpha1.TypeHasValidBundle,
 			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonReadingContentFailed,
+			Reason:  rukpakv1alpha1.ReasonBundleLoadFailed,
 			Message: err.Error(),
 		})
 		return ctrl.Result{}, err
 	}
 
-	bd.SetNamespace(r.ReleaseNamespace)
-	cl, err := r.ActionClientGetter.ActionClientFor(bd)
+	chrt, values, err := p.handler.Handle(ctx, bundleFS, bd)
+	if err != nil {
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHasValidBundle,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonBundleLoadFailed,
+			Message: err.Error(),
+		})
+		return ctrl.Result{}, err
+	}
+
+	bd.SetNamespace(p.releaseNamespace)
+	cl, err := p.acg.ActionClientFor(bd)
 	bd.SetNamespace("")
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
@@ -176,7 +264,7 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 		return ctrl.Result{}, err
 	}
 
-	rel, state, err := r.getReleaseState(cl, bd, chrt, values)
+	rel, state, err := p.getReleaseState(cl, bd, chrt, values)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 			Type:    rukpakv1alpha1.TypeInstalled,
@@ -189,7 +277,7 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 
 	switch state {
 	case stateNeedsInstall:
-		_, err = cl.Install(bd.Name, r.ReleaseNamespace, chrt, values, func(install *action.Install) error {
+		rel, err = cl.Install(bd.Name, p.releaseNamespace, chrt, values, func(install *action.Install) error {
 			install.CreateNamespace = false
 			return nil
 		})
@@ -206,7 +294,7 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
-		_, err = cl.Upgrade(bd.Name, r.ReleaseNamespace, chrt, values)
+		rel, err = cl.Upgrade(bd.Name, p.releaseNamespace, chrt, values)
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -225,7 +313,6 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 				err = errRequiredResourceNotFound{err}
 			}
 			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-
 				Type:    rukpakv1alpha1.TypeInstalled,
 				Status:  metav1.ConditionFalse,
 				Reason:  rukpakv1alpha1.ReasonReconcileFailed,
@@ -237,8 +324,56 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 		return ctrl.Result{}, fmt.Errorf("unexpected release state %q", state)
 	}
 
-	meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+	relObjects, err := util.ManifestObjects(strings.NewReader(rel.Manifest), fmt.Sprintf("%s-release-manifest", rel.Name))
+	if err != nil {
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeInstalled,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
+			Message: err.Error(),
+		})
+		return ctrl.Result{}, err
+	}
 
+	for _, obj := range relObjects {
+		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		if err != nil {
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInstalled,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
+				Message: err.Error(),
+			})
+			return ctrl.Result{}, err
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: uMap}
+		if err := func() error {
+			p.dynamicWatchMutex.Lock()
+			defer p.dynamicWatchMutex.Unlock()
+
+			_, isWatched := p.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()]
+			if !isWatched {
+				if err := p.controller.Watch(
+					&source.Kind{Type: unstructuredObj},
+					&handler.EnqueueRequestForOwner{OwnerType: bd, IsController: true},
+					helmpredicate.DependentPredicateFuncs()); err != nil {
+					return err
+				}
+				p.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()] = struct{}{}
+			}
+			return nil
+		}(); err != nil {
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeInstalled,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
+				Message: err.Error(),
+			})
+			return ctrl.Result{}, err
+		}
+	}
+	meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 		Type:    rukpakv1alpha1.TypeInstalled,
 		Status:  metav1.ConditionTrue,
 		Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
@@ -246,7 +381,7 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 	})
 	bd.Status.ActiveBundle = bundle.GetName()
 
-	if err := r.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
+	if err := p.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to delete old bundles: %v", err)
 	}
 
@@ -255,15 +390,15 @@ func (r *BundleDeploymentReconciler) reconcile(ctx context.Context, bd *rukpakv1
 
 // reconcileOldBundles is responsible for garbage collecting any Bundles
 // that no longer match the desired Bundle template.
-func (r *BundleDeploymentReconciler) reconcileOldBundles(ctx context.Context, currBundle *rukpakv1alpha1.Bundle, allBundles *rukpakv1alpha1.BundleList) error {
+func (p *bundledeploymentProvisioner) reconcileOldBundles(ctx context.Context, currBundle *rukpakv1alpha1.Bundle, allBundles *rukpakv1alpha1.BundleList) error {
 	var (
 		errors []error
 	)
-	for _, b := range allBundles.Items {
-		if b.GetName() == currBundle.GetName() {
+	for _, bundle := range allBundles.Items {
+		if bundle.GetName() == currBundle.GetName() {
 			continue
 		}
-		if err := r.Delete(ctx, &b); err != nil {
+		if err := p.cl.Delete(ctx, &bundle); err != nil {
 			errors = append(errors, err)
 			continue
 		}
@@ -280,7 +415,7 @@ const (
 	stateError        releaseState = "Error"
 )
 
-func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, chrt *chart.Chart, values chartutil.Values) (*release.Release, releaseState, error) {
+func (p *bundledeploymentProvisioner) getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, chrt *chart.Chart, values chartutil.Values) (*release.Release, releaseState, error) {
 	currentRelease, err := cl.Get(obj.GetName())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateError, err
@@ -288,7 +423,7 @@ func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterfa
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateNeedsInstall, nil
 	}
-	desiredRelease, err := cl.Upgrade(obj.GetName(), r.ReleaseNamespace, chrt, values, func(upgrade *action.Upgrade) error {
+	desiredRelease, err := cl.Upgrade(obj.GetName(), p.releaseNamespace, chrt, values, func(upgrade *action.Upgrade) error {
 		upgrade.DryRun = true
 		return nil
 	})
@@ -301,37 +436,6 @@ func (r *BundleDeploymentReconciler) getReleaseState(cl helmclient.ActionInterfa
 		return currentRelease, stateNeedsUpgrade, nil
 	}
 	return currentRelease, stateUnchanged, nil
-}
-
-func loadValues(bd *rukpakv1alpha1.BundleDeployment) (chartutil.Values, error) {
-	data, err := bd.Spec.Config.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-	var config map[string]string
-	err = json.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-	valuesString := config["values"]
-
-	var values chartutil.Values
-	if valuesString != "" {
-		values, err = chartutil.ReadValues([]byte(valuesString))
-		if err != nil {
-			return nil, err
-		}
-		return values, nil
-	}
-	return nil, nil
-}
-
-func (r *BundleDeploymentReconciler) loadChart(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*chart.Chart, error) {
-	chartfs, err := r.BundleStorage.Load(ctx, bundle)
-	if err != nil {
-		return nil, err
-	}
-	return getChart(chartfs)
 }
 
 type errRequiredResourceNotFound struct {
@@ -363,21 +467,4 @@ func isResourceNotFoundErr(err error) bool {
 	//   does not wrap meta.NoKindMatchError, so we need to fallback to
 	//   the use of string comparisons for now.
 	return strings.Contains(err.Error(), "no matches for kind")
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *BundleDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(
-			util.BundleDeploymentProvisionerFilter(helm.ProvisionerID)),
-		).
-		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(
-			util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), mgr.GetLogger(), helm.ProvisionerID),
-		)).
-		Build(r)
-	if err != nil {
-		return err
-	}
-	r.Controller = controller
-	return nil
 }
