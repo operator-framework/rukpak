@@ -23,10 +23,7 @@ all present the same content, a directory containing a helm chart, in a differen
 > to limit access to this API via RBAC to only those that explicitly require access, as well as audit your bundles to
 > ensure the content being installed on-cluster is as-expected and secure.
 
-The `helm` provisioner can install and make available a specific `helm+v3` bundle in the cluster.
-
-Simply create a `BundleDeployment` resource that contains the desired specification of a Bundle resource.
-The `helm` provisioner will retrieve the referred helm chart and instantiate a Bundle for it onto the cluster to eventually install.
+The `helm` provisioner can install and make available a specific `helm+v3` bundle in the cluster. To do this, the `helm` provisioner will retrieve the configured helm chart, instantiate a Bundle onto the cluster, and eventually install the desired helm chart on the cluster.
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -112,8 +109,6 @@ export YOUR_ORG="your goranization name"
 
 Edit `https://github.com/$YOUR_ORG/examples/blob/main/charts/hello-world/Chart.yaml` and update `version: 0.1.0` to `version: 0.1.1` and
 commit the change into `v0.1.1` branch.
-
-
 
 #### Install RukPak for expertiment
 
