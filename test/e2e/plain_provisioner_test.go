@@ -67,7 +67,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:valid",
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 						},
 					},
 				},
@@ -107,7 +107,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:valid",
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 						},
 					},
 				},
@@ -286,7 +286,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:non-existent-tag",
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:non-existent-tag"),
 						},
 					},
 				},
@@ -360,7 +360,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:empty",
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:empty"),
 						},
 					},
 				},
@@ -409,7 +409,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:no-manifests",
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:no-manifests"),
 						},
 					},
 				},
@@ -1136,7 +1136,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:subdir",
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:subdir"),
 						},
 					},
 				},
@@ -1346,7 +1346,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:valid",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},
 						},
@@ -1582,7 +1582,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:valid",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},
 						},
@@ -1641,7 +1641,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:invalid-missing-crds",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-missing-crds"),
 								},
 							},
 						},
@@ -1708,7 +1708,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:subdir",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:subdir"),
 								},
 							},
 						},
@@ -1772,7 +1772,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:dependent",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:dependent"),
 								},
 							},
 						},
@@ -1829,7 +1829,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 								Source: rukpakv1alpha1.BundleSource{
 									Type: rukpakv1alpha1.SourceTypeImage,
 									Image: &rukpakv1alpha1.ImageSource{
-										Ref: "testdata/bundles/plain-v0:provides",
+										Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:provides"),
 									},
 								},
 							},
@@ -1890,7 +1890,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:invalid-crds-and-crs",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-crds-and-crs"),
 								},
 							},
 						},
@@ -1940,7 +1940,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:valid",
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 						},
 					},
 				},
@@ -2022,7 +2022,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:valid",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},
 						},
@@ -2116,7 +2116,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "testdata/bundles/plain-v0:valid",
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},
 						},
