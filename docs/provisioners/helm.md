@@ -3,8 +3,7 @@
 ## Summary
 
 The `helm` provisioner is one of the [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner) of RukPak.
-It instantiates a given `helm+v3` bundle onto a cluster and then install the referred helm chart
-on the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
+It is able to instantiate a given `helm+v3` bundle with a specified helm chart onto a cluster where it then installs the content. It does so by reconciling `Bundle` and `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core-rukpak-io-helm`. This field must be set to the correct provisioner
 name in order for the `helm` provisioner to see and interact with the bundle.
 
@@ -27,8 +26,7 @@ all present the same content, a directory containing a helm chart, in a differen
 The `helm` provisioner can install and make available a specific `helm+v3` bundle in the cluster.
 
 Simply create a `BundleDeployment` resource that contains the desired specification of a Bundle resource.
-The `helm` provisioner will retrieve the referred helm chart and instantiate the Bundle onto the cluster, and eventually install the helm chart
- on the cluster.
+The `helm` provisioner will retrieve the referred helm chart and instantiate a Bundle for it onto the cluster to eventually install.
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -114,6 +112,7 @@ export YOUR_ORG="your goranization name"
 
 Edit `https://github.com/$YOUR_ORG/examples/blob/main/charts/hello-world/Chart.yaml` and update `version: 0.1.0` to `version: 0.1.1` and
 commit the change into `v0.1.1` branch.
+
 
 
 #### Install RukPak for expertiment
