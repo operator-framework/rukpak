@@ -44,6 +44,10 @@ spec:
           volumeMounts:
             - name: certs
               mountPath: /etc/pki/tls
+          resources:
+            requests:
+              cpu: 1m
+              memory: 15Mi
         - name: manager
           securityContext:
             allowPrivilegeEscalation: false
@@ -69,6 +73,10 @@ spec:
               mountPath: /var/cache/uploads
             - name: certs
               mountPath: /etc/pki/tls
+          resources:
+            requests:
+              cpu: 10m
+              memory: 160Mi
       volumes:
         - name: bundle-cache
           emptyDir: {}

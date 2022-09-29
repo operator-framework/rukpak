@@ -21,6 +21,10 @@ spec:
           volumeMounts:
             - name: tls
               mountPath: "/etc/admission-webhook/tls"
+          resources:
+            requests:
+              cpu: 1m
+              memory: 15Mi
       volumes:
         - name: tls
           secret:
