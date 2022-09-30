@@ -77,6 +77,7 @@ type BundleDeploymentStatus struct {
 //+kubebuilder:printcolumn:name="Active Bundle",type=string,JSONPath=`.status.activeBundle`
 //+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
+//+kubebuilder:printcolumn:name=Provisioner,type=string,JSONPath=`.spec.provisionerClassName`,priority=1
 
 // BundleDeployment is the Schema for the bundledeployments API
 type BundleDeployment struct {
