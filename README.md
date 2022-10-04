@@ -29,15 +29,8 @@ the project, checkout the [open issues](https://github.com/operator-framework/ru
 
 ## Documentation
 
-The RukPak project currently houses all of its documentation directly in this repository. There are several sources of
-documentation:
-
-* Top-level provisioner documentation in the `internal/provisioner`.
-  * The [plain provisioner README](./internal/provisioner/plain/README.md)
-  * The [registry provisioner README](./internal/provisioner/registry/README.md)
-* A [docs](./docs) folder with additional documentation, specifically around the behavior of current features, and past
-  designs.
-* The below section of this README contains a high-level overview of the primary APIs and how to get started using RukPak.
+The RukPak project currently houses all of its documentation [directly in this repository](docs). There are several sources of
+documentation. The below section of this README contains a high-level overview of the primary APIs and how to get started using RukPak.
 
 ## Getting Started
 
@@ -80,12 +73,12 @@ content on a Kubernetes cluster. See [below](#components) for a more detailed lo
 
 The provisioner currently implemented and bundled with RukPak is known as the plain provisioner. To get started with
 this provisioner on a local kind cluster,
-see [the quickstart section](./internal/provisioner/plain/README.md#Running-locally) of the plain provisioner README. To
+see [the quickstart section](docs/provisioners/plain.md##Running-locally) of the plain provisioner README. To
 install the latest version of the provisioner on an existing cluster, see the [installation guide](#installation). There will
 be other provisioners added to the RukPak project that support different content types.
 
 The plain provisioner is able to source and unpack plain bundles. To learn more about the plain bundle format,
-see [the plain bundle spec](./docs/plain-bundle-spec.md).
+see [the plain bundle spec](docs/bundles/plain.md).
 
 ## Components
 
@@ -120,7 +113,7 @@ They can be unpacked to any arbitrary storage medium such as a tar.gz file in a 
 pods. Each `Bundle` has an associated `spec.provisionerClassName` field which indicates the `Provisioner` that should be
 watching and unpacking that particular bundle type.
 
-Example Bundle configured to work with the [plain provisioner](internal/provisioner/plain/README.md).
+Example Bundle configured to work with the [plain provisioner](docs/bundles/plain.md##Example).
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -135,7 +128,7 @@ spec:
   provisionerClassName: core-rukpak-io-plain
 ```
 
-> Note: Bundles are considered immutable once they are created. See the [bundle immutability doc](/docs/bundle-immutability.md)
+> Note: Bundles are considered immutable once they are created. See the [bundle immutability doc](docs/concepts/bundle-immutability.md)
 > for more information.
 
 ### BundleDeployment
@@ -153,7 +146,7 @@ Bundles. `BundleDeployment` can be seen as a generalization of the Pod concept.
 The specifics of how an `BundleDeployment` makes changes to a cluster based on a referenced `Bundle` is defined by the
 `Provisioner` that is configured to watch that `BundleDeployment`.
 
-Example BundleDeployment configured to work with the [plain provisioner](internal/provisioner/plain/README.md).
+Example BundleDeployment configured to work with the [plain provisioner](docs/provisioners/plain.md###-Installing-the-Combo-Operator).
 
 ```yaml
 apiVersion: core.rukpak.io/v1alpha1
@@ -180,12 +173,12 @@ A Provisioner is a controller that understands `BundleDeployment` and `Bundle` A
 Each `Provisioner` is assigned a unique ID, and is responsible for reconciling a `Bundle` and `BundleDeployment` with
 a `spec.provisionerClassName` that matches that particular ID.
 
-For example, in this repository the [plain](internal/provisioner/plain/README.md) provisioner is implemented.
+For example, in this repository the [plain](docs/provisioners/plain.md) provisioner is implemented.
 The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
 content of the bundle available in the cluster.
 
 If you are interested in implementing your own provisioner, please see the
-[Provisioner Spec [DRAFT]](docs/provisioner-spec.md), which describes the expectations of provisioner implementations.
+[Provisioner Overview [DRAFT]](docs/provisioners/overview.md), which describes the expectations of provisioner implementations.
 
 ### CustomResourceDefinition (CRD) Validator
 
