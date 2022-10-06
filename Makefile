@@ -89,7 +89,7 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 ###########
 # Testing #
 ###########
-.PHONY: test test-unit test-e2e image-registry
+.PHONY: test test-unit test-e2e image-registry local-git
 
 ##@ testing:
 
@@ -106,7 +106,7 @@ test-e2e: ginkgo ## Run the e2e tests
 	$(GINKGO) --tags $(GO_BUILD_TAGS) $(E2E_FLAGS) -trace -progress $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: rukpakctl run image-registry kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
+e2e: rukpakctl run image-registry local-git kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
 kind-cluster: kind kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME}
@@ -117,6 +117,9 @@ kind-cluster-cleanup: kind ## Delete the kind cluster
 
 image-registry: ## Setup in-cluster image registry
 	./tools/imageregistry/setup_imageregistry.sh ${KIND_CLUSTER_NAME}
+
+local-git: ## Setup in-cluster git repository
+	./tools/git/setup_git.sh ${KIND_CLUSTER_NAME}
 
 ###################
 # Install and Run #
