@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: local-git-pod
+  labels:
+    app: local-git
+spec:
+  containers:
+  - name: git
+    image: git:latest
+    imagePullPolicy: IfNotPresent
+    ports:
+    - containerPort: 22
+      protocol: TCP
+      name: https
+    volumeMounts:
+    - name: ssh-cert
+      mountPath: "/git-server/keys"
+      readOnly: true
+  volumes:
+  - name: ssh-cert
+    secret:
+      secretName: ssh-secret
