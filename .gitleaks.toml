@@ -1,3 +1,5 @@
-[[rules.allowlist]]
+[[allowlist]]
 description = "ignore testdata private key"
-paths = "testdata/source/git/private-key.pem"
+paths = [
+  '''testdata\/source\/git\/private-key\.pem'''
+]
