@@ -116,10 +116,10 @@ kind-cluster-cleanup: kind ## Delete the kind cluster
 	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
 
 image-registry: ## Setup in-cluster image registry
-	./tools/imageregistry/setup_imageregistry.sh ${KIND_CLUSTER_NAME}
+	./test/tools/imageregistry/setup_imageregistry.sh ${KIND_CLUSTER_NAME}
 
 local-git: ## Setup in-cluster git repository
-	./tools/git/setup_git.sh ${KIND_CLUSTER_NAME}
+	./test/tools/git/setup_git.sh ${KIND_CLUSTER_NAME}
 
 ###################
 # Install and Run #
@@ -200,7 +200,7 @@ kind-load: kind ## Loads the currently constructed image onto the cluster
 
 registry-load-bundles: ## Load selected e2e testdata container images created in kind-load-bundles into registry
 	$(CONTAINER_RUNTIME) tag testdata/bundles/plain-v0:valid $(DNS_NAME):5000/bundles/plain-v0:valid
-	./tools/imageregistry/load_test_image.sh $(KIND) $(KIND_CLUSTER_NAME)
+	./test/tools/imageregistry/load_test_image.sh $(KIND) $(KIND_CLUSTER_NAME)
 
 ###########
 # Release #
