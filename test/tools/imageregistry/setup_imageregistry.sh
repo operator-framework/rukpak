@@ -14,24 +14,24 @@ kubectl create secret tls certs-secret --cert=/tmp/var/imageregistry/certs/tls.c
 kubectl create configmap trusted-ca -n $REGISTRY_NAMESPACE --from-file=ca.crt=/tmp/var/imageregistry/certs/tls.crt
 
 # create image registry service
-kubectl apply -f tools/imageregistry/service.yaml -n $REGISTRY_NAMESPACE
+kubectl apply -f test/tools/imageregistry/service.yaml -n $REGISTRY_NAMESPACE
 
 # set local variables
 export REGISTRY_IP=$(kubectl get service $REGISTRY_NAME -n $REGISTRY_NAMESPACE -o jsonpath='{ .spec.clusterIP }')
 export REGISTRY_PORT=5000
 
 # Add ca certificate to Node
-kubectl apply -f tools/imageregistry/daemonset.yaml -n $REGISTRY_NAMESPACE
+kubectl apply -f test/tools/imageregistry/daemonset.yaml -n $REGISTRY_NAMESPACE
 
 # Add an entry in /etc/hosts of Node
 docker exec $(docker ps | grep $KIND_CLUSTER_NAME'-control-plane' | cut -c 1-12) sh -c "/usr/bin/echo $REGISTRY_IP $DNS_NAME >>/etc/hosts"
 
 sleep 5
 # create image registry pod
-kubectl apply -f tools/imageregistry/registry.yaml -n $REGISTRY_NAMESPACE
+kubectl apply -f test/tools/imageregistry/registry.yaml -n $REGISTRY_NAMESPACE
 
 # create image upload  pod
-kubectl apply -f tools/imageregistry/nerdctl.yaml -n $REGISTRY_NAMESPACE
+kubectl apply -f test/tools/imageregistry/nerdctl.yaml -n $REGISTRY_NAMESPACE
 
 # create imagePull secret for provisioner
 export IMAGE_PULL_RECRET="registrysecret"
