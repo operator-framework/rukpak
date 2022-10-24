@@ -210,7 +210,7 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 	}
 
 	if len(in.CSV.Spec.WebhookDefinitions) > 0 {
-		return nil, fmt.Errorf("webhookDefiniions are not supported")
+		return nil, fmt.Errorf("webhookDefinitions are not supported")
 	}
 
 	deployments := []appsv1.Deployment{}
