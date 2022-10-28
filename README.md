@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/operator-framework/rukpak)](https://goreportcard.com/report/github.com/operator-framework/rukpak)
 [![Slack Channel](https://img.shields.io/badge/chat-4A154B?logo=slack&logoColor=white "Slack Channel")](https://kubernetes.slack.com/archives/C038B7MF75M)
 
-RukPak runs in a Kubernetes cluster and defines an API for installing cloud native bundle content.
+RukPak runs in a Kubernetes cluster and defines APIs for installing cloud native content.
 
 ## Introduction
 
