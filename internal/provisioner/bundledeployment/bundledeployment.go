@@ -102,9 +102,10 @@ func SetupProvisioner(mgr manager.Manager, opts ...Option) error {
 		return fmt.Errorf("invalid configuration: %v", err)
 	}
 
-	controllerName := fmt.Sprintf("controller.bundle.%s", bd.provisionerID)
+	controllerName := fmt.Sprintf("controller.bundledeployment.%s", bd.provisionerID)
 	l := mgr.GetLogger().WithName(controllerName)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
 		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(
 			util.BundleDeploymentProvisionerFilter(bd.provisionerID)),
 		).
