@@ -92,6 +92,8 @@ NAME      ACTIVE BUNDLE        INSTALL STATE           AGE
 my-ahoy   my-ahoy-5764594dc8   InstallationSucceeded   48s
 ```
 
+The contents of [templates/NOTES.txt](https://helm.sh/docs/chart_template_guide/notes_files/#helm) is in the `message` of the `Installed` condition in the BundleDeployment.
+
 > Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
 
 ## Quick Start

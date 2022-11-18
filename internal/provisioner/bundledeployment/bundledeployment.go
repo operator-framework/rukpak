@@ -401,7 +401,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		Type:    rukpakv1alpha1.TypeInstalled,
 		Status:  metav1.ConditionTrue,
 		Reason:  rukpakv1alpha1.ReasonInstallationSucceeded,
-		Message: fmt.Sprintf("Instantiated bundle %s successfully", bundle.GetName()),
+		Message: fmt.Sprintf("Instantiated bundle %s successfully\nNotes:  %s", bundle.GetName(), rel.Info.Notes),
 	})
 	bd.Status.ActiveBundle = bundle.GetName()
 
