@@ -153,7 +153,7 @@ func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (tr
 			User:   "git",
 			Signer: signer,
 			HostKeyCallbackHelper: sshgit.HostKeyCallbackHelper{
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(), // nolint:gosec
 			},
 		}
 	} else if host != nil {

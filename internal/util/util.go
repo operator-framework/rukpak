@@ -239,11 +239,11 @@ func GetBundlesForBundleDeploymentSelector(ctx context.Context, c client.Client,
 // match the desired Bundle template that's specified in a BundleDeployment object. If a match
 // is found, that Bundle object is returned, so callers are responsible for nil checking the result.
 func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate *rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
-	for _, bundle := range existingBundles.Items {
-		if !CheckDesiredBundleTemplate(&bundle, desiredBundleTemplate) {
+	for i := range existingBundles.Items {
+		if !CheckDesiredBundleTemplate(&existingBundles.Items[i], desiredBundleTemplate) {
 			continue
 		}
-		return bundle.DeepCopy()
+		return existingBundles.Items[i].DeepCopy()
 	}
 	return nil
 }

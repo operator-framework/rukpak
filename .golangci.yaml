@@ -10,6 +10,7 @@ linters:
   - errorlint
   - gofmt
   - goimports
+  - gosec
   - importas
   - misspell
   - nestif
@@ -39,7 +40,6 @@ linters-settings:
       alias: rukpakv1alpha1
   goimports:
     local-prefixes: github.com/operator-framework/rukpak
-
 
 output:
   format: tab
