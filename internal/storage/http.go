@@ -27,7 +27,9 @@ func WithInsecureSkipVerify(v bool) HTTPOption {
 	return func(s *HTTP) {
 		tr := s.client.Transport.(*http.Transport)
 		if tr.TLSClientConfig == nil {
-			tr.TLSClientConfig = &tls.Config{}
+			tr.TLSClientConfig = &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			}
 		}
 		tr.TLSClientConfig.InsecureSkipVerify = v
 	}
@@ -37,7 +39,9 @@ func WithRootCAs(rootCAs *x509.CertPool) HTTPOption {
 	return func(s *HTTP) {
 		tr := s.client.Transport.(*http.Transport)
 		if tr.TLSClientConfig == nil {
-			tr.TLSClientConfig = &tls.Config{}
+			tr.TLSClientConfig = &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			}
 		}
 		tr.TLSClientConfig.RootCAs = rootCAs
 	}

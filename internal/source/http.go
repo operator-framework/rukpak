@@ -46,7 +46,7 @@ func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resu
 	httpClient := http.Client{Timeout: 10 * time.Second}
 	if bundle.Spec.Source.HTTP.Auth.InsecureSkipVerify {
 		tr := http.DefaultTransport.(*http.Transport).Clone()
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // nolint:gosec
 		httpClient.Transport = tr
 	}
 

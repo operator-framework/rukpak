@@ -109,7 +109,9 @@ func NewDefaultUnpacker(mgr ctrl.Manager, namespace, unpackImage string, baseUpl
 	}
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	if httpTransport.TLSClientConfig == nil {
-		httpTransport.TLSClientConfig = &tls.Config{}
+		httpTransport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
 	}
 	httpTransport.TLSClientConfig.RootCAs = rootCAs
 	return NewUnpacker(map[rukpakv1alpha1.SourceType]Unpacker{

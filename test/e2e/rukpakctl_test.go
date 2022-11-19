@@ -210,7 +210,7 @@ var _ = Describe("rukpakctl content subcommand", func() {
 					return bundle.Status.Phase, nil
 				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
 			})
-			out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundle.ObjectMeta.Name).Output()
+			out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundle.ObjectMeta.Name).Output() // nolint:gosec
 			Expect(err).To(BeNil())
 			output = string(out)
 		})
@@ -286,7 +286,7 @@ var _ = Describe("rukpakctl content subcommand", func() {
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				))
-				out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundlename).CombinedOutput()
+				out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundlename).CombinedOutput() // nolint: gosec
 				Expect(err).NotTo(BeNil())
 				output = string(out)
 			})

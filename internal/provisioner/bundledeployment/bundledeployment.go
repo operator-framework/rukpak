@@ -418,11 +418,11 @@ func (p *bundledeploymentProvisioner) reconcileOldBundles(ctx context.Context, c
 	var (
 		errors []error
 	)
-	for _, bundle := range allBundles.Items {
-		if bundle.GetName() == currBundle.GetName() {
+	for i := range allBundles.Items {
+		if allBundles.Items[i].GetName() == currBundle.GetName() {
 			continue
 		}
-		if err := p.cl.Delete(ctx, &bundle); err != nil {
+		if err := p.cl.Delete(ctx, &allBundles.Items[i]); err != nil {
 			errors = append(errors, err)
 			continue
 		}
