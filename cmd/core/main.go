@@ -24,10 +24,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	goruntime "runtime"
 	"time"
 
 	"github.com/gorilla/handlers"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
+	"helm.sh/helm/v3/pkg/action"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +38,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -213,12 +216,43 @@ func main() {
 		bundle.WithStorage(bundleStorage),
 	}
 
-	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	acg := helmclient.NewActionClientGetter(cfgGetter)
+	cfgGetter, err := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	if err != nil {
+		setupLog.Error(err, "unable to setup helm action config getter")
+		os.Exit(1)
+	}
+
+	// Create an action client getter. When an install or upgrade fails, we want to wait for the
+	// subsequent uninstall/rollback to complete to ensure that the next install/upgrade attempt
+	// during the next reconciliation does not overlap with the previous reconciliation's
+	// uninstall/rollback.
+	acg, err := helmclient.NewActionClientGetter(cfgGetter,
+		helmclient.AppendInstallFailureUninstallOptions(func(uninstall *action.Uninstall) error {
+			uninstall.Wait = true
+			uninstall.Timeout = time.Second * 30
+			return nil
+		}),
+		helmclient.AppendUpgradeFailureRollbackOptions(func(rollback *action.Rollback) error {
+			rollback.Wait = true
+			rollback.Timeout = time.Second * 30
+			return nil
+		}),
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to setup helm action client getter")
+		os.Exit(1)
+	}
+
 	commonBDProvisionerOptions := []bundledeployment.Option{
 		bundledeployment.WithReleaseNamespace(ns),
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithStorage(bundleStorage),
+		bundledeployment.WithControllerOptions(controller.Options{
+			// We want multiple workers for our bundle deployment controllers
+			// because some workers could be blocked waiting to clean up failed
+			// installations and upgrades.
+			MaxConcurrentReconciles: goruntime.NumCPU(),
+		}),
 	}
 
 	if err := bundle.SetupProvisioner(mgr, append(

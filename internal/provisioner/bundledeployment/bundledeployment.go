@@ -88,6 +88,12 @@ func WithReleaseNamespace(releaseNamespace string) Option {
 	}
 }
 
+func WithControllerOptions(options controller.Options) Option {
+	return func(bd *bundledeploymentProvisioner) {
+		bd.controllerOptions = options
+	}
+}
+
 func SetupProvisioner(mgr manager.Manager, opts ...Option) error {
 	bd := &bundledeploymentProvisioner{
 		cl:               mgr.GetClient(),
@@ -112,6 +118,7 @@ func SetupProvisioner(mgr manager.Manager, opts ...Option) error {
 		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(
 			util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), l, bd.provisionerID)),
 		).
+		WithOptions(bd.controllerOptions).
 		Build(bd)
 	if err != nil {
 		return err
@@ -151,6 +158,7 @@ type bundledeploymentProvisioner struct {
 	releaseNamespace string
 
 	controller        controller.Controller
+	controllerOptions controller.Options
 	dynamicWatchMutex sync.RWMutex
 	dynamicWatchGVKs  map[schema.GroupVersionKind]struct{}
 }
