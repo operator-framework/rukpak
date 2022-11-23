@@ -123,7 +123,9 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 		Git:  resolvedGit,
 	}
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
+	message := generateMessage("git")
+
+	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
 
 func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (transport.AuthMethod, error) {

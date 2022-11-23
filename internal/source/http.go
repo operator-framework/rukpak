@@ -67,7 +67,10 @@ func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resu
 	if err != nil {
 		return nil, fmt.Errorf("error creating FS: %s", err)
 	}
-	return &Result{Bundle: fs, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked}, nil
+
+	message := generateMessage("http")
+
+	return &Result{Bundle: fs, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked, Message: message}, nil
 }
 
 // getCredentials reads credentials from the secret specified in the bundle

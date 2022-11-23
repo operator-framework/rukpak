@@ -208,7 +208,9 @@ func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Resul
 		Image: &rukpakv1alpha1.ImageSource{Ref: digest},
 	}
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
+	message := generateMessage("image")
+
+	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
 
 func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {

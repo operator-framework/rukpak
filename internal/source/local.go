@@ -74,5 +74,7 @@ func (o *Local) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 		Local: bundle.Spec.Source.Local.DeepCopy(),
 	}
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked}, nil
+	message := generateMessage("local")
+
+	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
