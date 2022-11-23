@@ -52,5 +52,8 @@ func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Re
 	if err != nil {
 		return nil, fmt.Errorf("untar bundle contents from response: %v", err)
 	}
-	return &Result{Bundle: bundleFS, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked}, nil
+
+	message := generateMessage("upload")
+
+	return &Result{Bundle: bundleFS, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked, Message: message}, nil
 }
