@@ -16,6 +16,7 @@ import (
 	"helm.sh/helm/v3/pkg/postrender"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -33,8 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sigs.k8s.io/yaml"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/crd"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -255,6 +258,33 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		})
 		return ctrl.Result{}, err
 	}
+	if len(chrt.CRDObjects()) > 0 {
+		for _, crdFile := range chrt.CRDObjects() {
+			var c apiextensionsv1.CustomResourceDefinition
+			err := yaml.Unmarshal(crdFile.File.Data, &c)
+			if err != nil {
+				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+					Type:    rukpakv1alpha1.TypeInstalled,
+					Status:  metav1.ConditionFalse,
+					Reason:  rukpakv1alpha1.ReasonInstallFailed,
+					Message: err.Error(),
+				})
+				return ctrl.Result{}, err
+			}
+			err = crd.CreateOrUpdateCRD(ctx, p.cl, &c)
+			if err != nil {
+				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+					Type:    rukpakv1alpha1.TypeInstalled,
+					Status:  metav1.ConditionFalse,
+					Reason:  rukpakv1alpha1.ReasonInstallFailed,
+					Message: err.Error(),
+				})
+				return ctrl.Result{}, err
+			}
+		}
+	}
+	// TODO use helm's skip CRD feature instead of blowing them away
+	chrt.Files = make([]*chart.File, 0)
 
 	bd.SetNamespace(p.releaseNamespace)
 	cl, err := p.acg.ActionClientFor(bd)

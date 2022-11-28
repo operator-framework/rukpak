@@ -63,6 +63,31 @@ func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.Cus
 	return nil
 }
 
+// CreateOrUpdateCRD performs all the necessary actions to either Create or Update a CRD,
+// including running validation when an Update is required.
+func CreateOrUpdateCRD(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.CustomResourceDefinition) error {
+	// First try to create the CRD
+	err := cl.Create(ctx, newCrd)
+	if err != nil && apierrors.IsAlreadyExists(err) {
+		// If it exists already check if it's OK to update
+		err = Validate(ctx, cl, newCrd)
+		if err != nil {
+			// If not, return reason why we cannot update safely
+			return err
+		}
+		/* TODO
+		// Update when it is safe to do so
+		err = cl.Update(ctx, newCrd)
+		if err != nil {
+			return err
+		}*/
+	} else if err != nil {
+		// Other error from call to Create
+		return err
+	}
+	return nil
+}
+
 func keys(m map[string]apiextensionsv1.CustomResourceDefinitionVersion) sets.String {
 	return sets.StringKeySet(m)
 }

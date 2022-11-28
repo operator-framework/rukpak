@@ -100,10 +100,18 @@ func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Ch
 			return nil, err
 		}
 		hash := sha256.Sum256(yamlData)
-		chrt.Templates = append(chrt.Templates, &chart.File{
-			Name: fmt.Sprintf("object-%x.yaml", hash[0:8]),
-			Data: yamlData,
-		})
+		// TODO available const string somewhere?
+		if obj.GetObjectKind().GroupVersionKind().Kind == "CustomResourceDefinition" {
+			chrt.Files = append(chrt.Files, &chart.File{
+				Name: fmt.Sprintf("crds/object-%x.yaml", hash[0:8]),
+				Data: yamlData,
+			})
+		} else {
+			chrt.Templates = append(chrt.Templates, &chart.File{
+				Name: fmt.Sprintf("object-%x.yaml", hash[0:8]),
+				Data: yamlData,
+			})
+		}
 	}
 	return chrt, nil
 }
