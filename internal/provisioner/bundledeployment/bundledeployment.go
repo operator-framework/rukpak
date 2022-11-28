@@ -283,8 +283,6 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 			}
 		}
 	}
-	// TODO use helm's skip CRD feature instead of blowing them away
-	chrt.Files = make([]*chart.File, 0)
 
 	bd.SetNamespace(p.releaseNamespace)
 	cl, err := p.acg.ActionClientFor(bd)
@@ -321,6 +319,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 	case stateNeedsInstall:
 		rel, err = cl.Install(bd.Name, p.releaseNamespace, chrt, values, func(install *action.Install) error {
 			install.CreateNamespace = false
+			install.SkipCRDs = true
 			return nil
 		},
 			// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
