@@ -346,6 +346,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 			func(upgrade *action.Upgrade) error {
 				post.cascade = upgrade.PostRenderer
 				upgrade.PostRenderer = post
+				upgrade.SkipCRDs = true
 				return nil
 			})
 		if err != nil {
