@@ -84,15 +84,14 @@ func CreateOrUpdateCRD(ctx context.Context, cl client.Client, newCrd *apiextensi
 				return fmt.Errorf("failed to get latest version of CRD: %v", err)
 			}
 			newCrd.SetResourceVersion(oldCRD.GetResourceVersion())
-			err = cl.Update(ctx, newCrd)
-			return err
+			return cl.Update(ctx, newCrd)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to update CRD: %v", err)
 		}
 	} else if err != nil {
 		// Other error from call to Create
-		return err
+		return fmt.Errorf("failed to create CRD: %v", err)
 	}
 	return nil
 }

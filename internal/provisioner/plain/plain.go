@@ -19,9 +19,9 @@ import (
 
 const (
 	// ProvisionerID is the unique plain provisioner ID
-	ProvisionerID = "core-rukpak-io-plain"
-
-	manifestsDir = "manifests"
+	ProvisionerID            = "core-rukpak-io-plain"
+	customResourceDefinition = "CustomResourceDefinition"
+	manifestsDir             = "manifests"
 )
 
 func HandleBundle(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) {
@@ -100,8 +100,8 @@ func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Ch
 			return nil, err
 		}
 		hash := sha256.Sum256(yamlData)
-		// TODO available const string somewhere?
-		if obj.GetObjectKind().GroupVersionKind().Kind == "CustomResourceDefinition" {
+		if obj.GetObjectKind().GroupVersionKind().Kind == customResourceDefinition {
+			// Separate the CRDs into the chart's crds/ folder
 			chrt.Files = append(chrt.Files, &chart.File{
 				Name: fmt.Sprintf("crds/object-%x.yaml", hash[0:8]),
 				Data: yamlData,

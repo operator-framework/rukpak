@@ -259,6 +259,8 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		return ctrl.Result{}, err
 	}
 	if len(chrt.CRDObjects()) > 0 {
+		// Install the CRDs ourselves before installing the rest of the helm chart
+		// This allows us to work around helm's limitations around updating CRDs
 		for _, crdFile := range chrt.CRDObjects() {
 			var c apiextensionsv1.CustomResourceDefinition
 			err := yaml.Unmarshal(crdFile.File.Data, &c)
@@ -326,6 +328,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 			func(install *action.Install) error {
 				post.cascade = install.PostRenderer
 				install.PostRenderer = post
+				install.SkipCRDs = true
 				return nil
 			})
 		if err != nil {
