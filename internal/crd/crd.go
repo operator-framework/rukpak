@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -69,18 +70,26 @@ func CreateOrUpdateCRD(ctx context.Context, cl client.Client, newCrd *apiextensi
 	// First try to create the CRD
 	err := cl.Create(ctx, newCrd)
 	if err != nil && apierrors.IsAlreadyExists(err) {
-		// If it exists already check if it's OK to update
+		// If it exists already check if it's safe to update
 		err = Validate(ctx, cl, newCrd)
 		if err != nil {
 			// If not, return reason why we cannot update safely
 			return err
 		}
-		/* TODO
-		// Update when it is safe to do so
-		err = cl.Update(ctx, newCrd)
-		if err != nil {
+		// Update when it is safe to do so - retry if there's an update conflict
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			oldCRD := &apiextensionsv1.CustomResourceDefinition{}
+			err := cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD)
+			if err != nil {
+				return fmt.Errorf("failed to get latest version of CRD: %v", err)
+			}
+			newCrd.SetResourceVersion(oldCRD.GetResourceVersion())
+			err = cl.Update(ctx, newCrd)
 			return err
-		}*/
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update CRD: %v", err)
+		}
 	} else if err != nil {
 		// Other error from call to Create
 		return err
