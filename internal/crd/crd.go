@@ -67,31 +67,29 @@ func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.Cus
 // CreateOrUpdateCRD performs all the necessary actions to either Create or Update a CRD,
 // including running validation when an Update is required.
 func CreateOrUpdateCRD(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.CustomResourceDefinition) error {
-	// First try to create the CRD
+	// First attempt to create the CRD
 	err := cl.Create(ctx, newCrd)
-	if err != nil && apierrors.IsAlreadyExists(err) {
-		// If it exists already check if it's safe to update
-		err = Validate(ctx, cl, newCrd)
-		if err != nil {
-			// If not, return reason why we cannot update safely
-			return err
-		}
-		// Update when it is safe to do so - retry if there's an update conflict
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			oldCRD := &apiextensionsv1.CustomResourceDefinition{}
-			err := cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD)
-			if err != nil {
-				return fmt.Errorf("failed to get latest version of CRD: %v", err)
-			}
-			newCrd.SetResourceVersion(oldCRD.GetResourceVersion())
-			return cl.Update(ctx, newCrd)
-		})
-		if err != nil {
-			return fmt.Errorf("failed to update CRD: %v", err)
-		}
-	} else if err != nil {
+	if err == nil {
+		// We're done
+		return nil
+	}
+
+	if !apierrors.IsAlreadyExists(err) {
 		// Other error from call to Create
 		return fmt.Errorf("failed to create CRD: %v", err)
+	}
+
+	// If we're here, CRD already exists, Update if needed
+	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		oldCRD := &apiextensionsv1.CustomResourceDefinition{}
+		err := cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD)
+		if err != nil {
+			return fmt.Errorf("failed to get latest version of CRD: %v", err)
+		}
+		newCrd.SetResourceVersion(oldCRD.GetResourceVersion())
+		return cl.Update(ctx, newCrd)
+	}); err != nil {
+		return fmt.Errorf("failed to update CRD: %v", err)
 	}
 	return nil
 }

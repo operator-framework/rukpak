@@ -263,8 +263,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		// This allows us to work around helm's limitations around updating CRDs
 		for _, crdFile := range chrt.CRDObjects() {
 			var c apiextensionsv1.CustomResourceDefinition
-			err := yaml.Unmarshal(crdFile.File.Data, &c)
-			if err != nil {
+			if err := yaml.Unmarshal(crdFile.File.Data, &c); err != nil {
 				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 					Type:    rukpakv1alpha1.TypeInstalled,
 					Status:  metav1.ConditionFalse,
@@ -273,8 +272,16 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 				})
 				return ctrl.Result{}, err
 			}
-			err = crd.CreateOrUpdateCRD(ctx, p.cl, &c)
-			if err != nil {
+			if err = ctrl.SetControllerReference(bd, &c, p.cl.Scheme()); err != nil {
+				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+					Type:    rukpakv1alpha1.TypeInstalled,
+					Status:  metav1.ConditionFalse,
+					Reason:  rukpakv1alpha1.ReasonInstallFailed,
+					Message: err.Error(),
+				})
+				return ctrl.Result{}, err
+			}
+			if err = crd.CreateOrUpdateCRD(ctx, p.cl, &c); err != nil {
 				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 					Type:    rukpakv1alpha1.TypeInstalled,
 					Status:  metav1.ConditionFalse,
@@ -320,17 +327,12 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 	switch state {
 	case stateNeedsInstall:
 		rel, err = cl.Install(bd.Name, p.releaseNamespace, chrt, values, func(install *action.Install) error {
+			post.cascade = install.PostRenderer
 			install.CreateNamespace = false
 			install.SkipCRDs = true
+			install.PostRenderer = post
 			return nil
-		},
-			// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
-			func(install *action.Install) error {
-				post.cascade = install.PostRenderer
-				install.PostRenderer = post
-				install.SkipCRDs = true
-				return nil
-			})
+		})
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -349,7 +351,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 			func(upgrade *action.Upgrade) error {
 				post.cascade = upgrade.PostRenderer
 				upgrade.PostRenderer = post
-				upgrade.SkipCRDs = true
+				//upgrade.SkipCRDs = true
 				return nil
 			})
 		if err != nil {
