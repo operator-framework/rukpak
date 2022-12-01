@@ -64,32 +64,65 @@ func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.Cus
 	return nil
 }
 
-// CreateOrUpdateCRD performs all the necessary actions to either Create or Update a CRD,
-// including running validation when an Update is required.
-func CreateOrUpdateCRD(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.CustomResourceDefinition) error {
-	// First attempt to create the CRD
-	err := cl.Create(ctx, newCrd)
-	if err == nil {
-		// We're done
-		return nil
-	}
-
-	if !apierrors.IsAlreadyExists(err) {
-		// Other error from call to Create
-		return fmt.Errorf("failed to create CRD: %v", err)
-	}
-
-	// If we're here, CRD already exists, Update if needed
-	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		oldCRD := &apiextensionsv1.CustomResourceDefinition{}
-		err := cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD)
-		if err != nil {
-			return fmt.Errorf("failed to get latest version of CRD: %v", err)
+// CreateCRDs performs all the necessary actions to Create CRDs and removes them to rollback if an error occurrs
+func CreateCRDs(ctx context.Context, cl client.Client, newCrds []*apiextensionsv1.CustomResourceDefinition) error {
+	var createError error
+	// Attempt to create the CRDs
+	createdCrds := make([]*apiextensionsv1.CustomResourceDefinition, 0)
+	for _, crd := range newCrds {
+		if createError = cl.Create(ctx, crd); createError != nil {
+			break
 		}
-		newCrd.SetResourceVersion(oldCRD.GetResourceVersion())
-		return cl.Update(ctx, newCrd)
-	}); err != nil {
-		return fmt.Errorf("failed to update CRD: %v", err)
+		// Keep record of successfully created CRDs so we can remove them upon failed install
+		createdCrds = append(createdCrds, crd)
+	}
+
+	if createError != nil {
+		// Remove all CRDs we've installed so far
+		for _, crd := range createdCrds {
+			if deleteErr := cl.Delete(ctx, crd); deleteErr != nil {
+				return fmt.Errorf("uninstall failed: %v: original create error: %w", deleteErr, createError)
+			}
+		}
+		return fmt.Errorf("failed to create CRD: %v", createError)
+	}
+	return nil
+}
+
+// UpdateCRDs performs all the necessary actions to Update CRDs and rolls them back if an error occurrs
+func UpdateCRDs(ctx context.Context, cl client.Client, newCRDs []*apiextensionsv1.CustomResourceDefinition) error {
+	var updateErr error
+	updateFunc := func(old *apiextensionsv1.CustomResourceDefinition, new *apiextensionsv1.CustomResourceDefinition) error {
+		err := cl.Get(ctx, client.ObjectKeyFromObject(new), old)
+		if err != nil {
+			return fmt.Errorf("failed to get cluster version of CRD: %v", err)
+		}
+		// TODO do comparison to verify need for update
+		new.SetResourceVersion(old.GetResourceVersion())
+		return cl.Update(ctx, new)
+	}
+
+	// Update existing CRDs
+	previousCRDs := make([]*apiextensionsv1.CustomResourceDefinition, 0)
+	for _, newCRD := range newCRDs {
+		clusterCRD := &apiextensionsv1.CustomResourceDefinition{}
+		if updateErr = retry.RetryOnConflict(retry.DefaultRetry, func() error { return updateFunc(clusterCRD, newCRD) }); updateErr != nil {
+			// Interrupt the update process and rollback
+			break
+		}
+		// Update successful, record the old version for later rollback if needed
+		previousCRDs = append(previousCRDs, clusterCRD)
+	}
+
+	if updateErr != nil {
+		// Rollback all previously updated CRDs
+		for _, oldCRD := range previousCRDs {
+			clusterCRD := &apiextensionsv1.CustomResourceDefinition{}
+			if rollbackErr := retry.RetryOnConflict(retry.DefaultRetry, func() error { return updateFunc(clusterCRD, oldCRD) }); rollbackErr != nil {
+				return fmt.Errorf("rollback failed: %v: original update error: %w", rollbackErr, updateErr)
+			}
+		}
+		return fmt.Errorf("failed to update CRD: %v", updateErr)
 	}
 	return nil
 }

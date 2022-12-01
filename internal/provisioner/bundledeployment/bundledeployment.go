@@ -258,9 +258,9 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		})
 		return ctrl.Result{}, err
 	}
+	crds := make([]*apiextensionsv1.CustomResourceDefinition, 0)
 	if len(chrt.CRDObjects()) > 0 {
-		// Install the CRDs ourselves before installing the rest of the helm chart
-		// This allows us to work around helm's limitations around updating CRDs
+		// Aggregate the CRDs to be installed/upgraded ourselves
 		for _, crdFile := range chrt.CRDObjects() {
 			var c apiextensionsv1.CustomResourceDefinition
 			if err := yaml.Unmarshal(crdFile.File.Data, &c); err != nil {
@@ -281,15 +281,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 				})
 				return ctrl.Result{}, err
 			}
-			if err = crd.CreateOrUpdateCRD(ctx, p.cl, &c); err != nil {
-				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonInstallFailed,
-					Message: err.Error(),
-				})
-				return ctrl.Result{}, err
-			}
+			crds = append(crds, &c)
 		}
 	}
 
@@ -326,6 +318,17 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 
 	switch state {
 	case stateNeedsInstall:
+		if len(crds) > 0 {
+			if err := crd.CreateCRDs(ctx, p.cl, crds); err != nil {
+				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+					Type:    rukpakv1alpha1.TypeInstalled,
+					Status:  metav1.ConditionFalse,
+					Reason:  rukpakv1alpha1.ReasonInstallFailed,
+					Message: err.Error(),
+				})
+				return ctrl.Result{}, err
+			}
+		}
 		rel, err = cl.Install(bd.Name, p.releaseNamespace, chrt, values, func(install *action.Install) error {
 			post.cascade = install.PostRenderer
 			install.CreateNamespace = false
@@ -346,12 +349,23 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
+		if len(crds) > 0 {
+			if err := crd.UpdateCRDs(ctx, p.cl, crds); err != nil {
+				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+					Type:    rukpakv1alpha1.TypeInstalled,
+					Status:  metav1.ConditionFalse,
+					Reason:  rukpakv1alpha1.ReasonInstallFailed,
+					Message: err.Error(),
+				})
+				return ctrl.Result{}, err
+			}
+		}
 		rel, err = cl.Upgrade(bd.Name, p.releaseNamespace, chrt, values,
 			// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
 			func(upgrade *action.Upgrade) error {
 				post.cascade = upgrade.PostRenderer
 				upgrade.PostRenderer = post
-				//upgrade.SkipCRDs = true
+				upgrade.SkipCRDs = true
 				return nil
 			})
 		if err != nil {
