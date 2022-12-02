@@ -1,6 +1,12 @@
-- op: replace
+# Move the original command to the beginning of the args array
+- op: copy
+  from: /spec/template/spec/containers/1/command/0
+  path: /spec/template/spec/containers/1/args/0
+# Set the command to /dlv
+- op: add
   path: /spec/template/spec/containers/1/command
   value: ["/dlv"]
+# Prepend the args array with the following dlv args
 - op: add
   path: /spec/template/spec/containers/1/args/0
   value: "--listen=:40000"
@@ -25,6 +31,3 @@
 - op: add
   path: /spec/template/spec/containers/1/args/7
   value: "--"
-- op: add
-  path: /spec/template/spec/containers/1/args/8
-  value: "/core"
