@@ -1,28 +1,30 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  namespace: rukpak-system
-  name: core
-spec:
-  template:
-    spec:
-      containers:
-        - name: manager
-          command: ["/dlv"]
-          args:
-            - "--listen=:40000"
-            - "--continue"
-            - "--headless=true"
-            - "--api-version=2"
-            - "--accept-multiclient"
-            - "--log"
-            - "exec"
-            - "--"
-            - "/core"
-            - "--unpack-image=quay.io/operator-framework/rukpak:latest"
-            - "--base-upload-manager-url=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
-            - "--provisioner-storage-dir=/var/cache/bundles"
-            - "--upload-storage-dir=/var/cache/uploads"
-            - "--http-bind-address=127.0.0.1:8080"
-            - "--http-external-address=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
-            - "--bundle-ca-file=/etc/pki/tls/ca.crt"
+- op: replace
+  path: /spec/template/spec/containers/1/command
+  value: ["/dlv"]
+- op: add
+  path: /spec/template/spec/containers/1/args/0
+  value: "--listen=:40000"
+- op: add
+  path: /spec/template/spec/containers/1/args/1
+  value: "--continue"
+- op: add
+  path: /spec/template/spec/containers/1/args/2
+  value: "--headless=true"
+- op: add
+  path: /spec/template/spec/containers/1/args/3
+  value: "--api-version=2"
+- op: add
+  path: /spec/template/spec/containers/1/args/4
+  value: "--accept-multiclient"
+- op: add
+  path: /spec/template/spec/containers/1/args/5
+  value: "--log"
+- op: add
+  path: /spec/template/spec/containers/1/args/6
+  value: "exec"
+- op: add
+  path: /spec/template/spec/containers/1/args/7
+  value: "--"
+- op: add
+  path: /spec/template/spec/containers/1/args/8
+  value: "/core"
