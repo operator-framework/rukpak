@@ -1,0 +1,17 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Remote Debugging",
+			"type": "go",
+			"request": "attach",
+			"mode": "remote",
+			"remotePath": "",
+			"port":40000,
+			"host":"127.0.0.1",
+			"showLog": true,
+			"trace": "log",
+			"logOutput": "rpc"
+		}
+	]
+}

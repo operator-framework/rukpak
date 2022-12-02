@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: rukpak-system
+  name: core
+spec:
+  template:
+    spec:
+      containers:
+        - name: manager
+          command: ["/dlv"]
+          args:
+            - "--listen=:40000"
+            - "--continue"
+            - "--headless=true"
+            - "--api-version=2"
+            - "--accept-multiclient"
+            - "--log"
+            - "exec"
+            - "--"
+            - "/core"
+            - "--unpack-image=quay.io/operator-framework/rukpak:latest"
+            - "--base-upload-manager-url=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
+            - "--provisioner-storage-dir=/var/cache/bundles"
+            - "--upload-storage-dir=/var/cache/uploads"
+            - "--http-bind-address=127.0.0.1:8080"
+            - "--http-external-address=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
+            - "--bundle-ca-file=/etc/pki/tls/ca.crt"

@@ -86,6 +86,21 @@ generate: controller-gen ## Generate code and manifests
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
 
+#######################
+# Remote Debug Target #
+#######################
+.PHONY: debug debug-helper
+
+debug: MANIFESTS_DIR = test/tools/remotedebug
+debug: DEBUG_FLAGS = -gcflags="all=-N -l"
+debug: DOCKERFILE = test/tools/remotedebug/Dockerfile
+debug: run debug-helper
+
+debug-helper:
+	@echo ''
+	@echo 'Remote Debug container now available; run the following before establishing debug session:'
+	@echo "$$ kubectl port-forward -n rukpak-system $$($(KUBECTL) -n $(RUKPAK_NAMESPACE) get pods -l app=core -o name) 40000:40000"
+
 ###########
 # Testing #
 ###########
@@ -130,8 +145,9 @@ local-git: ## Setup in-cluster git repository
 
 install: generate cert-mgr install-manifests wait ## Install rukpak
 
+MANIFESTS_DIR ?= manifests
 install-manifests:
-	$(KUBECTL) apply -k manifests
+	$(KUBECTL) apply -k $(MANIFESTS_DIR)
 
 wait:
 	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
@@ -146,7 +162,7 @@ cert-mgr: ## Install the certification manager
 	$(KUBECTL) wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
 
 uninstall: ## Remove all rukpak resources from the cluster
-	$(KUBECTL) delete -k manifests
+	$(KUBECTL) delete -k $(MANIFESTS_DIR)
 
 ##################
 # Build and Load #
@@ -165,13 +181,14 @@ VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
 build: $(BINARIES)
 
 $(LINUX_BINARIES):
-	CGO_ENABLED=0 GOOS=linux go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$(notdir $@)
+	CGO_ENABLED=0 GOOS=linux go build $(DEBUG_FLAGS) -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$(notdir $@) 
 
 $(BINARIES):
-	CGO_ENABLED=0 go build -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@
+	CGO_ENABLED=0 go build $(DEBUG_FLAGS) -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@ $(DEBUG_FLAGS)
 
+DOCKERFILE ?= Dockerfile
 build-container: $(LINUX_BINARIES) ## Builds provisioner container image locally
-	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) $(BIN_DIR)/linux
+	$(CONTAINER_RUNTIME) build -f $(DOCKERFILE) -t $(IMAGE) $(BIN_DIR)/linux
 
 kind-load-bundles: kind ## Load the e2e testdata container images into a kind cluster
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
