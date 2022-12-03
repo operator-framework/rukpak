@@ -93,7 +93,6 @@ verify: tidy fmt generate ## Verify the current code generation and lint
 
 debug: MANIFESTS_DIR = test/tools/remotedebug
 debug: DEBUG_FLAGS = -gcflags="all=-N -l"
-debug: DOCKERFILE = test/tools/remotedebug/Dockerfile
 debug: run debug-helper
 
 debug-helper:
@@ -186,9 +185,8 @@ $(LINUX_BINARIES):
 $(BINARIES):
 	CGO_ENABLED=0 go build $(DEBUG_FLAGS) -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@ $(DEBUG_FLAGS)
 
-DOCKERFILE ?= Dockerfile
 build-container: $(LINUX_BINARIES) ## Builds provisioner container image locally
-	$(CONTAINER_RUNTIME) build -f $(DOCKERFILE) -t $(IMAGE) $(BIN_DIR)/linux
+	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) $(BIN_DIR)/linux
 
 kind-load-bundles: kind ## Load the e2e testdata container images into a kind cluster
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid

@@ -5,7 +5,7 @@
 # Set the command to /dlv
 - op: add
   path: /spec/template/spec/containers/1/command
-  value: ["/dlv"]
+  value: ["/go/bin/dlv"]
 # Prepend the args array with the following dlv args
 - op: add
   path: /spec/template/spec/containers/1/args/0
