@@ -195,8 +195,16 @@ func main() {
 		bundle.WithStorage(bundleStorage),
 	}
 
-	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	acg := helmclient.NewActionClientGetter(cfgGetter)
+	cfgGetter, err := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	if err != nil {
+		setupLog.Error(err, "unable to setup helm client config getter")
+		os.Exit(1)
+	}
+	acg, err := helmclient.NewActionClientGetter(cfgGetter)
+	if err != nil {
+		setupLog.Error(err, "unable to setup helm client getter")
+		os.Exit(1)
+	}
 	commonBDProvisionerOptions := []bundledeployment.Option{
 		bundledeployment.WithReleaseNamespace(ns),
 		bundledeployment.WithActionClientGetter(acg),
