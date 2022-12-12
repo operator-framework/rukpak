@@ -1965,7 +1965,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 			By("deleting the testing BD resource")
 			Expect(c.Delete(ctx, bd)).To(BeNil())
 		})
-		FIt("successfully installs, then fails to upgrade a BundleDeployment containing an updated CRD", func() {
+		It("successfully installs, then fails to upgrade a BundleDeployment containing an updated CRD", func() {
 			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
