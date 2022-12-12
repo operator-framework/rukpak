@@ -180,7 +180,8 @@ kind-load-bundles: kind ## Load the e2e testdata container images into a kind cl
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/empty -t testdata/bundles/plain-v0:empty
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/no-manifests -t testdata/bundles/plain-v0:no-manifests
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-missing-crds -t testdata/bundles/plain-v0:invalid-missing-crds
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-crds-and-crs -t testdata/bundles/plain-v0:invalid-crds-and-crs
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/crds-and-crs -t testdata/bundles/plain-v0:crds-and-crs
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/crds-and-crs-v2 -t testdata/bundles/plain-v0:crds-and-crs-v2
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/subdir -t testdata/bundles/plain-v0:subdir
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/registry/valid -t testdata/bundles/registry:valid
 	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/registry/invalid -t testdata/bundles/registry:invalid
@@ -190,7 +191,8 @@ kind-load-bundles: kind ## Load the e2e testdata container images into a kind cl
 	$(KIND) load docker-image testdata/bundles/plain-v0:empty --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/plain-v0:no-manifests --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/plain-v0:invalid-missing-crds --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image testdata/bundles/plain-v0:crds-and-crs --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image testdata/bundles/plain-v0:crds-and-crs-v2 --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/plain-v0:subdir --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/registry:valid --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image testdata/bundles/registry:invalid --name $(KIND_CLUSTER_NAME)

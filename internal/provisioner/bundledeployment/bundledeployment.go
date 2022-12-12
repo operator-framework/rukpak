@@ -276,7 +276,6 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		},
 	}
 
-	var crdRel *release.Release
 	rel, state, err := p.getReleaseState(cl, bd, chrt, values, post)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
@@ -290,35 +289,16 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 
 	switch state {
 	case stateNeedsInstall:
-		installFunc := func(install *action.Install) error {
-			post.cascade = install.PostRenderer
-			install.CreateNamespace = false
-			install.PostRenderer = post
-			return nil
-		}
-		chrt, crdsChrt := splitChartByCRDs(chrt)
-		if crdsChrt != nil {
-			crdRel, err = cl.Install(fmt.Sprintf("%s-crds", bd.Name), p.releaseNamespace, crdsChrt, values, installFunc)
-			if err != nil {
-				if isResourceNotFoundErr(err) {
-					err = errRequiredResourceNotFound{err}
-				}
-				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonInstallFailed,
-					Message: err.Error(),
-				})
-				return ctrl.Result{}, err
-			}
-		}
 		rel, err = cl.Install(bd.Name, p.releaseNamespace, chrt, values, func(install *action.Install) error {
-			post.cascade = install.PostRenderer
 			install.CreateNamespace = false
-			install.SkipCRDs = true
-			install.PostRenderer = post
 			return nil
-		})
+		},
+			// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
+			func(install *action.Install) error {
+				post.cascade = install.PostRenderer
+				install.PostRenderer = post
+				return nil
+			})
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -329,37 +309,16 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 				Reason:  rukpakv1alpha1.ReasonInstallFailed,
 				Message: err.Error(),
 			})
-			if crdRel != nil {
-				_, uninstallErr := cl.Uninstall(crdRel.Name)
-				if uninstallErr != nil && !errors.Is(uninstallErr, driver.ErrReleaseNotFound) {
-					return ctrl.Result{}, fmt.Errorf("uninstall failed: %v: original install error: %w", uninstallErr, err)
-				}
-			}
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
-		upgradeFunc := func(upgrade *action.Upgrade) error {
-			post.cascade = upgrade.PostRenderer
-			upgrade.PostRenderer = post
-			return nil
-		}
-		chrt, crdsChrt := splitChartByCRDs(chrt)
-		if crdsChrt != nil {
-			crdRel, err = cl.Upgrade(fmt.Sprintf("%s-crds", bd.Name), p.releaseNamespace, crdsChrt, values, upgradeFunc)
-			if err != nil {
-				if isResourceNotFoundErr(err) {
-					err = errRequiredResourceNotFound{err}
-				}
-				meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-					Type:    rukpakv1alpha1.TypeInstalled,
-					Status:  metav1.ConditionFalse,
-					Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
-					Message: err.Error(),
-				})
-				return ctrl.Result{}, err
-			}
-		}
-		rel, err = cl.Upgrade(bd.Name, p.releaseNamespace, chrt, values, upgradeFunc)
+		rel, err = cl.Upgrade(bd.Name, p.releaseNamespace, chrt, values,
+			// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
+			func(upgrade *action.Upgrade) error {
+				post.cascade = upgrade.PostRenderer
+				upgrade.PostRenderer = post
+				return nil
+			})
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -370,17 +329,6 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 				Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
 				Message: err.Error(),
 			})
-			if crdRel != nil {
-				rollbackOpts := []helmclient.RollbackOption{func(rollback *action.Rollback) error {
-					rollback.Force = true
-					return nil
-				}}
-
-				rollbackErr := cl.Rollback(crdRel.Name, rollbackOpts...)
-				if rollbackErr != nil {
-					return ctrl.Result{}, fmt.Errorf("rollback failed: %v: original upgrade error: %w", rollbackErr, err)
-				}
-			}
 			return ctrl.Result{}, err
 		}
 	case stateUnchanged:
@@ -400,19 +348,6 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		return ctrl.Result{}, fmt.Errorf("unexpected release state %q", state)
 	}
 
-	crdObjects := make([]client.Object, 0)
-	if crdRel != nil {
-		crdObjects, err = util.ManifestObjects(strings.NewReader(crdRel.Manifest), fmt.Sprintf("%s-release-manifest", crdRel.Name))
-		if err != nil {
-			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-				Message: err.Error(),
-			})
-			return ctrl.Result{}, err
-		}
-	}
 	relObjects, err := util.ManifestObjects(strings.NewReader(rel.Manifest), fmt.Sprintf("%s-release-manifest", rel.Name))
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
@@ -423,7 +358,7 @@ func (p *bundledeploymentProvisioner) reconcile(ctx context.Context, bd *rukpakv
 		})
 		return ctrl.Result{}, err
 	}
-	relObjects = append(relObjects, crdObjects...)
+
 	for _, obj := range relObjects {
 		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
@@ -539,40 +474,6 @@ type errRequiredResourceNotFound struct {
 
 func (err errRequiredResourceNotFound) Error() string {
 	return fmt.Sprintf("required resource not found: %v", err.error)
-}
-
-// splitChartByCRDs takes a single helm chart and returns two: the original chart
-// with the CRDs removed and a new chart containing only the CRDs. This allows us
-// to install them separately to work around helm CRD limitations.
-func splitChartByCRDs(chrt *chart.Chart) (remainingChrt, crdsOnlyChrt *chart.Chart) {
-	if chrt == nil {
-		return nil, nil
-	}
-	if len(chrt.CRDObjects()) > 0 {
-		remChrt := chrt
-		crdsOnlyChrt = &chart.Chart{
-			Metadata: &chart.Metadata{},
-		}
-		remFiles := make([]*chart.File, 0)
-		crdFiles := make([]*chart.File, 0)
-		for _, f := range chrt.Files {
-			if strings.HasPrefix(f.Name, "crds/") &&
-				// TODO not sure if this level of pickiness is necessary i.e. if we copy a README into Templates will helm care?
-				(strings.HasSuffix(f.Name, ".yaml") || strings.HasSuffix(f.Name, ".yml") || strings.HasSuffix(f.Name, ".json")) {
-				// Copy the crd file to crdsOnlyChrt.Templates and remove from remChrt.Files
-				crdFiles = append(crdFiles, &chart.File{
-					Name: strings.TrimPrefix(f.Name, "crds/"),
-					Data: f.Data,
-				})
-			} else {
-				remFiles = append(remFiles, f)
-			}
-		}
-		remChrt.Files = remFiles
-		crdsOnlyChrt.Templates = crdFiles
-		return remChrt, crdsOnlyChrt
-	}
-	return chrt, nil
 }
 
 func isResourceNotFoundErr(err error) bool {

@@ -1951,7 +1951,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-crds-and-crs"),
+									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:crds-and-crs"),
 								},
 							},
 						},
@@ -1965,7 +1965,26 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 			By("deleting the testing BD resource")
 			Expect(c.Delete(ctx, bd)).To(BeNil())
 		})
-		It("eventually reports a failed installation state due to missing APIs on the cluster", func() {
+		FIt("successfully installs, then fails to upgrade a BundleDeployment containing an updated CRD", func() {
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
+			))
+			// Update the bd with a new plain bundle containing the same crd+crs with a v2 version
+			bd.Spec.Template.Spec.Source.Image = &rukpakv1alpha1.ImageSource{
+				Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:crds-and-crs-v2"),
+			}
+			err := c.Update(ctx, bd)
+			Expect(err).NotTo(HaveOccurred())
+			// Upgrade should fail during the dry run since the v2 crd is not installed
 			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
@@ -1975,8 +1994,8 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallFailed)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"`)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonErrorGettingReleaseState)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("ensure CRDs are installed")),
 			))
 		})
 	})
