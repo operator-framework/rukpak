@@ -39,7 +39,8 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	bundleInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+	// Ignore the return value
+	_, err = bundleInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			bundle := obj.(*rukpakv1alpha1.Bundle)
 			if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
@@ -52,6 +53,9 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 			}
 		},
 	})
+	if err != nil {
+		return err
+	}
 
 	// Wait for the cache to sync to ensure that our bundle List calls
 	// in the below loop see a full view of the bundles that exist in

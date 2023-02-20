@@ -497,7 +497,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
@@ -550,7 +550,7 @@ var _ = Describe("plain provisioner bundle", func() {
 							return errors.New("expected exactly 1 provisioner pod")
 						}
 
-						return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+						return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
 					}).Should(BeNil())
 				})
 
@@ -621,7 +621,7 @@ var _ = Describe("plain provisioner bundle", func() {
 							return errors.New("expected exactly 1 provisioner pod")
 						}
 
-						return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+						return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
 					}).Should(BeNil())
 				})
 
@@ -692,7 +692,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
@@ -772,7 +772,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
@@ -833,7 +833,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
@@ -2044,14 +2044,14 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			Expect(provisionerPods.Items).To(HaveLen(1))
 
 			By("checking that the bundle file exists")
-			Expect(checkProvisionerBundle(b, provisionerPods.Items[0].Name)).To(Succeed())
+			Expect(checkProvisionerBundle(ctx, b, provisionerPods.Items[0].Name)).To(Succeed())
 
 			By("deleting the test Bundle resource")
 			Expect(c.Delete(ctx, b)).To(BeNil())
 
 			By("waiting until the bundle file has been deleted")
 			Eventually(func() error {
-				return checkProvisionerBundle(b, provisionerPods.Items[0].Name)
+				return checkProvisionerBundle(ctx, b, provisionerPods.Items[0].Name)
 			}).Should(MatchError(ContainSubstring("command terminated with exit code 1")))
 		})
 	})
@@ -2223,7 +2223,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 	})
 })
 
-func checkProvisionerBundle(object client.Object, provisionerPodName string) error {
+func checkProvisionerBundle(ctx context.Context, object client.Object, provisionerPodName string) error {
 	req := kubeClient.CoreV1().RESTClient().Post().
 		Namespace(defaultSystemNamespace).
 		Resource("pods").
@@ -2243,7 +2243,7 @@ func checkProvisionerBundle(object client.Object, provisionerPodName string) err
 		return err
 	}
 
-	return exec.Stream(remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  os.Stdin,
 		Stdout: io.Discard,
 		Stderr: io.Discard,

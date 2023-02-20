@@ -141,8 +141,8 @@ func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
 	return plainFS, nil
 }
 
-func validateTargetNamespaces(supportedInstallModes sets.String, installNamespace string, targetNamespaces []string) error {
-	set := sets.NewString(targetNamespaces...)
+func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNamespace string, targetNamespaces []string) error {
+	set := sets.New[string](targetNamespaces...)
 	switch set.Len() {
 	case 0:
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
@@ -163,7 +163,7 @@ func validateTargetNamespaces(supportedInstallModes sets.String, installNamespac
 			return nil
 		}
 	}
-	return fmt.Errorf("supported install modes %v do not support target namespaces %v", supportedInstallModes.List(), targetNamespaces)
+	return fmt.Errorf("supported install modes %v do not support target namespaces %v", sets.List[string](supportedInstallModes), targetNamespaces)
 }
 
 func Simple(in RegistryV1) (*Plain, error) {
@@ -184,7 +184,7 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 	if installNamespace == "" {
 		installNamespace = fmt.Sprintf("%s-system", in.PackageName)
 	}
-	supportedInstallModes := sets.NewString()
+	supportedInstallModes := sets.New[string]()
 	for _, im := range in.CSV.Spec.InstallModes {
 		if im.Supported {
 			supportedInstallModes.Insert(string(im.Type))
