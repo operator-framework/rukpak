@@ -7,7 +7,7 @@ metadata:
 spec:
   containers:
   - name: git
-    image: git:latest
+    image: localhost/git:latest
     imagePullPolicy: IfNotPresent
     ports:
     - containerPort: 22

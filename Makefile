@@ -174,32 +174,32 @@ build-container: $(LINUX_BINARIES) ## Builds provisioner container image locally
 	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) $(BIN_DIR)/linux
 
 kind-load-bundles: kind ## Load the e2e testdata container images into a kind cluster
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t testdata/bundles/plain-v0:valid
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/dependent -t testdata/bundles/plain-v0:dependent
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/provides -t testdata/bundles/plain-v0:provides
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/empty -t testdata/bundles/plain-v0:empty
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/no-manifests -t testdata/bundles/plain-v0:no-manifests
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-missing-crds -t testdata/bundles/plain-v0:invalid-missing-crds
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-crds-and-crs -t testdata/bundles/plain-v0:invalid-crds-and-crs
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/subdir -t testdata/bundles/plain-v0:subdir
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/registry/valid -t testdata/bundles/registry:valid
-	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/registry/invalid -t testdata/bundles/registry:invalid
-	$(KIND) load docker-image testdata/bundles/plain-v0:valid --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:dependent --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:provides --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:empty --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:no-manifests --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:invalid-missing-crds --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/plain-v0:subdir --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/registry:valid --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image testdata/bundles/registry:invalid --name $(KIND_CLUSTER_NAME)
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/valid -t localhost/testdata/bundles/plain-v0:valid
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/dependent -t localhost/testdata/bundles/plain-v0:dependent
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/provides -t localhost/testdata/bundles/plain-v0:provides
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/empty -t localhost/testdata/bundles/plain-v0:empty
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/no-manifests -t localhost/testdata/bundles/plain-v0:no-manifests
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-missing-crds -t localhost/testdata/bundles/plain-v0:invalid-missing-crds
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/invalid-crds-and-crs -t localhost/testdata/bundles/plain-v0:invalid-crds-and-crs
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/plain-v0/subdir -t localhost/testdata/bundles/plain-v0:subdir
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/registry/valid -t localhost/testdata/bundles/registry:valid
+	$(CONTAINER_RUNTIME) build $(TESTDATA_DIR)/bundles/registry/invalid -t localhost/testdata/bundles/registry:invalid
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:valid --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:dependent --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:provides --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:empty --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:no-manifests --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:invalid-missing-crds --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:invalid-crds-and-crs --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/plain-v0:subdir --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/registry:valid --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image localhost/testdata/bundles/registry:invalid --name $(KIND_CLUSTER_NAME)
 
 kind-load: kind ## Loads the currently constructed image onto the cluster
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
 registry-load-bundles: ## Load selected e2e testdata container images created in kind-load-bundles into registry
-	$(CONTAINER_RUNTIME) tag testdata/bundles/plain-v0:valid $(DNS_NAME):5000/bundles/plain-v0:valid
+	$(CONTAINER_RUNTIME) tag localhost/testdata/bundles/plain-v0:valid $(DNS_NAME):5000/bundles/plain-v0:valid
 	./test/tools/imageregistry/load_test_image.sh $(KIND) $(KIND_CLUSTER_NAME)
 
 ###########
