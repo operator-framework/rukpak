@@ -33,7 +33,7 @@ var _ = Describe("bundle api validating webhook", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:valid",
+							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
 				},
@@ -68,7 +68,7 @@ var _ = Describe("bundle api validating webhook", func() {
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
 						Image: &rukpakv1alpha1.ImageSource{
-							Ref: "testdata/bundles/plain-v0:valid",
+							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
 				},

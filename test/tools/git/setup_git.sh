@@ -19,8 +19,8 @@ rm -rf test/tools/git/tmp
 git clone https://github.com/operator-framework/combo.git test/tools/git/testdata/combo
 
 # create docker image
-docker build -t git:latest test/tools/git/
-kind load docker-image git:latest --name $KIND_CLUSTER_NAME
+docker build -t localhost/git:latest test/tools/git/
+kind load docker-image localhost/git:latest --name $KIND_CLUSTER_NAME
 
 # create image registry service
 kubectl apply -f test/tools/git/service.yaml -n $GIT_NAMESPACE
