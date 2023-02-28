@@ -1,0 +1,33 @@
+# Move the original command to the beginning of the args array
+- op: copy
+  from: /spec/template/spec/containers/1/command/0
+  path: /spec/template/spec/containers/1/args/0
+# Set the command to /dlv
+- op: add
+  path: /spec/template/spec/containers/1/command
+  value: ["/go/bin/dlv"]
+# Prepend the args array with the following dlv args
+- op: add
+  path: /spec/template/spec/containers/1/args/0
+  value: "--listen=:40000"
+- op: add
+  path: /spec/template/spec/containers/1/args/1
+  value: "--continue"
+- op: add
+  path: /spec/template/spec/containers/1/args/2
+  value: "--headless=true"
+- op: add
+  path: /spec/template/spec/containers/1/args/3
+  value: "--api-version=2"
+- op: add
+  path: /spec/template/spec/containers/1/args/4
+  value: "--accept-multiclient"
+- op: add
+  path: /spec/template/spec/containers/1/args/5
+  value: "--log"
+- op: add
+  path: /spec/template/spec/containers/1/args/6
+  value: "exec"
+- op: add
+  path: /spec/template/spec/containers/1/args/7
+  value: "--"

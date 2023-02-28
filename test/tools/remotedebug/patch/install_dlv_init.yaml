@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: rukpak-system
+  name: core
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: false
+      volumes:
+      - name: gobindir
+        emptyDir: {}
+      initContainers:
+        - name: install-dlv
+          env:
+          - name: CGO_ENABLED
+            value: "0"
+          image: golang:1.17
+          command:
+          - go
+          args:
+          - install
+          - -ldflags
+          - "-s -w -extldflags '-static'"
+          - github.com/go-delve/delve/cmd/dlv@latest
+          volumeMounts:
+          - name: gobindir
+            mountPath: /go/bin/
+      containers:
+        - name: kube-rbac-proxy
+        - name: manager
+          volumeMounts:
+          - name: gobindir
+            mountPath: /go/bin/

@@ -63,6 +63,35 @@ make run
 
 > Note: RukPak may take some time to become fully operational while its controllers and webhooks are spinning up during installation. As a result, please allow a few moments before creating Bundles/BundleDeployments if you are noticing unexpected failures.
 
+### Debugging
+
+The following make target is also available to developers that wish to debug the container remotely through `dlv`. Once completed, a remote debugging session may be attached through any preferred IDE on `localhost:40000` :
+
+```bash
+make debug
+```
+
+As an example, the following `launch.json` file may be used to connect to the debugging session with vscode:
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Remote Debugging",
+      "type": "go",
+      "request": "attach",
+      "mode": "remote",
+      "remotePath": "",
+      "port":40000,
+      "host":"127.0.0.1",
+      "showLog": true,
+      "trace": "log",
+      "logOutput": "rpc"
+    }
+  ]
+}
+```
+
 There are currently no other supported ways of installing RukPak, although there are plans to add support for other
 popular packaging formats such as a Helm chart or an OLM bundle.
 
