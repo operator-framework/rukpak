@@ -35,12 +35,6 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
-const (
-	defaultSystemNamespace   = util.DefaultSystemNamespace
-	defaultUploadServiceName = util.DefaultUploadServiceName
-	testdataDir              = "../../testdata"
-)
-
 func Logf(f string, v ...interface{}) {
 	if !strings.HasSuffix(f, "\n") {
 		f += "\n"

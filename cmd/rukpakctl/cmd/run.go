@@ -22,7 +22,7 @@ func newRunCmd() *cobra.Command {
 	var (
 		systemNamespace                      string
 		uploadServiceName                    string
-		caSecretName                         string
+		caConfigMapName                      string
 		bundleDeploymentProvisionerClassName string
 		bundleProvisionerClassName           string
 	)
@@ -69,7 +69,7 @@ one version to the next.
 				Config:            cfg,
 				SystemNamespace:   systemNamespace,
 				UploadServiceName: uploadServiceName,
-				CASecretName:      caSecretName,
+				CAConfigMapName:   caConfigMapName,
 			}
 			_, err := r.Run(ctx, bundleDeploymentName, os.DirFS(bundleDir), rukpakctl.RunOptions{
 				BundleDeploymentProvisionerClassName: bundleDeploymentProvisionerClassName,
@@ -83,7 +83,7 @@ one version to the next.
 	}
 	cmd.Flags().StringVar(&systemNamespace, "system-namespace", util.DefaultSystemNamespace, "the namespace in which the rukpak controllers are deployed.")
 	cmd.Flags().StringVar(&uploadServiceName, "upload-service-name", util.DefaultUploadServiceName, "the name of the service of the upload manager.")
-	cmd.Flags().StringVar(&caSecretName, "ca-secret-name", "rukpak-ca", "the name of the secret in the system namespace containing the root CAs used to authenticate the upload service.")
+	cmd.Flags().StringVar(&caConfigMapName, "ca-configmap-name", util.DefaultCAConfigMapName, "the name of the configmap in the system namespace containing the root CAs used to authenticate the upload service.")
 	cmd.Flags().StringVar(&bundleDeploymentProvisionerClassName, "bundle-deployment-provisioner-class", plain.ProvisionerID, "Provisioner class name to set on bundle deployment.")
 	cmd.Flags().StringVar(&bundleProvisionerClassName, "bundle-provisioner-class", plain.ProvisionerID, "Provisioner class name to set on bundle.")
 	return cmd

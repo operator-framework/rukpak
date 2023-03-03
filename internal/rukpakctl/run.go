@@ -26,7 +26,7 @@ type Run struct {
 
 	SystemNamespace   string
 	UploadServiceName string
-	CASecretName      string
+	CAConfigMapName   string
 }
 
 // RunOptions define extra options used for Run.
@@ -88,7 +88,7 @@ func (r *Run) Run(ctx context.Context, bundleDeploymentName string, bundle fs.FS
 		return false, fmt.Errorf("failed to get bundle name: %v", err)
 	}
 
-	rukpakCA, err := GetClusterCA(ctx, cl, types.NamespacedName{Namespace: r.SystemNamespace, Name: r.CASecretName})
+	rukpakCA, err := GetClusterCA(ctx, cl, types.NamespacedName{Namespace: r.SystemNamespace, Name: r.CAConfigMapName})
 	if err != nil {
 		return false, err
 	}
