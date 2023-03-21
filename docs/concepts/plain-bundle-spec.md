@@ -23,10 +23,11 @@ is able to source `plain+v0` bundles and install them onto a Kubernetes cluster.
 
 Supported source types for a plain bundle currently include the following:
 
-* A container image
-* A [directory in a git repository](git-bundles.md)
-* A [configmap](local-bundles.md)
-* An [upload](uploading-bundles.md)
+* An [OCI container image](/docs/sources/image.md)
+* An [OCI Artifact image](/docs/sources/artifacts.md)
+* A [directory in a git repository](/docs/sources/git.md)
+* A [configmap](/docs/sources/local.md)
+* An [upload](/docs/sources/upload.md)
 
 Additional source types, such as a local volume or a generic URI-based resource, are on the roadmap. These source types
 all present the same content, a directory containing static Kubernetes YAML manifests, in a different ways.

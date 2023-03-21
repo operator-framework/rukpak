@@ -138,5 +138,6 @@ func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage 
 			Reader:          systemNsCluster.GetClient(),
 			SecretNamespace: namespace,
 		},
+		rukpakv1alpha1.SourceTypeOCIArtifacts: &ArtifactImage{},
 	}), nil
 }

@@ -1,4 +1,4 @@
-# Image source
+# OCI Image source
 
 ## Summary
 

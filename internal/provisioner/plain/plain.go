@@ -58,6 +58,9 @@ func getBundleObjects(bundleFS fs.FS) ([]client.Object, error) {
 
 	var bundleObjects []client.Object
 	for _, e := range entries {
+		if e.Name() == "metadata.yaml" {
+			continue
+		}
 		if e.IsDir() {
 			return nil, fmt.Errorf("subdirectories are not allowed within the %q directory of the bundle image filesystem: found %q", manifestsDir, filepath.Join(manifestsDir, e.Name()))
 		}
