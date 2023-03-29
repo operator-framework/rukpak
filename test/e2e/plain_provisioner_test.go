@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
@@ -822,7 +823,11 @@ var _ = Describe("plain provisioner bundle", func() {
 						return err
 					}
 					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return errors.New("bundle is not unpacked")
+						unpackedCondition := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked)
+						if unpackedCondition == nil {
+							return errors.New("bundle is not unpacked")
+						}
+						return fmt.Errorf("bundle is not unpacked: %s", unpackedCondition.Message)
 					}
 
 					provisionerPods := &corev1.PodList{}
@@ -867,10 +872,11 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 			configmap = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "local-configmap-",
+					GenerateName: "bundle-configmap-valid-",
 					Namespace:    defaultSystemNamespace,
 				},
-				Data: data,
+				Data:      data,
+				Immutable: pointer.Bool(true),
 			}
 			err = c.Create(ctx, configmap)
 			Expect(err).To(BeNil())
@@ -881,13 +887,11 @@ var _ = Describe("plain provisioner bundle", func() {
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeLocal,
-						Local: &rukpakv1alpha1.LocalSource{
-							ConfigMapRef: &rukpakv1alpha1.ConfigMapRef{
-								Name:      configmap.ObjectMeta.Name,
-								Namespace: defaultSystemNamespace,
-							},
-						},
+						Type: rukpakv1alpha1.SourceTypeConfigMaps,
+						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
+							ConfigMap: corev1.LocalObjectReference{Name: configmap.ObjectMeta.Name},
+							Path:      "manifests",
+						}},
 					},
 				},
 			}
@@ -896,8 +900,10 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		AfterEach(func() {
-			err := c.Delete(ctx, bundle)
-			Expect(client.IgnoreNotFound(err)).To(BeNil())
+			Expect(client.IgnoreNotFound(c.Delete(ctx, bundle))).To(Succeed())
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, configmap))
+			}).Should(Succeed())
 		})
 
 		It("Can create and unpack the bundle successfully", func() {
@@ -906,24 +912,14 @@ var _ = Describe("plain provisioner bundle", func() {
 					return err
 				}
 				if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-					return errors.New("bundle is not unpacked")
+					unpackedCondition := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked)
+					if unpackedCondition == nil {
+						return errors.New("bundle is not unpacked")
+					}
+					return fmt.Errorf("bundle is not unpacked: %s", unpackedCondition.Message)
 				}
 				return nil
 			}).Should(BeNil())
-
-			By("deleting the configmap after the bundle is deleted")
-			err := c.Delete(ctx, bundle)
-			Expect(err).To(BeNil())
-
-			Eventually(func() (bool, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(configmap), configmap); err != nil {
-					if apierrors.IsNotFound(err) {
-						return true, nil
-					}
-					return false, err
-				}
-				return false, nil
-			}).Should(BeTrue())
 		})
 	})
 
@@ -942,13 +938,11 @@ var _ = Describe("plain provisioner bundle", func() {
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeLocal,
-						Local: &rukpakv1alpha1.LocalSource{
-							ConfigMapRef: &rukpakv1alpha1.ConfigMapRef{
-								Name:      "non-exist",
-								Namespace: defaultSystemNamespace,
-							},
-						},
+						Type: rukpakv1alpha1.SourceTypeConfigMaps,
+						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
+							ConfigMap: corev1.LocalObjectReference{Name: "non-exist"},
+							Path:      "manifests",
+						}},
 					},
 				},
 			}
@@ -973,7 +967,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message },
-					ContainSubstring(fmt.Sprintf("source bundle content: could not find configmap %s/%s on the cluster", defaultSystemNamespace, "non-exist"))),
+					ContainSubstring(fmt.Sprintf("source bundle content: get configmap %[1]s/%[2]s: ConfigMap %[2]q not found", defaultSystemNamespace, "non-exist"))),
 			))
 		})
 	})
@@ -1005,10 +999,11 @@ var _ = Describe("plain provisioner bundle", func() {
 			Expect(err).To(BeNil())
 			configmap = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "local-configmap-",
+					GenerateName: "bundle-configmap-invalid-",
 					Namespace:    defaultSystemNamespace,
 				},
-				Data: data,
+				Data:      data,
+				Immutable: pointer.Bool(true),
 			}
 			err = c.Create(ctx, configmap)
 			Expect(err).To(BeNil())
@@ -1019,13 +1014,11 @@ var _ = Describe("plain provisioner bundle", func() {
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeLocal,
-						Local: &rukpakv1alpha1.LocalSource{
-							ConfigMapRef: &rukpakv1alpha1.ConfigMapRef{
-								Name:      configmap.ObjectMeta.Name,
-								Namespace: defaultSystemNamespace,
-							},
-						},
+						Type: rukpakv1alpha1.SourceTypeConfigMaps,
+						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
+							ConfigMap: corev1.LocalObjectReference{Name: configmap.ObjectMeta.Name},
+							Path:      "manifests",
+						}},
 					},
 				},
 			}
@@ -1034,10 +1027,10 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		AfterEach(func() {
-			err := c.Delete(ctx, bundle)
-			Expect(client.IgnoreNotFound(err)).To(BeNil())
-			err = c.Delete(ctx, configmap)
-			Expect(client.IgnoreNotFound(err)).To(BeNil())
+			Expect(client.IgnoreNotFound(c.Delete(ctx, bundle))).To(Succeed())
+			Eventually(func() error {
+				return client.IgnoreNotFound(c.Delete(ctx, configmap))
+			}).Should(Succeed())
 		})
 		It("checks the bundle's phase gets failing", func() {
 			By("waiting until the bundle is reporting Failing state")

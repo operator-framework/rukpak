@@ -81,6 +81,15 @@ func checkBundleSource(r *Bundle) error {
 		if strings.HasPrefix(filepath.Clean(r.Spec.Source.Git.Directory), "../") {
 			return fmt.Errorf(`bundle.spec.source.git.directory begins with "../": directory must define path within the repository`)
 		}
+	case SourceTypeConfigMaps:
+		if len(r.Spec.Source.ConfigMaps) == 0 {
+			return fmt.Errorf(`bundle.spec.source.configmaps must be set for source type "configmaps"`)
+		}
+		for i, cm := range r.Spec.Source.ConfigMaps {
+			if strings.HasPrefix(filepath.Clean(cm.Path), ".."+string(filepath.Separator)) {
+				return fmt.Errorf("bundle.spec.source.configmaps[%d].path is invalid: %s is outside bundle root", i, cm.Path)
+			}
+		}
 	}
 	return nil
 }

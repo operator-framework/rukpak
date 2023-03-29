@@ -29,11 +29,11 @@ var (
 type SourceType string
 
 const (
-	SourceTypeImage  SourceType = "image"
-	SourceTypeGit    SourceType = "git"
-	SourceTypeLocal  SourceType = "local"
-	SourceTypeUpload SourceType = "upload"
-	SourceTypeHTTP   SourceType = "http"
+	SourceTypeImage      SourceType = "image"
+	SourceTypeGit        SourceType = "git"
+	SourceTypeConfigMaps SourceType = "configMaps"
+	SourceTypeUpload     SourceType = "upload"
+	SourceTypeHTTP       SourceType = "http"
 
 	TypeUnpacked = "Unpacked"
 
@@ -65,8 +65,9 @@ type BundleSource struct {
 	Image *ImageSource `json:"image,omitempty"`
 	// Git is the git repository that backs the content of this Bundle.
 	Git *GitSource `json:"git,omitempty"`
-	// Local is a reference to a local object in the cluster.
-	Local *LocalSource `json:"local,omitempty"`
+	// ConfigMaps is a list of config map references and their relative
+	// directory paths that represent a bundle filesystem.
+	ConfigMaps []ConfigMapSource `json:"configMaps,omitempty"`
 	// Upload is a source that enables this Bundle's content to be uploaded
 	// via Rukpak's bundle upload service. This source type is primarily useful
 	// with bundle development workflows because it enables bundle developers
@@ -99,8 +100,12 @@ type GitSource struct {
 	Auth Authorization `json:"auth,omitempty"`
 }
 
-type LocalSource struct {
-	ConfigMapRef *ConfigMapRef `json:"configMap"`
+type ConfigMapSource struct {
+	// ConfigMap is a reference to a configmap in the rukpak system namespace
+	ConfigMap corev1.LocalObjectReference `json:"configMap"`
+	// Path is the relative directory path within the bundle where the files
+	// from the configmap will be present when the bundle is unpacked.
+	Path string `json:"path,omitempty"`
 }
 
 type HTTPSource struct {

@@ -32,6 +32,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -106,6 +107,15 @@ func main() {
 	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
 
 	cfg := ctrl.GetConfigOrDie()
+	systemNs := util.PodNamespace(systemNamespace)
+	systemNsCluster, err := cluster.New(cfg, func(opts *cluster.Options) {
+		opts.Scheme = scheme
+		opts.Namespace = systemNs
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create system namespace cluster")
+		os.Exit(1)
+	}
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     httpBindAddr,
@@ -128,7 +138,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	ns := util.PodNamespace(systemNamespace)
+	if err := mgr.Add(systemNsCluster); err != nil {
+		setupLog.Error(err, "unable to add system namespace cluster to manager")
+		os.Exit(1)
+	}
+
 	storageURL, err := url.Parse(fmt.Sprintf("%s/bundles/", httpExternalAddr))
 	if err != nil {
 		setupLog.Error(err, "unable to parse bundle content server URL")
@@ -183,7 +197,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(mgr, ns, unpackImage, baseUploadManagerURL, rootCAs)
+	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNs, unpackImage, baseUploadManagerURL, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
@@ -198,12 +212,12 @@ func main() {
 	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
 	acg := helmclient.NewActionClientGetter(cfgGetter)
 	commonBDProvisionerOptions := []bundledeployment.Option{
-		bundledeployment.WithReleaseNamespace(ns),
+		bundledeployment.WithReleaseNamespace(systemNs),
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	if err := bundle.SetupProvisioner(mgr, append(
+	if err := bundle.SetupProvisioner(mgr, systemNsCluster.GetCache(), systemNs, append(
 		commonBundleProvisionerOptions,
 		bundle.WithProvisionerID(helm.ProvisionerID),
 		bundle.WithHandler(bundle.HandlerFunc(helm.HandleBundle)),

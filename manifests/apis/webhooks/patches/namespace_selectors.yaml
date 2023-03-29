@@ -1,0 +1,10 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+  - name: vconfigmaps.core.rukpak.io
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: rukpak-system

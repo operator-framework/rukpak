@@ -25,3 +25,23 @@ webhooks:
     resources:
     - bundles
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-core-v1-configmap
+  failurePolicy: Fail
+  name: vconfigmaps.core.rukpak.io
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - DELETE
+    resources:
+    - configmaps
+  sideEffects: None
