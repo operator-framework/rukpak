@@ -15,7 +15,7 @@
   - required:
     - image
   - required:
-    - local
+    - configMaps
   - required:
     - upload
   - required:

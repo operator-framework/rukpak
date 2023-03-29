@@ -8,12 +8,15 @@ resources:
   - resources/certificate.yaml
   - resources/deployment.yaml
   - resources/webhook.yaml
+  - resources/cluster_role.yaml
+  - resources/cluster_role_binding.yaml
 
 configurations:
 - kustomizeconfig.yaml
 
 patchesStrategicMerge:
 - patches/cainjection.yaml
+- patches/namespace_selectors.yaml
 
 vars:
 - name: CERTIFICATE_NAMESPACE # namespace of the certificate CR

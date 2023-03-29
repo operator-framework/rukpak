@@ -98,6 +98,32 @@ spec:
                         description: Source defines the configuration for the underlying
                           Bundle content.
                         properties:
+                          configMaps:
+                            description: ConfigMaps is a list of config map references
+                              and their relative directory paths that represent a
+                              bundle filesystem.
+                            items:
+                              properties:
+                                configMap:
+                                  description: ConfigMap is a reference to a configmap
+                                    in the rukpak system namespace
+                                  properties:
+                                    name:
+                                      description: 'Name of the referent. More info:
+                                        https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion,
+                                        kind, uid?'
+                                      type: string
+                                  type: object
+                                path:
+                                  description: Path is the relative directory path
+                                    within the bundle where the files from the configmap
+                                    will be present when the bundle is unpacked.
+                                  type: string
+                              required:
+                              - configMap
+                              type: object
+                            type: array
                           git:
                             description: Git is the git repository that backs the
                               content of this Bundle.
@@ -238,23 +264,6 @@ spec:
                                 type: string
                             required:
                             - ref
-                            type: object
-                          local:
-                            description: Local is a reference to a local object in
-                              the cluster.
-                            properties:
-                              configMap:
-                                properties:
-                                  name:
-                                    type: string
-                                  namespace:
-                                    type: string
-                                required:
-                                - name
-                                - namespace
-                                type: object
-                            required:
-                            - configMap
                             type: object
                           type:
                             description: Type defines the kind of Bundle content being

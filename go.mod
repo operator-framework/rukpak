@@ -18,7 +18,6 @@ require (
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/crypto v0.6.0
 	golang.org/x/sync v0.1.0
-	gopkg.in/src-d/go-git.v4 v4.13.1
 	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver v0.26.1
@@ -132,7 +131,6 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/src-d/gcfg v1.4.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect

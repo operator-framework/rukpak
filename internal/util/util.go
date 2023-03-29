@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -219,6 +220,37 @@ func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, l
 		}
 		return []reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(managingBD)}}
 	}
+}
+func MapConfigMapToBundles(ctx context.Context, cl client.Client, cmNamespace string, cm corev1.ConfigMap) []*rukpakv1alpha1.Bundle {
+	bundleList := &rukpakv1alpha1.BundleList{}
+	if err := cl.List(ctx, bundleList); err != nil {
+		return nil
+	}
+	var bs []*rukpakv1alpha1.Bundle
+	for _, b := range bundleList.Items {
+		b := b
+		for _, cmSource := range b.Spec.Source.ConfigMaps {
+			cmName := cmSource.ConfigMap.Name
+			if cm.Name == cmName && cm.Namespace == cmNamespace {
+				bs = append(bs, &b)
+			}
+		}
+	}
+	return bs
+}
+func MapConfigMapToBundlesHandler(ctx context.Context, cl client.Client, configMapNamespace string, provisionerClassName string) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
+		cm := object.(*corev1.ConfigMap)
+		var requests []reconcile.Request
+		matchingBundles := MapConfigMapToBundles(ctx, cl, configMapNamespace, *cm)
+		for _, b := range matchingBundles {
+			if b.Spec.ProvisionerClassName != provisionerClassName {
+				continue
+			}
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(b)})
+		}
+		return requests
+	})
 }
 
 // GetBundlesForBundleDeploymentSelector is responsible for returning a list of
