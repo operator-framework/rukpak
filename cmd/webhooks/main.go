@@ -21,13 +21,10 @@ import (
 	"fmt"
 	"os"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -50,16 +47,12 @@ func init() {
 
 func main() {
 	var metricsAddr string
-	var enableLeaderElection bool
 	var probeAddr string
 	var systemNamespace string
 	var rukpakVersion bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", util.DefaultSystemNamespace, "Configures the namespace that gets used to deploy system resources.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	opts := zap.Options{
 		Development: true,
@@ -76,39 +69,29 @@ func main() {
 	setupLog.Info("starting up the rukpak webhooks", "git commit", version.String())
 
 	cfg := ctrl.GetConfigOrDie()
-	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha1.BundleKind, rukpakv1alpha1.BundleDeploymentKind})
-	if err != nil {
-		setupLog.Error(err, "unable to create dependent label selector for cache")
-		os.Exit(1)
-	}
-	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
+	systemNs := util.PodNamespace(systemNamespace)
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
+		Namespace:              systemNs,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "webhooks.rukpak.io",
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			SelectorsByObject: cache.SelectorsByObject{
-				&rukpakv1alpha1.Bundle{}:           {},
-				&rukpakv1alpha1.BundleDeployment{}: {},
-			},
-			DefaultSelector: cache.ObjectSelector{
-				Label: dependentSelector,
-			},
-		}),
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to create manager")
 		os.Exit(1)
 	}
 
-	if err = (&rukpakv1alpha1.Bundle{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&webhook.Bundle{
+		Client:          mgr.GetClient(),
+		SystemNamespace: systemNs,
+	}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", rukpakv1alpha1.BundleKind)
 		os.Exit(1)
 	}
-	if err = (&webhook.ConfigMap{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&webhook.ConfigMap{
+		Client: mgr.GetClient(),
+	}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "ConfigMap")
 		os.Exit(1)
 	}
