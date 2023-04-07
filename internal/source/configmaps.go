@@ -7,6 +7,8 @@ import (
 	"testing/fstest"
 
 	corev1 "k8s.io/api/core/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
@@ -28,53 +30,48 @@ func (o *ConfigMaps) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) 
 	configMapSources := bundle.Spec.Source.ConfigMaps
 
 	bundleFS := fstest.MapFS{}
+	seenFilepaths := map[string]sets.Set[string]{}
+
 	for _, cmSource := range configMapSources {
 		cmName := cmSource.ConfigMap.Name
 		dir := filepath.Clean(cmSource.Path)
 
-		// Check for paths outside the bundle root is handled in the bundle validation webhook
-		// if strings.HasPrefix("../", dir) { ... }
+		// Validating admission webhook handles validation for:
+		//  - paths outside the bundle root
+		//  - configmaps referenced by bundles must be immutable
 
 		var cm corev1.ConfigMap
 		if err := o.Reader.Get(ctx, client.ObjectKey{Name: cmName, Namespace: o.ConfigMapNamespace}, &cm); err != nil {
 			return nil, fmt.Errorf("get configmap %s/%s: %v", o.ConfigMapNamespace, cmName, err)
 		}
 
-		// TODO: move configmaps immutability check to webhooks
-		//   This would require the webhook to lookup referenced configmaps.
-		//   We would need to implement this in two places:
-		//     1. During bundle create:
-		//         - if referenced configmap already exists, ensure it is immutable
-		//         - if referenced configmap does not exist, allow the bundle to be created anyway
-		//     2. During configmap create:
-		//         - if the configmap is referenced by a bundle, ensure it is immutable
-		//         - if not referenced by a bundle, allow the configmap to be created.
-		if cm.Immutable == nil || *cm.Immutable == false {
-			return nil, fmt.Errorf("configmap %s/%s is mutable: all bundle configmaps must be immutable", o.ConfigMapNamespace, cmName)
-		}
-
-		files := map[string][]byte{}
-		for filename, data := range cm.Data {
-			files[filename] = []byte(data)
-		}
-		for filename, data := range cm.BinaryData {
-			files[filename] = data
-		}
-
-		seenFilepaths := map[string]string{}
-		for filename, data := range files {
+		addToBundle := func(configMapName, filename string, data []byte) {
 			filepath := filepath.Join(dir, filename)
-
-			// forbid multiple configmaps in the list from referencing the same destination file.
-			if existingCmName, ok := seenFilepaths[filepath]; ok {
-				return nil, fmt.Errorf("configmap %s/%s contains path %q which is already referenced by configmap %s/%s",
-					o.ConfigMapNamespace, cmName, filepath, o.ConfigMapNamespace, existingCmName)
+			if _, ok := seenFilepaths[filepath]; !ok {
+				seenFilepaths[filepath] = sets.New[string]()
 			}
-			seenFilepaths[filepath] = cmName
+			seenFilepaths[filepath].Insert(configMapName)
 			bundleFS[filepath] = &fstest.MapFile{
 				Data: data,
 			}
 		}
+		for filename, data := range cm.Data {
+			addToBundle(cmName, filename, []byte(data))
+		}
+		for filename, data := range cm.BinaryData {
+			addToBundle(cmName, filename, data)
+		}
+	}
+
+	errs := []error{}
+	for filepath, cmNames := range seenFilepaths {
+		if len(cmNames) > 1 {
+			errs = append(errs, fmt.Errorf("duplicate path %q found in configmaps %v", filepath, sets.List(cmNames)))
+			continue
+		}
+	}
+	if len(errs) > 0 {
+		return nil, utilerrors.NewAggregate(errs)
 	}
 
 	resolvedSource := &rukpakv1alpha1.BundleSource{
