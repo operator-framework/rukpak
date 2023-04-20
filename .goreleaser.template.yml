@@ -19,8 +19,6 @@ builds:
     - arm64
     - ppc64le
     - s390x
-    ldflags:
-    - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: helm
     main: ./cmd/helm
     binary: helm
@@ -32,8 +30,6 @@ builds:
       - arm64
       - ppc64le
       - s390x
-    ldflags:
-      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: core
     main: ./cmd/core
     binary: core
@@ -45,8 +41,6 @@ builds:
     - arm64
     - ppc64le
     - s390x
-    ldflags:
-    - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: webhooks
     main: ./cmd/webhooks
     binary: webhooks
@@ -58,8 +52,6 @@ builds:
       - arm64
       - ppc64le
       - s390x
-    ldflags:
-      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: crdvalidator
     main: ./cmd/crdvalidator
     binary: crdvalidator
@@ -71,8 +63,6 @@ builds:
     - arm64
     - ppc64le
     - s390x
-    ldflags:
-    - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
   - id: rukpakctl
     main: ./cmd/rukpakctl
     binary: rukpakctl
@@ -84,8 +74,6 @@ builds:
       - arm64
       - ppc64le
       - s390x
-    ldflags:
-      - -X {{ .Env.PKG }}.GitCommit={{ .ShortCommit }}
 dockers:
 - image_templates:
   - "{{ .Env.IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}-amd64"
