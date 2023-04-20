@@ -170,16 +170,14 @@ LINUX_BINARIES=$(join $(addprefix linux/,$(BINARIES)), )
 
 .PHONY: build $(BINARIES) $(LINUX_BINARIES) build-container kind-load kind-load-bundles kind-cluster registry-load-bundles
 
-VERSION_FLAGS=-ldflags "-X $(VERSION_PATH).GitCommit=$(GIT_COMMIT)"
-
 # Binary builds
 build: $(BINARIES)
 
 $(LINUX_BINARIES):
-	CGO_ENABLED=0 GOOS=linux go build $(DEBUG_FLAGS) -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$(notdir $@) 
+	CGO_ENABLED=0 GOOS=linux go build $(DEBUG_FLAGS) -tags $(GO_BUILD_TAGS) -o $(BIN_DIR)/$@ ./cmd/$(notdir $@)
 
 $(BINARIES):
-	CGO_ENABLED=0 go build $(DEBUG_FLAGS) -tags $(GO_BUILD_TAGS) $(VERSION_FLAGS) -o $(BIN_DIR)/$@ ./cmd/$@ $(DEBUG_FLAGS)
+	CGO_ENABLED=0 go build $(DEBUG_FLAGS) -tags $(GO_BUILD_TAGS) -o $(BIN_DIR)/$@ ./cmd/$@ $(DEBUG_FLAGS)
 
 build-container: $(LINUX_BINARIES) ## Builds provisioner container image locally
 	$(CONTAINER_RUNTIME) build -f Dockerfile -t $(IMAGE) $(BIN_DIR)/linux

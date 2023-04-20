@@ -61,7 +61,7 @@ func main() {
 	flag.Parse()
 
 	if rukpakVersion {
-		fmt.Printf("Git commit: %s\n", version.String())
+		fmt.Println(version.String())
 		os.Exit(0)
 	}
 
