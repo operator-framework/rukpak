@@ -5,11 +5,15 @@ import (
 	"runtime/debug"
 )
 
-// GitCommit indicates which commit the rukpak binaries were built from
 var (
-	gitCommit  string = "unknown"
-	commitDate string = "unknown"
-	repoState  string = "unknown"
+	gitCommit  = "unknown"
+	commitDate = "unknown"
+	repoState  = "unknown"
+
+	stateMap = map[string]string{
+		"true":  "dirty",
+		"false": "clean",
+	}
 )
 
 func String() string {
@@ -28,13 +32,8 @@ func init() {
 		case "vcs.time":
 			commitDate = setting.Value
 		case "vcs.modified":
-			switch setting.Value {
-			case "false":
-				repoState = "clean"
-			case "true":
-				repoState = "dirty"
-			default:
-				repoState = "unknown"
+			if v, ok := stateMap[setting.Value]; ok {
+				repoState = v
 			}
 		}
 	}
