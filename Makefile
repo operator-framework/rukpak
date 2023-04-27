@@ -217,12 +217,9 @@ registry-load-bundles: ## Load selected e2e testdata container images created in
 
 ##@ release:
 
-export DISABLE_RELEASE_PIPELINE ?= true
-substitute:
-	envsubst < .goreleaser.template.yml > .goreleaser.yml
-
-release: GORELEASER_ARGS ?= --snapshot --rm-dist
-release: goreleaser substitute ## Run goreleaser
+export ENABLE_RELEASE_PIPELINE ?= false
+release: GORELEASER_ARGS ?= --snapshot --clean
+release: goreleaser ## Run goreleaser
 	$(GORELEASER) $(GORELEASER_ARGS)
 
 quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
