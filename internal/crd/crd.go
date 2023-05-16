@@ -37,7 +37,7 @@ import (
 func Validate(ctx context.Context, cl client.Client, newCrd *apiextensionsv1.CustomResourceDefinition) error {
 	oldCRD := &apiextensionsv1.CustomResourceDefinition{}
 
-	err := client.IgnoreNotFound(cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD))
+	err := cl.Get(ctx, client.ObjectKeyFromObject(newCrd), oldCRD)
 	if apierrors.IsNotFound(err) {
 		// Return early if the CRD has not been created yet
 		// as we know it is valid.
