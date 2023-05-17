@@ -27,7 +27,7 @@ like fixing a typo in the documentation, do not require the creation of a new is
 
 Proposing larger changes to the RukPak project may require an enhancement proposal, or some documentation, before being
 considered. The maintainers typically use [HackMD](https://hackmd.io) to prepare small design drafts for any new
-features. These docs are linked in [the HackMD notes document](./docs/hackmd-notes.md).
+features. These docs are linked in [the Designs document](./docs/dev/designs.md).
 
 Any change to RukPak's existing behavior or features, APIs, or changes and additions to tests do not require an
 enhancement proposal.
@@ -80,4 +80,4 @@ If the contribution changes the existing APIs or user interface it must include 
 new or updated features.
 
 The RukPak documentation is primarily housed at the root-level README, and there is also provisioner-specific
-documentation located in the [provisioner repository](./internal/provisioner/README.md).
+documentation located in the [provisioners directory](./docs/provisioners/overview.md).
