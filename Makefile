@@ -139,7 +139,7 @@ wait:
 	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
 	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-webhooks --timeout=60s
 	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/helm-provisioner --timeout=60s
-	$(KUBECTL) wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
+	$(KUBECTL) wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=120s
 
 run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
 
@@ -154,7 +154,7 @@ debug-helper:
 
 cert-mgr: ## Install the certification manager
 	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MGR_VERSION)/cert-manager.yaml
-	$(KUBECTL) wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=60s
+	$(KUBECTL) wait --for=condition=Available --namespace=cert-manager deployment/cert-manager-webhook --timeout=120s
 
 uninstall: ## Remove all rukpak resources from the cluster
 	$(KUBECTL) delete -k $(MANIFESTS_DIR)
