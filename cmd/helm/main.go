@@ -39,13 +39,13 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/finalizer"
-	"github.com/operator-framework/rukpak/internal/provisioner/bundle"
-	"github.com/operator-framework/rukpak/internal/provisioner/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/provisioner/helm"
-	"github.com/operator-framework/rukpak/internal/source"
-	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
+	"github.com/operator-framework/rukpak/pkg/provisioner/bundle"
+	"github.com/operator-framework/rukpak/pkg/provisioner/bundledeployment"
+	"github.com/operator-framework/rukpak/pkg/source"
+	"github.com/operator-framework/rukpak/pkg/storage"
 )
 
 var (

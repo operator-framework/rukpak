@@ -30,6 +30,7 @@ type Image struct {
 	KubeClient   kubernetes.Interface
 	PodNamespace string
 	UnpackImage  string
+	BundleDir    string
 }
 
 const imageBundleUnpackContainerName = "bundle"
@@ -148,7 +149,7 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyco
 			WithContainers(applyconfigurationcorev1.Container().
 				WithName(imageBundleUnpackContainerName).
 				WithImage(bundle.Spec.Source.Image.Ref).
-				WithCommand("/bin/unpack", "--bundle-dir", "/").
+				WithCommand("/bin/unpack", "--bundle-dir", i.BundleDir).
 				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
 					WithName("util").
 					WithMountPath("/bin"),

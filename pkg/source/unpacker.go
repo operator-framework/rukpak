@@ -120,6 +120,7 @@ func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage 
 			KubeClient:   kubeClient,
 			PodNamespace: namespace,
 			UnpackImage:  unpackImage,
+			BundleDir:    "/",
 		},
 		rukpakv1alpha1.SourceTypeGit: &Git{
 			Reader:          systemNsCluster.GetClient(),
