@@ -1,5 +1,3 @@
-//go:build upstream
-
 package util
 
 const (
