@@ -27,7 +27,7 @@ spec:
             capabilities:
               drop: [ "ALL" ]
           command: ["/webhooks"]
-          image: quay.io/operator-framework/rukpak:latest
+          image: quay.io/operator-framework/rukpak:devel
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

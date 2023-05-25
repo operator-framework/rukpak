@@ -53,11 +53,11 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ "ALL" ]
-          image: quay.io/operator-framework/rukpak:latest
+          image: quay.io/operator-framework/rukpak:devel
           imagePullPolicy: IfNotPresent
           command: ["/helm"]
           args:
-            - "--unpack-image=quay.io/operator-framework/rukpak:latest"
+            - "--unpack-image=quay.io/operator-framework/rukpak:devel"
             - "--base-upload-manager-url=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
             - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"

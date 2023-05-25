@@ -4,7 +4,7 @@
 ORG := github.com/operator-framework
 PKG := $(ORG)/rukpak
 export IMAGE_REPO ?= quay.io/operator-framework/rukpak
-export IMAGE_TAG ?= latest
+export IMAGE_TAG ?= devel
 export GO_BUILD_TAGS ?= ''
 IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= rukpak
@@ -224,7 +224,7 @@ release: goreleaser ## Run goreleaser
 
 quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
 quickstart: generate ## Generate the installation release manifests
-	$(KUBECTL) kustomize manifests | sed "s/:latest/:$(VERSION)/g" > rukpak.yaml
+	$(KUBECTL) kustomize manifests | sed "s/:devel/:$(VERSION)/g" > rukpak.yaml
 
 ################
 # Hack / Tools #
