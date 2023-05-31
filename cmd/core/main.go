@@ -235,7 +235,7 @@ func main() {
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	if err := bundle.SetupProvisioner(mgr, systemNsCluster.GetCache(), systemNs, append(
+	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNs, append(
 		commonBundleProvisionerOptions,
 		bundle.WithProvisionerID(plain.ProvisionerID),
 		bundle.WithHandler(bundle.HandlerFunc(plain.HandleBundle)),
@@ -244,7 +244,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := bundle.SetupProvisioner(mgr, systemNsCluster.GetCache(), systemNs, append(
+	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNs, append(
 		commonBundleProvisionerOptions,
 		bundle.WithProvisionerID(registry.ProvisionerID),
 		bundle.WithHandler(bundle.HandlerFunc(registry.HandleBundle)),

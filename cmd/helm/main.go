@@ -217,7 +217,7 @@ func main() {
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	if err := bundle.SetupProvisioner(mgr, systemNsCluster.GetCache(), systemNs, append(
+	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNs, append(
 		commonBundleProvisionerOptions,
 		bundle.WithProvisionerID(helm.ProvisionerID),
 		bundle.WithHandler(bundle.HandlerFunc(helm.HandleBundle)),

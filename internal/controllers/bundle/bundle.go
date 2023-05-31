@@ -26,95 +26,95 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
-type Option func(*bundleProvisioner)
+type Option func(*controller)
 
 func WithHandler(h Handler) Option {
-	return func(b *bundleProvisioner) {
-		b.handler = h
+	return func(c *controller) {
+		c.handler = h
 	}
 }
 
 func WithProvisionerID(provisionerID string) Option {
-	return func(b *bundleProvisioner) {
-		b.provisionerID = provisionerID
+	return func(c *controller) {
+		c.provisionerID = provisionerID
 	}
 }
 
 func WithStorage(s storage.Storage) Option {
-	return func(b *bundleProvisioner) {
-		b.storage = s
+	return func(c *controller) {
+		c.storage = s
 	}
 }
 
 func WithUnpacker(u source.Unpacker) Option {
-	return func(b *bundleProvisioner) {
-		b.unpacker = u
+	return func(c *controller) {
+		c.unpacker = u
 	}
 }
 
 func WithFinalizers(f crfinalizer.Finalizers) Option {
-	return func(b *bundleProvisioner) {
-		b.finalizers = f
+	return func(c *controller) {
+		c.finalizers = f
 	}
 }
 
-func SetupProvisioner(mgr manager.Manager, systemNsCache cache.Cache, systemNamespace string, opts ...Option) error {
-	b := &bundleProvisioner{
+func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, systemNamespace string, opts ...Option) error {
+	c := &controller{
 		cl: mgr.GetClient(),
 	}
 
 	for _, o := range opts {
-		o(b)
+		o(c)
 	}
 
-	b.setDefaults()
+	c.setDefaults()
 
-	if err := b.validateConfig(); err != nil {
+	if err := c.validateConfig(); err != nil {
 		return fmt.Errorf("invalid configuration: %v", err)
 	}
 
-	controllerName := fmt.Sprintf("controller.bundle.%s", b.provisionerID)
+	controllerName := fmt.Sprintf("controller.bundle.%s", c.provisionerID)
 	l := mgr.GetLogger().WithName(controllerName)
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&rukpakv1alpha1.Bundle{}, builder.WithPredicates(
-			util.BundleProvisionerFilter(b.provisionerID),
+			util.BundleProvisionerFilter(c.provisionerID),
 		)).
 		// The default image source unpacker creates Pod's ownerref'd to its bundle, so
 		// we need to watch pods to ensure we reconcile events coming from these
 		// pods.
-		Watches(crsource.NewKindWithCache(&corev1.Pod{}, systemNsCache), util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, b.provisionerID, &rukpakv1alpha1.Bundle{})).
-		Watches(crsource.NewKindWithCache(&corev1.ConfigMap{}, systemNsCache), util.MapConfigMapToBundlesHandler(context.Background(), mgr.GetClient(), systemNamespace, b.provisionerID)).
-		Complete(b)
+		Watches(crsource.NewKindWithCache(&corev1.Pod{}, systemNsCache), util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, c.provisionerID, &rukpakv1alpha1.Bundle{})).
+		Watches(crsource.NewKindWithCache(&corev1.ConfigMap{}, systemNsCache), util.MapConfigMapToBundlesHandler(context.Background(), mgr.GetClient(), systemNamespace, c.provisionerID)).
+		Complete(c)
 }
 
-func (p *bundleProvisioner) setDefaults() {
-	if p.handler == nil {
-		p.handler = HandlerFunc(func(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) { return fsys, nil })
+func (c *controller) setDefaults() {
+	if c.handler == nil {
+		c.handler = HandlerFunc(func(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) { return fsys, nil })
 	}
 }
 
-func (p *bundleProvisioner) validateConfig() error {
+func (c *controller) validateConfig() error {
 	errs := []error{}
-	if p.handler == nil {
+	if c.handler == nil {
 		errs = append(errs, errors.New("converter is unset"))
 	}
-	if p.provisionerID == "" {
+	if c.provisionerID == "" {
 		errs = append(errs, errors.New("provisioner ID is unset"))
 	}
-	if p.unpacker == nil {
+	if c.unpacker == nil {
 		errs = append(errs, errors.New("unpacker is unset"))
 	}
-	if p.storage == nil {
+	if c.storage == nil {
 		errs = append(errs, errors.New("storage is unset"))
 	}
-	if p.finalizers == nil {
+	if c.finalizers == nil {
 		errs = append(errs, errors.New("finalizer handler is unset"))
 	}
 	return apimacherrors.NewAggregate(errs)
 }
 
-type bundleProvisioner struct {
+type controller struct {
 	handler       Handler
 	provisionerID string
 
@@ -139,17 +139,17 @@ type bundleProvisioner struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (p *bundleProvisioner) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (c *controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 	l.V(1).Info("starting reconciliation")
 	defer l.V(1).Info("ending reconciliation")
 	existingBundle := &rukpakv1alpha1.Bundle{}
-	if err := p.cl.Get(ctx, req.NamespacedName, existingBundle); err != nil {
+	if err := c.cl.Get(ctx, req.NamespacedName, existingBundle); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	reconciledBundle := existingBundle.DeepCopy()
-	res, reconcileErr := p.reconcile(ctx, reconciledBundle)
+	res, reconcileErr := c.reconcile(ctx, reconciledBundle)
 
 	// Update the status subresource before updating the main object. This is
 	// necessary because, in many cases, the main object update will remove the
@@ -158,24 +158,24 @@ func (p *bundleProvisioner) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// object update to ensure that the status update can be processed before
 	// a potential deletion.
 	if !equality.Semantic.DeepEqual(existingBundle.Status, reconciledBundle.Status) {
-		if updateErr := p.cl.Status().Update(ctx, reconciledBundle); updateErr != nil {
+		if updateErr := c.cl.Status().Update(ctx, reconciledBundle); updateErr != nil {
 			return res, apimacherrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
 	}
 	existingBundle.Status, reconciledBundle.Status = rukpakv1alpha1.BundleStatus{}, rukpakv1alpha1.BundleStatus{}
 	if !equality.Semantic.DeepEqual(existingBundle, reconciledBundle) {
-		if updateErr := p.cl.Update(ctx, reconciledBundle); updateErr != nil {
+		if updateErr := c.cl.Update(ctx, reconciledBundle); updateErr != nil {
 			return res, apimacherrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
 	}
 	return res, reconcileErr
 }
 
-func (p *bundleProvisioner) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (ctrl.Result, error) {
+func (c *controller) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (ctrl.Result, error) {
 	bundle.Status.ObservedGeneration = bundle.Generation
 
 	finalizedBundle := bundle.DeepCopy()
-	finalizerResult, err := p.finalizers.Finalize(ctx, finalizedBundle)
+	finalizerResult, err := c.finalizers.Finalize(ctx, finalizedBundle)
 	if err != nil {
 		bundle.Status.ResolvedSource = nil
 		bundle.Status.ContentURL = ""
@@ -201,7 +201,7 @@ func (p *bundleProvisioner) reconcile(ctx context.Context, bundle *rukpakv1alpha
 		return ctrl.Result{}, nil
 	}
 
-	unpackResult, err := p.unpacker.Unpack(ctx, bundle)
+	unpackResult, err := c.unpacker.Unpack(ctx, bundle)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("source bundle content: %v", err))
 	}
@@ -213,16 +213,16 @@ func (p *bundleProvisioner) reconcile(ctx context.Context, bundle *rukpakv1alpha
 		updateStatusUnpacking(&bundle.Status, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacked:
-		storeFS, err := p.handler.Handle(ctx, unpackResult.Bundle, bundle)
+		storeFS, err := c.handler.Handle(ctx, unpackResult.Bundle, bundle)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, err)
 		}
 
-		if err := p.storage.Store(ctx, bundle, storeFS); err != nil {
+		if err := c.storage.Store(ctx, bundle, storeFS); err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("persist bundle content: %v", err))
 		}
 
-		contentURL, err := p.storage.URLFor(ctx, bundle)
+		contentURL, err := c.storage.URLFor(ctx, bundle)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("get content URL: %v", err))
 		}
