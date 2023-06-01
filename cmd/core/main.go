@@ -28,7 +28,6 @@ import (
 
 	"github.com/gorilla/handlers"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
-	"github.com/operator-framework/rukpak/internal/controllers/bundle"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,8 +42,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/controllers/bundle"
+	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/finalizer"
-	"github.com/operator-framework/rukpak/internal/provisioner/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/provisioner/registry"
 	"github.com/operator-framework/rukpak/internal/source"
