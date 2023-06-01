@@ -226,7 +226,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := bundledeployment.SetupProvisioner(mgr, append(
+	if err := bundledeployment.SetupWithManager(mgr, append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(helm.ProvisionerID),
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(helm.HandleBundleDeployment)),

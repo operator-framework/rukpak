@@ -72,7 +72,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=core-admin \
 		paths=./internal/controllers/bundle/... \
-		paths=./internal/provisioner/bundledeployment/... \
+		paths=./internal/controllers/bundledeployment/... \
 		paths=./internal/provisioner/plain/... \
 		paths=./internal/provisioner/registry/... \
 		paths=./internal/uploadmgr/... \
@@ -80,7 +80,7 @@ generate: controller-gen ## Generate code and manifests
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=webhooks-admin paths=./internal/webhook/... output:stdout > ./manifests/apis/webhooks/resources/cluster_role.yaml
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin \
 		paths=./internal/controllers/bundle/... \
-		paths=./internal/provisioner/bundledeployment/... \
+		paths=./internal/controllers/bundledeployment/... \
 		paths=./internal/provisioner/helm/... \
 		    output:stdout > ./manifests/provisioners/helm/resources/cluster_role.yaml
 
