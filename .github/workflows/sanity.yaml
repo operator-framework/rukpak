@@ -39,6 +39,7 @@ jobs:
         uses: github/super-linter/slim@v4
         env:
           VALIDATE_ALL_CODEBASE: true
+          FILTER_REGEX_EXCLUDE: .*\.bingo/.*
           DEFAULT_BRANCH: main
           # only runs the markdown linter
           VALIDATE_MARKDOWN: true
