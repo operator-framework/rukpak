@@ -229,5 +229,5 @@ release: $(GORELEASER) ## Run goreleaser
 	$(GORELEASER) $(GORELEASER_ARGS)
 
 quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
-quickstart: generate ## Generate the installation release manifests
-	$(KUBECTL) kustomize manifests | sed "s/:devel/:$(VERSION)/g" > rukpak.yaml
+quickstart: $(KUSTOMIZE) generate ## Generate the installation release manifests
+	$(KUSTOMIZE) build manifests | sed "s/:devel/:$(VERSION)/g" > rukpak.yaml
