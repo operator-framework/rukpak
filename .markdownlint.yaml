@@ -1,0 +1,7 @@
+# Rules by id
+MD013:
+  line_length: 300
+MD029: false
+
+# Rules by groups
+blank_lines: false

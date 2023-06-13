@@ -35,11 +35,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Lint markdown files
-        uses: github/super-linter/slim@v4
-        env:
-          VALIDATE_ALL_CODEBASE: true
-          FILTER_REGEX_EXCLUDE: .*\.bingo/.*
-          DEFAULT_BRANCH: main
-          # only runs the markdown linter
-          VALIDATE_MARKDOWN: true
+      - uses: DavidAnson/markdownlint-cli2-action@v11
+        with:
+          config: .markdownlint.yaml
+          globs: |
+            **/*.md
+            !.bingo
