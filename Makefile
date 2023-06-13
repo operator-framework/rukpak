@@ -60,8 +60,9 @@ help: ## Show this help screen
 
 ##@ code management:
 
+lint: GOLANGCI_LINT_ARGS ?= ''
 lint: $(GOLANGCI_LINT) ## Run golangci linter
-	$(Q)$(GOLANGCI_LINT) run --build-tags $(GO_BUILD_TAGS)
+	$(Q)$(GOLANGCI_LINT) run --build-tags $(GO_BUILD_TAGS) $(GOLANGCI_LINT_ARGS)
 
 tidy: ## Update dependencies
 	$(Q)go mod tidy
