@@ -14,34 +14,84 @@ resources:
 configurations:
 - kustomizeconfig.yaml
 
-patchesStrategicMerge:
-- patches/cainjection.yaml
-- patches/namespace_selectors.yaml
+patches:
+- target: 
+    group: admissionregistration.k8s.io
+    version: v1
+    kind: ValidatingWebhookConfiguration
+    name: validating-webhook-configuration
+  path: patches/cainjection.yaml
+- target: 
+    group: admissionregistration.k8s.io
+    version: v1
+    kind: ValidatingWebhookConfiguration
+    name: validating-webhook-configuration
+  path: patches/namespace_selectors.yaml
 
-vars:
-- name: CERTIFICATE_NAMESPACE # namespace of the certificate CR
-  objref:
+replacements:
+- source: # replaces CERTIFICATE_NAMESPACE with namespace of the certificate CR
     kind: Certificate
     group: cert-manager.io
     version: v1
     name: webhook-certificate # this name should match the one in certificate.yaml
-  fieldref:
-    fieldpath: metadata.namespace
-- name: CERTIFICATE_NAME
-  objref:
+    fieldPath: metadata.namespace
+  targets:
+  - select:
+      kind: ValidatingWebhookConfiguration
+      name: validating-webhook-configuration
+    fieldPaths: 
+    - metadata.annotations.[cert-manager.io/inject-ca-from]
+    options:
+      delimiter: /
+      index: 0
+- source: # replaces CERTIFICATE_NAME with name of the certificate CR
     kind: Certificate
     group: cert-manager.io
     version: v1
     name: webhook-certificate # this name should match the one in certificate.yaml
-- name: SERVICE_NAMESPACE # namespace of the service
-  objref:
+    fieldPath: metadata.name
+  targets:
+  - select:
+      kind: ValidatingWebhookConfiguration
+      name: validating-webhook-configuration
+    fieldPaths: 
+    - metadata.annotations.[cert-manager.io/inject-ca-from]
+    options:
+      delimiter: /
+      index: 1
+- source: # replaces SERVICE_NAMESPACE with namespace of the service
     kind: Service
     version: v1
     name: webhook-service
-  fieldref:
-    fieldpath: metadata.namespace
-- name: SERVICE_NAME
-  objref:
+    fieldPath: metadata.namespace
+  targets:
+  - select:
+      group: cert-manager.io
+      version: v1
+      kind: Certificate
+      name: webhook-certificate
+      namespace: system
+    fieldPaths:
+    - spec.dnsNames.0
+    - spec.dnsNames.1
+    options:
+      delimiter: .
+      index: 1
+- source: # replaces SERVICE_NAME with namespace of the service
     kind: Service
     version: v1
     name: webhook-service
+    fieldPath: metadata.name
+  targets:
+  - select:
+      group: cert-manager.io
+      version: v1
+      kind: Certificate
+      name: webhook-certificate
+      namespace: system
+    fieldPaths:
+    - spec.dnsNames.0
+    - spec.dnsNames.1
+    options:
+      delimiter: .
+      index: 0
