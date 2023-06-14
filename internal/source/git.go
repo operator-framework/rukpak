@@ -277,6 +277,6 @@ func (d *billyDirFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	return entries[:n], err
 }
 
-func (d billyDirFile) Read(data []byte) (int, error) {
+func (d billyDirFile) Read(_ []byte) (int, error) {
 	return 0, &fs.PathError{Op: "read", Path: d.path, Err: syscall.EISDIR}
 }

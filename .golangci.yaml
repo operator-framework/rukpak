@@ -6,7 +6,6 @@ linters:
   enable:
   - asciicheck
   - bodyclose
-  - depguard
   - errorlint
   - gofmt
   - goimports

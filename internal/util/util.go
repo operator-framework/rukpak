@@ -207,7 +207,7 @@ func MapBundleToBundleDeployment(ctx context.Context, c client.Client, b rukpakv
 // standalone resource, then no BundleDeployment will be returned as static creation of Bundle
 // resources is not a supported workflow right now. The provisionerClassName parameter is used
 // to filter out BundleDeployments that the caller shouldn't be watching.
-func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, log logr.Logger, provisionerClassName string) handler.MapFunc {
+func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, provisionerClassName string) handler.MapFunc {
 	return func(object client.Object) []reconcile.Request {
 		b := object.(*rukpakv1alpha1.Bundle)
 
