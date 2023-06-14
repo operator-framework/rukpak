@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -33,11 +34,11 @@ var _ = Describe("rukpakctl run subcommand", func() {
 		BeforeEach(func() {
 			ctx = context.Background()
 			out, err := exec.Command("sh", "-c", rukpakctlcmd+"run test "+testbundles+"plain-v0/valid").Output()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			fmt.Sscanf(string(out), "bundledeployment.core.rukpak.io %q applied\nsuccessfully uploaded bundle content for %q", &bundledeploymentname, &bundlename)
 		})
 		AfterEach(func() {
-			Expect(c.Delete(ctx, bundledeployment)).To(BeNil())
+			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
 		})
 		It("should eventually report a successful state", func() {
 			bundle = &rukpakv1alpha1.Bundle{
@@ -104,7 +105,7 @@ var _ = Describe("rukpakctl run subcommand", func() {
 		BeforeEach(func() {
 			out, err := exec.Command("sh", "-c", rukpakctlcmd+"run test "+testbundles+"plain-v0/notvalid").CombinedOutput()
 			message = string(out)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 		})
 		It(`should fail with a "no such file or directory" message`, func() {
 			Expect(strings.Contains(message, "no such file or directory")).To(BeTrue())
@@ -121,11 +122,11 @@ var _ = Describe("rukpakctl run subcommand", func() {
 		BeforeEach(func() {
 			ctx = context.Background()
 			out, err := exec.Command("sh", "-c", rukpakctlcmd+"run test "+testbundles+"plain-v0/subdir").Output()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			fmt.Sscanf(string(out), "bundledeployment.core.rukpak.io %q applied\nsuccessfully uploaded bundle content for %q", &bundledeploymentname, &bundlename)
 		})
 		AfterEach(func() {
-			Expect(c.Delete(ctx, bundledeployment)).To(BeNil())
+			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
 		})
 		It("should eventually report unpack fail", func() {
 			bundle = &rukpakv1alpha1.Bundle{
@@ -201,7 +202,7 @@ var _ = Describe("rukpakctl content subcommand", func() {
 				},
 			}
 			err := c.Create(ctx, bundle)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			By("eventually reporting an Unpacked phase", func() {
 				Eventually(func() (string, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
@@ -211,12 +212,12 @@ var _ = Describe("rukpakctl content subcommand", func() {
 				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
 			})
 			out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundle.ObjectMeta.Name).Output() // nolint:gosec
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			output = string(out)
 		})
 		AfterEach(func() {
 			err := c.Delete(ctx, bundle)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("output all files in the bundle", func() {
@@ -232,16 +233,31 @@ var _ = Describe("rukpakctl content subcommand", func() {
 	When("content executed with a wrong bundle name", func() {
 		var (
 			output string
+			err    error
 		)
 		BeforeEach(func() {
-			out, err := exec.Command("sh", "-c", rukpakctlcmd+"content badname").Output()
-			Expect(err).NotTo(BeNil())
+			var out []byte
+			out, err = exec.Command("sh", "-c", rukpakctlcmd+"content badname").Output()
+			Expect(err).To(HaveOccurred())
 			output = string(out)
 		})
 
-		It("output error message", func() {
-			Expect(strings.Contains(output, "content command failed") &&
-				strings.Contains(output, "bundles.core.rukpak.io \"a\" not found"))
+		It("writes nothing into stdout", func() {
+			Expect(output).To(BeEmpty())
+		})
+
+		It("writes an error message into stderr", func() {
+			Expect(err).To(WithTransform(func(err error) string {
+				var exitErr *exec.ExitError
+				if !errors.As(err, &exitErr) {
+					return ""
+				}
+
+				return string(exitErr.Stderr)
+			}, SatisfyAll(
+				ContainSubstring("content command failed"),
+				ContainSubstring("bundles.core.rukpak.io \"badname\" not found"),
+			)))
 		})
 	})
 	When("content executed on a failed bundle", func() {
@@ -256,7 +272,7 @@ var _ = Describe("rukpakctl content subcommand", func() {
 		BeforeEach(func() {
 			ctx = context.Background()
 			out, err := exec.Command("sh", "-c", rukpakctlcmd+"run test "+testbundles+"plain-v0/subdir").Output()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			fmt.Sscanf(string(out), "bundledeployment.core.rukpak.io %q applied\nsuccessfully uploaded bundle content for %q", &bundledeploymentname, &bundlename)
 			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -287,12 +303,12 @@ var _ = Describe("rukpakctl content subcommand", func() {
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				))
 				out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundlename).CombinedOutput() // nolint: gosec
-				Expect(err).NotTo(BeNil())
+				Expect(err).To(HaveOccurred())
 				output = string(out)
 			})
 		})
 		AfterEach(func() {
-			Expect(c.Delete(ctx, bundledeployment)).To(BeNil())
+			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
 		})
 		It("should eventually report a failure", func() {
 			Expect(strings.Contains(output, "content command failed: error: url is not available")).To(BeTrue())

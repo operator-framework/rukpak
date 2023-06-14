@@ -48,7 +48,7 @@ var _ = Describe("crdvalidator", func() {
 
 			AfterEach(func() {
 				By("deleting the testing crd")
-				Expect(c.Delete(ctx, crd)).To(BeNil())
+				Expect(c.Delete(ctx, crd)).To(Succeed())
 			})
 
 			It("should allow the crd update event to occur without being owned by RukPak", func() {
@@ -139,7 +139,7 @@ var _ = Describe("crdvalidator", func() {
 
 			AfterEach(func() {
 				By("deleting the testing crd")
-				Expect(c.Delete(ctx, crd)).To(BeNil())
+				Expect(c.Delete(ctx, crd)).To(Succeed())
 			})
 
 			It("should be invalidated if owned by RukPak", func() {
@@ -167,7 +167,7 @@ var _ = Describe("crdvalidator", func() {
 
 					// Remove the "core.rukpak.io/owner-kind" label
 					crd.Labels = map[string]string{}
-					Expect(c.Update(ctx, crd)).To(BeNil())
+					Expect(c.Update(ctx, crd)).To(Succeed())
 
 					// Update the v1alpha1 schema to invalidate existing CR created in BeforeEach()
 					crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Required = []string{"sampleProperty"}
@@ -184,7 +184,7 @@ var _ = Describe("crdvalidator", func() {
 
 					// Add the "core.rukpak.io/safe-upgrade-validation" label set to "disabled"
 					crd.Annotations = map[string]string{annotation.ValidationKey: annotation.Disabled}
-					Expect(c.Update(ctx, crd)).To(BeNil())
+					Expect(c.Update(ctx, crd)).To(Succeed())
 
 					// Update the v1alpha1 schema to invalidate existing CR created in BeforeEach()
 					crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Required = []string{"sampleProperty"}
@@ -241,7 +241,7 @@ var _ = Describe("crdvalidator", func() {
 
 			AfterEach(func() {
 				By("deleting the testing crd")
-				Expect(c.Delete(ctx, crd)).To(BeNil())
+				Expect(c.Delete(ctx, crd)).To(Succeed())
 			})
 
 			It("should deny admission", func() {

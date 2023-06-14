@@ -38,28 +38,18 @@ var _ = BeforeSuite(func() {
 	cfg = ctrl.GetConfigOrDie()
 
 	scheme := runtime.NewScheme()
-	err := rukpakv1alpha1.AddToScheme(scheme)
-	Expect(err).To(BeNil())
-	err = rbacv1.AddToScheme(scheme)
-	Expect(err).To(BeNil())
-	err = batchv1.AddToScheme(scheme)
-	Expect(err).To(BeNil())
+	Expect(rukpakv1alpha1.AddToScheme(scheme)).To(Succeed())
+	Expect(rbacv1.AddToScheme(scheme)).To(Succeed())
+	Expect(batchv1.AddToScheme(scheme)).To(Succeed())
+	Expect(operatorsv1.AddToScheme(scheme)).To(Succeed())
+	Expect(corev1.AddToScheme(scheme)).To(Succeed())
+	Expect(appsv1.AddToScheme(scheme)).To(Succeed())
+	Expect(apiextensionsv1.AddToScheme(scheme)).To(Succeed())
 
-	err = operatorsv1.AddToScheme(scheme)
-	Expect(err).To(BeNil())
-
-	err = corev1.AddToScheme(scheme)
-	Expect(err).To(BeNil())
-
-	err = appsv1.AddToScheme(scheme)
-	Expect(err).To(BeNil())
-
-	err = apiextensionsv1.AddToScheme(scheme)
-	Expect(err).To(BeNil())
-
+	var err error
 	c, err = client.New(cfg, client.Options{Scheme: scheme})
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	kubeClient, err = kubernetes.NewForConfig(cfg)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 })

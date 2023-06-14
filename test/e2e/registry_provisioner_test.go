@@ -49,11 +49,11 @@ var _ = Describe("registry provisioner bundle", func() {
 				},
 			}
 			err := c.Create(ctx, bd)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bd)).To(BeNil())
+			Expect(c.Delete(ctx, bd)).To(Succeed())
 		})
 
 		It("should rollout the bundle contents successfully", func() {
@@ -108,11 +108,11 @@ var _ = Describe("registry provisioner bundle", func() {
 				},
 			}
 			err := c.Create(ctx, bd)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing BI resource")
-			Expect(c.Delete(ctx, bd)).To(BeNil())
+			Expect(c.Delete(ctx, bd)).To(Succeed())
 		})
 
 		It("should eventually write a failed conversion state to the bundledeployment status", func() {
