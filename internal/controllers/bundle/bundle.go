@@ -171,6 +171,10 @@ func (c *controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return res, reconcileErr
 }
 
+// nolint:unparam
+// Today we always return ctrl.Result{} and an error.
+// But in the future we might update this function
+// to return different results (e.g. requeue).
 func (c *controller) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (ctrl.Result, error) {
 	bundle.Status.ObservedGeneration = bundle.Generation
 

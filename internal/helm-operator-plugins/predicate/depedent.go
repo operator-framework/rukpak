@@ -61,18 +61,18 @@ func DependentPredicateFuncs() crtpredicate.Funcs {
 		// necessary. Ignore updates that only change the status and
 		// resourceVersion.
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			old := e.ObjectOld.(*unstructured.Unstructured).DeepCopy()
-			new := e.ObjectNew.(*unstructured.Unstructured).DeepCopy()
+			oldObj := e.ObjectOld.(*unstructured.Unstructured).DeepCopy()
+			newObj := e.ObjectNew.(*unstructured.Unstructured).DeepCopy()
 
-			delete(old.Object, "status")
-			delete(new.Object, "status")
-			old.SetResourceVersion("")
-			new.SetResourceVersion("")
+			delete(oldObj.Object, "status")
+			delete(newObj.Object, "status")
+			oldObj.SetResourceVersion("")
+			newObj.SetResourceVersion("")
 
-			if reflect.DeepEqual(old.Object, new.Object) {
+			if reflect.DeepEqual(oldObj.Object, newObj.Object) {
 				return false
 			}
-			log.V(1).Info("Reconciling due to dependent resource update", "name", new.GetName(), "namespace", new.GetNamespace(), "apiVersion", new.GroupVersionKind().GroupVersion(), "kind", new.GroupVersionKind().Kind)
+			log.V(1).Info("Reconciling due to dependent resource update", "name", newObj.GetName(), "namespace", newObj.GetNamespace(), "apiVersion", newObj.GroupVersionKind().GroupVersion(), "kind", newObj.GroupVersionKind().Kind)
 			return true
 		},
 	}

@@ -103,14 +103,13 @@ func SetupWithManager(mgr manager.Manager, opts ...Option) error {
 	}
 
 	controllerName := fmt.Sprintf("controller.bundledeployment.%s", c.provisionerID)
-	l := mgr.GetLogger().WithName(controllerName)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(
 			util.BundleDeploymentProvisionerFilter(c.provisionerID)),
 		).
 		Watches(&source.Kind{Type: &rukpakv1alpha1.Bundle{}}, handler.EnqueueRequestsFromMapFunc(
-			util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), l, c.provisionerID)),
+			util.MapBundleToBundleDeploymentHandler(context.Background(), mgr.GetClient(), c.provisionerID)),
 		).
 		Build(c)
 	if err != nil {
@@ -193,6 +192,10 @@ func (c *controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return res, reconcileErr
 }
 
+// nolint:unparam
+// Today we always return ctrl.Result{} and an error.
+// But in the future we might update this function
+// to return different results (e.g. requeue).
 func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDeployment) (ctrl.Result, error) {
 	bd.Status.ObservedGeneration = bd.Generation
 
