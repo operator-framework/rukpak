@@ -52,7 +52,7 @@ var _ = Describe("HTTP", func() {
 		// Populate the content URL, this has to happen after the server has
 		// started so that we know the server's base URL.
 		contentURL, err := localStore.URLFor(ctx, bundle)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		bundle.Status.ContentURL = contentURL
 	})
 	AfterEach(func() {
@@ -89,7 +89,7 @@ var _ = Describe("HTTP", func() {
 					store := NewHTTP(opts...)
 					loadedTestFS, err := store.Load(ctx, bundle)
 					Expect(fsEqual(testFS, loadedTestFS)).To(BeTrue())
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				})
 			})
 			Context("with non-existing bundle", func() {
@@ -132,7 +132,7 @@ var _ = Describe("HTTP", func() {
 					store := NewHTTP(opts...)
 					loadedTestFS, err := store.Load(ctx, bundle)
 					Expect(fsEqual(testFS, loadedTestFS)).To(BeTrue())
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				})
 			})
 			Context("with non-existing bundle", func() {
