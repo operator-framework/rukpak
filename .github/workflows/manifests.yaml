@@ -1,0 +1,34 @@
+name: manifests-diff
+
+on:
+  pull_request:
+  push:
+    branches:
+    - main
+
+jobs:
+  manifests-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch of repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.base_ref }}
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "go.mod"
+      - name: Generate rukpak.yaml installation manifest from target branch
+        run: make quickstart
+      - name: Rename manifest file for later comparison
+        run: mv rukpak.yaml ${{ github.base_ref }}.yaml
+      - name: Checkout PR branch
+        uses: actions/checkout@v3
+        with:
+          clean: false # Preserve the manifest we generated earlier
+      - name: Generate rukpak.yaml installation manifest from source branch
+        run: make quickstart
+      - name: Rename manifest file
+        run: mv rukpak.yaml ${{ github.head_ref }}.yaml
+      - name: Compare generated manifests of source and target branch
+        run: diff ${{ github.base_ref }}.yaml ${{ github.head_ref }}.yaml
