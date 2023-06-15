@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"oras.land/oras-go/v2/content/oci"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
@@ -77,6 +78,7 @@ func main() {
 		unpackImage                 string
 		baseUploadManagerURL        string
 		rukpakVersion               bool
+		ociStorageDirectory         string
 		provisionerStorageDirectory string
 		uploadStorageDirectory      string
 		uploadStorageSyncInterval   time.Duration
@@ -92,6 +94,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
+	flag.StringVar(&ociStorageDirectory, "oci-storage-dir", source.DefaultOCICacheDir, "The directory that is used to store OCI artifacts.")
 	flag.StringVar(&provisionerStorageDirectory, "provisioner-storage-dir", storage.DefaultBundleCacheDir, "The directory that is used to store bundle contents.")
 	flag.StringVar(&uploadStorageDirectory, "upload-storage-dir", uploadmgr.DefaultBundleCacheDir, "The directory that is used to store bundle uploads.")
 	flag.DurationVar(&uploadStorageSyncInterval, "upload-storage-sync-interval", time.Minute, "Interval on which to garbage collect unused uploaded bundles")
@@ -215,7 +218,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNs, unpackImage, baseUploadManagerURL, rootCAs)
+	ctx := ctrl.SetupSignalHandler()
+
+	ociStore, err := oci.NewWithContext(ctx, ociStorageDirectory)
+	if err != nil {
+		setupLog.Error(err, "unable to create OCI image store")
+		os.Exit(1)
+	}
+
+	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNs, unpackImage, baseUploadManagerURL, rootCAs, ociStore)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
@@ -273,7 +284,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

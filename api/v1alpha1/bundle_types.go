@@ -29,12 +29,12 @@ var (
 type SourceType string
 
 const (
-	SourceTypeImage        SourceType = "image"
-	SourceTypeGit          SourceType = "git"
-	SourceTypeConfigMaps   SourceType = "configMaps"
-	SourceTypeUpload       SourceType = "upload"
-	SourceTypeHTTP         SourceType = "http"
-	SourceTypeOCIArtifacts SourceType = "artifact"
+	SourceTypeImage       SourceType = "image"
+	SourceTypeGit         SourceType = "git"
+	SourceTypeConfigMaps  SourceType = "configMaps"
+	SourceTypeUpload      SourceType = "upload"
+	SourceTypeHTTP        SourceType = "http"
+	SourceTypeOCIArtifact SourceType = "ociArtifact"
 
 	TypeUnpacked = "Unpacked"
 
@@ -76,8 +76,8 @@ type BundleSource struct {
 	Upload *UploadSource `json:"upload,omitempty"`
 	//  HTTP is the remote location that backs the content of this Bundle.
 	HTTP *HTTPSource `json:"http,omitempty"`
-	// Artifact is the OCI Artifact image that contains the content of this bundle.
-	Artifact *OCIArtifactSource `json:"artifact,omitempty"`
+	// OCIArtifact is the OCI Artifact image that contains the content of this bundle.
+	OCIArtifact *ImageSource `json:"ociArtifact,omitempty"`
 }
 
 type ImageSource struct {
@@ -118,10 +118,6 @@ type HTTPSource struct {
 	Auth Authorization `json:"auth,omitempty"`
 }
 
-type OCIArtifactSource struct {
-	// Ref contains the reference to a OCI Artifact Image containing Bundle contents.
-	Ref string `json:"ref"`
-}
 type ConfigMapRef struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`

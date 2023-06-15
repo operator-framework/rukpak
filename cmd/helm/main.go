@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"oras.land/oras-go/v2/content/oci"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
@@ -71,6 +72,7 @@ func main() {
 		unpackImage          string
 		baseUploadManagerURL string
 		rukpakVersion        bool
+		ociStorageDirectory  string
 		storageDirectory     string
 	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
@@ -84,6 +86,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
+	flag.StringVar(&ociStorageDirectory, "oci-storage-dir", source.DefaultOCICacheDir, "The directory that is used to store OCI artifacts.")
 	flag.StringVar(&storageDirectory, "storage-dir", storage.DefaultBundleCacheDir, "Configures the directory that is used to store Bundle contents.")
 	opts := zap.Options{
 		Development: true,
@@ -197,7 +200,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNs, unpackImage, baseUploadManagerURL, rootCAs)
+	ctx := ctrl.SetupSignalHandler()
+
+	ociStore, err := oci.NewWithContext(ctx, ociStorageDirectory)
+	if err != nil {
+		setupLog.Error(err, "unable to setup OCI store")
+		os.Exit(1)
+	}
+
+	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNs, unpackImage, baseUploadManagerURL, rootCAs, ociStore)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
@@ -246,7 +257,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

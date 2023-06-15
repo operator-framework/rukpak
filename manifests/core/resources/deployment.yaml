@@ -59,6 +59,7 @@ spec:
           args:
             - "--unpack-image=quay.io/operator-framework/rukpak:devel"
             - "--base-upload-manager-url=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
+            - "--oci-storage-dir=/var/cache/oci"
             - "--provisioner-storage-dir=/var/cache/bundles"
             - "--upload-storage-dir=/var/cache/uploads"
             - "--http-bind-address=127.0.0.1:8080"
@@ -67,6 +68,8 @@ spec:
           ports:
             - containerPort: 8080
           volumeMounts:
+            - name: oci-cache
+              mountPath: /var/cache/oci
             - name: bundle-cache
               mountPath: /var/cache/bundles
             - name: upload-cache
@@ -78,6 +81,8 @@ spec:
               cpu: 10m
               memory: 160Mi
       volumes:
+        - name: oci-cache
+          emptyDir: {}
         - name: bundle-cache
           emptyDir: {}
         - name: upload-cache

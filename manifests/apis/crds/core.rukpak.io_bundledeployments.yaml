@@ -97,17 +97,6 @@ spec:
                         description: Source defines the configuration for the underlying
                           Bundle content.
                         properties:
-                          artifact:
-                            description: Artifact is the OCI Artifact image that contains
-                              the content of this bundle.
-                            properties:
-                              ref:
-                                description: Ref contains the reference to a OCI Artifact
-                                  Image containing Bundle contents.
-                                type: string
-                            required:
-                            - ref
-                            type: object
                           configMaps:
                             description: ConfigMaps is a list of config map references
                               and their relative directory paths that represent a
@@ -265,6 +254,22 @@ spec:
                           image:
                             description: Image is the bundle image that backs the
                               content of this bundle.
+                            properties:
+                              pullSecret:
+                                description: ImagePullSecretName contains the name
+                                  of the image pull secret in the namespace that the
+                                  provisioner is deployed.
+                                type: string
+                              ref:
+                                description: Ref contains the reference to a container
+                                  image containing Bundle contents.
+                                type: string
+                            required:
+                            - ref
+                            type: object
+                          ociArtifact:
+                            description: OCIArtifact is the OCI Artifact image that
+                              contains the content of this bundle.
                             properties:
                               pullSecret:
                                 description: ImagePullSecretName contains the name

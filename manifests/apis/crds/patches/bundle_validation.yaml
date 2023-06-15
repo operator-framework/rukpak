@@ -21,7 +21,7 @@
   - required:
     - http
   - required:
-    - artifact
+    - ociArtifact
 
 # Union git ref
 - op: add

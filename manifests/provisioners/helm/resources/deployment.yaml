@@ -59,6 +59,7 @@ spec:
           args:
             - "--unpack-image=quay.io/operator-framework/rukpak:devel"
             - "--base-upload-manager-url=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
+            - "--oci-storage-dir=/var/cache/oci"
             - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(HELM_PROVISIONER_SERVICE_NAME).$(HELM_PROVISIONER_SERVICE_NAMESPACE).svc"
@@ -66,6 +67,8 @@ spec:
           ports:
             - containerPort: 8080
           volumeMounts:
+            - name: oci-cache
+              mountPath: /var/cache/oci
             - name: bundle-cache
               mountPath: /var/cache/bundles
             - name: certs
@@ -75,6 +78,8 @@ spec:
               cpu: 10m
               memory: 160Mi
       volumes:
+        - name: oci-cache
+          emptyDir: {}
         - name: bundle-cache
           emptyDir: {}
         - name: certs

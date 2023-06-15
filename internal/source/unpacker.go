@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/kubernetes"
+	"oras.land/oras-go/v2/content/oci"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
@@ -101,7 +102,7 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage string, baseUploadManagerURL string, rootCAs *x509.CertPool) (Unpacker, error) {
+func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage string, baseUploadManagerURL string, rootCAs *x509.CertPool, artifactStore *oci.Store) (Unpacker, error) {
 	cfg := systemNsCluster.GetConfig()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -138,6 +139,8 @@ func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage 
 			Reader:          systemNsCluster.GetClient(),
 			SecretNamespace: namespace,
 		},
-		rukpakv1alpha1.SourceTypeOCIArtifacts: &ArtifactImage{},
+		rukpakv1alpha1.SourceTypeOCIArtifact: &OCIArtifact{
+			LocalStore: artifactStore,
+		},
 	}), nil
 }
