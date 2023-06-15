@@ -110,7 +110,7 @@ test-unit: $(SETUP_ENVTEST) ## Run the unit tests
 FOCUS := $(if $(TEST),-v --focus "$(TEST)")
 E2E_FLAGS ?=
 test-e2e: $(GINKGO) ## Run the e2e tests
-	$(GINKGO) --tags $(GO_BUILD_TAGS) $(E2E_FLAGS) --trace --progress $(FOCUS) test/e2e
+	$(GINKGO) --tags $(GO_BUILD_TAGS) $(E2E_FLAGS) --trace $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
 e2e: rukpakctl run image-registry local-git kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
