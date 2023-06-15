@@ -20,12 +20,13 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/nlepage/go-tarfs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+
+	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
 type ArtifactImage struct {
@@ -35,10 +36,10 @@ func (i *ArtifactImage) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundl
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeOCIArtifacts {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
-	if bundle.Spec.Source.Image == nil {
-		return nil, fmt.Errorf("bundle source image configuration is unset")
+	if bundle.Spec.Source.Artifact == nil {
+		return nil, fmt.Errorf("bundle source artifact configuration is unset")
 	}
-	src, ref, desc, err := ResolveNameAndReference(ctx, bundle.Spec.Source.Image.Ref)
+	src, ref, desc, err := ResolveNameAndReference(ctx, bundle.Spec.Source.Artifact.Ref)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +79,7 @@ func (i *ArtifactImage) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundl
 	}
 	resolvedSource := &rukpakv1alpha1.BundleSource{
 		Type:     rukpakv1alpha1.SourceTypeOCIArtifacts,
-		Artifact: &rukpakv1alpha1.OCIArtifactSource{Ref: bundle.Spec.Source.Image.Ref},
+		Artifact: &rukpakv1alpha1.OCIArtifactSource{Ref: bundle.Spec.Source.Artifact.Ref},
 	}
 	gzr, err := gzip.NewReader(innerRc)
 	if err != nil {

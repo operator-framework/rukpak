@@ -20,6 +20,8 @@
     - upload
   - required:
     - http
+  - required:
+    - artifact
 
 # Union git ref
 - op: add
