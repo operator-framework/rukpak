@@ -20,30 +20,96 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/util"
 )
 
-type Image struct {
+//TODO: Add comments to improve the godocs
+
+type ImageUnpackerOption func(i *image)
+
+// WithPodNamespace configures the namespace used
+// by the Image Unpacker when creating a Pod
+func WithPodNamespace(ns string) ImageUnpackerOption {
+	return func(i *image) {
+		i.PodNamespace = ns
+	}
+}
+
+// WithUnpackImage configures the image used by
+// the Image Unpacker Pod to unpack an image source
+func WithUnpackImage(img string) ImageUnpackerOption {
+	return func(i *image) {
+		i.UnpackImage = img
+	}
+}
+
+// WithFieldManager configures the field manager used
+// by the Image Unpacker to set the Pod field manager
+func WithFieldManager(manager string) ImageUnpackerOption {
+	return func(i *image) {
+		i.FieldManager = manager
+	}
+}
+
+// WithDir configures the directory passed to the
+// Unpack Pod by the Image Unpacker. This dictates
+// which directory of information should be unpacked
+func WithDir(dir string) ImageUnpackerOption {
+	return func(i *image) {
+		i.BundleDir = dir
+	}
+}
+
+type LabelFunc func(client.Object) map[string]string
+
+// WithLabelsFunc configures the function used by the Image
+// Unpacker to add labels to the Unpacker Pod.
+func WithLabelsFunc(labelFunc LabelFunc) ImageUnpackerOption {
+	return func(i *image) {
+		i.LabelsFunc = labelFunc
+	}
+}
+
+// NewImageUnpacker returns a new Unpacker for unpacking sources of type "image"
+func NewImageUnpacker(cli client.Client, kubeCli kubernetes.Interface, opts ...ImageUnpackerOption) Unpacker {
+	image := &image{
+		Client:       cli,
+		KubeClient:   kubeCli,
+		PodNamespace: "default",
+		UnpackImage:  "quay.io/operator-framework/rukpak:main",
+		FieldManager: "unpacker",
+		BundleDir:    "/",
+		LabelsFunc:   func(o client.Object) map[string]string { return map[string]string{} },
+	}
+
+	for _, opt := range opts {
+		opt(image)
+	}
+
+	return image
+}
+
+type image struct {
 	Client       client.Client
 	KubeClient   kubernetes.Interface
 	PodNamespace string
 	UnpackImage  string
+	FieldManager string
+	BundleDir    string
+	LabelsFunc   LabelFunc
 }
 
-const imageBundleUnpackContainerName = "bundle"
+const imageBundleUnpackContainerName = "src"
 
-func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
-	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeImage {
-		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
+func (i *image) Unpack(ctx context.Context, src *Source, obj client.Object) (*Result, error) {
+	if src.Type != SourceTypeImage {
+		return nil, fmt.Errorf("source type %q not supported", src.Type)
 	}
-	if bundle.Spec.Source.Image == nil {
-		return nil, fmt.Errorf("bundle source image configuration is unset")
+	if src.Image == nil {
+		return nil, fmt.Errorf("source image configuration is unset")
 	}
 
 	pod := &corev1.Pod{}
-	op, err := i.ensureUnpackPod(ctx, bundle, pod)
+	op, err := i.ensureUnpackPod(ctx, src, pod, obj)
 	if err != nil {
 		return nil, err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
@@ -64,14 +130,14 @@ func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 	}
 }
 
-func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
-	existingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: i.PodNamespace, Name: bundle.Name}}
+func (i *image) ensureUnpackPod(ctx context.Context, src *Source, pod *corev1.Pod, obj client.Object) (controllerutil.OperationResult, error) {
+	existingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: i.PodNamespace, Name: obj.GetName()}}
 	if err := i.Client.Get(ctx, client.ObjectKeyFromObject(existingPod), existingPod); client.IgnoreNotFound(err) != nil {
 		return controllerutil.OperationResultNone, err
 	}
 
-	podApplyConfig := i.getDesiredPodApplyConfig(bundle)
-	updatedPod, err := i.KubeClient.CoreV1().Pods(i.PodNamespace).Apply(ctx, podApplyConfig, metav1.ApplyOptions{Force: true, FieldManager: "rukpak-core"})
+	podApplyConfig := i.getDesiredPodApplyConfig(src, obj)
+	updatedPod, err := i.KubeClient.CoreV1().Pods(i.PodNamespace).Apply(ctx, podApplyConfig, metav1.ApplyOptions{Force: true, FieldManager: i.FieldManager})
 	if err != nil {
 		if !apierrors.IsInvalid(err) {
 			return controllerutil.OperationResultNone, err
@@ -79,7 +145,7 @@ func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bund
 		if err := i.Client.Delete(ctx, existingPod); err != nil {
 			return controllerutil.OperationResultNone, err
 		}
-		updatedPod, err = i.KubeClient.CoreV1().Pods(i.PodNamespace).Apply(ctx, podApplyConfig, metav1.ApplyOptions{Force: true, FieldManager: "rukpak-core"})
+		updatedPod, err = i.KubeClient.CoreV1().Pods(i.PodNamespace).Apply(ctx, podApplyConfig, metav1.ApplyOptions{Force: true, FieldManager: i.FieldManager})
 		if err != nil {
 			return controllerutil.OperationResultNone, err
 		}
@@ -99,7 +165,7 @@ func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bund
 	return controllerutil.OperationResultUpdated, nil
 }
 
-func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyconfigurationcorev1.PodApplyConfiguration {
+func (i *image) getDesiredPodApplyConfig(src *Source, obj client.Object) *applyconfigurationcorev1.PodApplyConfiguration {
 	// TODO (tyslaton): Address unpacker pod allowing root users for image sources
 	//
 	// In our current implementation, we are creating a pod that uses the image
@@ -118,16 +184,13 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyco
 			WithDrop("ALL"),
 		)
 
-	podApply := applyconfigurationcorev1.Pod(bundle.Name, i.PodNamespace).
-		WithLabels(map[string]string{
-			util.CoreOwnerKindKey: bundle.Kind,
-			util.CoreOwnerNameKey: bundle.Name,
-		}).
+	podApply := applyconfigurationcorev1.Pod(obj.GetName(), i.PodNamespace).
+		WithLabels(i.LabelsFunc(obj)).
 		WithOwnerReferences(v1.OwnerReference().
-			WithName(bundle.Name).
-			WithKind(bundle.Kind).
-			WithAPIVersion(bundle.APIVersion).
-			WithUID(bundle.UID).
+			WithName(obj.GetName()).
+			WithKind(obj.GetObjectKind().GroupVersionKind().Kind).
+			WithAPIVersion(obj.GetObjectKind().GroupVersionKind().GroupVersion().String()).
+			WithUID(obj.GetUID()).
 			WithController(true).
 			WithBlockOwnerDeletion(true),
 		).
@@ -147,8 +210,8 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyco
 			).
 			WithContainers(applyconfigurationcorev1.Container().
 				WithName(imageBundleUnpackContainerName).
-				WithImage(bundle.Spec.Source.Image.Ref).
-				WithCommand("/bin/unpack", "--bundle-dir", "/").
+				WithImage(src.Image.Ref).
+				WithCommand("/bin/unpack", "--bundle-dir", i.BundleDir).
 				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
 					WithName("util").
 					WithMountPath("/bin"),
@@ -167,9 +230,9 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyco
 			),
 		)
 
-	if bundle.Spec.Source.Image.ImagePullSecretName != "" {
+	if src.Image.ImagePullSecretName != "" {
 		podApply.Spec = podApply.Spec.WithImagePullSecrets(
-			applyconfigurationcorev1.LocalObjectReference().WithName(bundle.Spec.Source.Image.ImagePullSecretName),
+			applyconfigurationcorev1.LocalObjectReference().WithName(src.Image.ImagePullSecretName),
 		)
 	}
 	return podApply
@@ -183,7 +246,7 @@ func unsetNonComparedPodFields(pods ...*corev1.Pod) {
 	}
 }
 
-func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
+func (i *image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 	logs, err := i.getPodLogs(ctx, pod)
 	if err != nil {
 		return fmt.Errorf("unpack failed: failed to retrieve failed pod logs: %v", err)
@@ -192,57 +255,57 @@ func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 	return fmt.Errorf("unpack failed: %v", string(logs))
 }
 
-func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Result, error) {
+func (i *image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Result, error) {
 	bundleFS, err := i.getBundleContents(ctx, pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %v", err)
+		return nil, fmt.Errorf("get src contents: %v", err)
 	}
 
 	digest, err := i.getBundleImageDigest(pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle image digest: %v", err)
+		return nil, fmt.Errorf("get src image digest: %v", err)
 	}
 
-	resolvedSource := &rukpakv1alpha1.BundleSource{
-		Type:  rukpakv1alpha1.SourceTypeImage,
-		Image: &rukpakv1alpha1.ImageSource{Ref: digest},
+	resolvedSource := &Source{
+		Type:  SourceTypeImage,
+		Image: &ImageSource{Ref: digest},
 	}
 
 	message := generateMessage("image")
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
+	return &Result{FS: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
 
-func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
+func (i *image) getBundleContents(ctx context.Context, pod *corev1.Pod) (fs.FS, error) {
 	bundleData, err := i.getPodLogs(ctx, pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %v", err)
+		return nil, fmt.Errorf("get src contents: %v", err)
 	}
 	bd := struct {
 		Content []byte `json:"content"`
 	}{}
 
 	if err := json.Unmarshal(bundleData, &bd); err != nil {
-		return nil, fmt.Errorf("parse bundle data: %v", err)
+		return nil, fmt.Errorf("parse src data: %v", err)
 	}
 
 	gzr, err := gzip.NewReader(bytes.NewReader(bd.Content))
 	if err != nil {
-		return nil, fmt.Errorf("read bundle content gzip: %v", err)
+		return nil, fmt.Errorf("read src content gzip: %v", err)
 	}
 	return tarfs.New(gzr)
 }
 
-func (i *Image) getBundleImageDigest(pod *corev1.Pod) (string, error) {
+func (i *image) getBundleImageDigest(pod *corev1.Pod) (string, error) {
 	for _, ps := range pod.Status.ContainerStatuses {
 		if ps.Name == imageBundleUnpackContainerName && ps.ImageID != "" {
 			return ps.ImageID, nil
 		}
 	}
-	return "", fmt.Errorf("bundle image digest not found")
+	return "", fmt.Errorf("src image digest not found")
 }
 
-func (i *Image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
+func (i *image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
 	logReader, err := i.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get pod logs: %v", err)
@@ -255,7 +318,7 @@ func (i *Image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error)
 	return buf.Bytes(), nil
 }
 
-func (i *Image) handleUnexpectedPod(ctx context.Context, pod *corev1.Pod) error {
+func (i *image) handleUnexpectedPod(ctx context.Context, pod *corev1.Pod) error {
 	_ = i.Client.Delete(ctx, pod)
 	return fmt.Errorf("unexpected pod phase: %v", pod.Status.Phase)
 }

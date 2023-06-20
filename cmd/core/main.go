@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"flag"
 	"fmt"
@@ -33,9 +34,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -47,17 +50,20 @@ import (
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/provisioner/registry"
-	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
+
+// uploadClientTimeout is the timeout to be used with http connections to upload manager.
+const uploadClientTimeout = time.Second * 10
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -215,11 +221,52 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNs, unpackImage, baseUploadManagerURL, rootCAs)
+	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		setupLog.Error(err, "unable to setup bundle unpacker")
+		setupLog.Error(err, "unable to setup kube client")
 		os.Exit(1)
 	}
+
+	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
+	if httpTransport.TLSClientConfig == nil {
+		httpTransport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+	httpTransport.TLSClientConfig.RootCAs = rootCAs
+
+	unpacker := source.NewUnpacker(map[source.SourceType]source.Unpacker{
+		source.SourceTypeImage: source.NewImageUnpacker(
+			systemNsCluster.GetClient(),
+			kubeClient,
+			source.WithPodNamespace(systemNs),
+			source.WithFieldManager("rukpak-core"),
+			source.WithUnpackImage(unpackImage),
+			source.WithLabelsFunc(func(o client.Object) map[string]string {
+				return map[string]string{
+					util.CoreOwnerKindKey: o.GetObjectKind().GroupVersionKind().Kind,
+					util.CoreOwnerNameKey: o.GetName(),
+				}
+			}),
+		),
+		source.SourceTypeGit: source.NewGitUnpacker(
+			systemNsCluster.GetClient(),
+			source.WithGitSecretNamespace(systemNs),
+		),
+		source.SourceTypeConfigMaps: source.NewConfigMapUnpacker(
+			systemNsCluster.GetClient(),
+			source.WithConfigMapNamespace(systemNs),
+		),
+		source.SourceTypeUpload: source.NewUploadUnpacker(
+			http.Client{Timeout: uploadClientTimeout, Transport: httpTransport},
+			source.WithBaseDownloadURL(baseUploadManagerURL),
+			source.WithBearerToken(systemNsCluster.GetConfig().BearerToken),
+		),
+		source.SourceTypeHTTP: source.NewHTTPUnpacker(
+			systemNsCluster.GetClient(),
+			source.WithHTTPSecretNamespace(systemNs),
+		),
+	})
 
 	commonBundleProvisionerOptions := []bundle.Option{
 		bundle.WithUnpacker(unpacker),

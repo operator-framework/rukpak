@@ -23,23 +23,46 @@ import (
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 )
 
-type Git struct {
-	client.Reader
+type GitUnpackerOption func(g *gitUnpacker)
+
+// WithGitSecretNamespace configures the namespace that the
+// Git Unpacker uses to find the Secret used for authorization
+// if authorization is specified in the GitSource
+func WithGitSecretNamespace(ns string) GitUnpackerOption {
+	return func(g *gitUnpacker) {
+		g.SecretNamespace = ns
+	}
+}
+
+// NewGitUnpacker returns a new Unpacker for unpacking sources of type "git"
+func NewGitUnpacker(reader client.Reader, opts ...GitUnpackerOption) Unpacker {
+	g := &gitUnpacker{
+		Reader:          reader,
+		SecretNamespace: "default",
+	}
+
+	for _, opt := range opts {
+		opt(g)
+	}
+
+	return g
+}
+
+type gitUnpacker struct {
+	Reader          client.Reader
 	SecretNamespace string
 }
 
-func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
-	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeGit {
-		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
+func (r *gitUnpacker) Unpack(ctx context.Context, src *Source, _ client.Object) (*Result, error) {
+	if src.Type != SourceTypeGit {
+		return nil, fmt.Errorf("source type %q not supported", src.Type)
 	}
-	if bundle.Spec.Source.Git == nil {
-		return nil, fmt.Errorf("bundle source git configuration is unset")
+	if src.Git == nil {
+		return nil, fmt.Errorf("source git configuration is unset")
 	}
-	gitsource := bundle.Spec.Source.Git
+	gitsource := src.Git
 	if gitsource.Repository == "" {
 		// This should never happen because the validation webhook rejects git bundles without repository
 		return nil, errors.New("missing git source information: repository must be provided")
@@ -51,11 +74,11 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 		URL:             gitsource.Repository,
 		Progress:        &progress,
 		Tags:            git.NoTags,
-		InsecureSkipTLS: bundle.Spec.Source.Git.Auth.InsecureSkipVerify,
+		InsecureSkipTLS: src.Git.Auth.InsecureSkipVerify,
 	}
 
-	if bundle.Spec.Source.Git.Auth.Secret.Name != "" {
-		auth, err := r.configAuth(ctx, bundle)
+	if src.Git.Auth.Secret.Name != "" {
+		auth, err := r.configAuth(ctx, src)
 		if err != nil {
 			return nil, fmt.Errorf("configuring Auth error: %w", err)
 		}
@@ -75,11 +98,11 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 	// Clone
 	repo, err := git.CloneContext(ctx, memory.NewStorage(), memfs.New(), &cloneOpts)
 	if err != nil {
-		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
+		return nil, fmt.Errorf("src unpack git clone error: %v - %s", err, progress.String())
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
-		return nil, fmt.Errorf("bundle unpack error: %v", err)
+		return nil, fmt.Errorf("src unpack error: %v", err)
 	}
 
 	// Checkout commit
@@ -113,31 +136,31 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resul
 		return nil, fmt.Errorf("resolve commit hash: %v", err)
 	}
 
-	resolvedGit := bundle.Spec.Source.Git.DeepCopy()
-	resolvedGit.Ref = rukpakv1alpha1.GitRef{
+	resolvedGit := src.Git.DeepCopy()
+	resolvedGit.Ref = GitRef{
 		Commit: commitHash.String(),
 	}
 
-	resolvedSource := &rukpakv1alpha1.BundleSource{
-		Type: rukpakv1alpha1.SourceTypeGit,
+	resolvedSource := &Source{
+		Type: SourceTypeGit,
 		Git:  resolvedGit,
 	}
 
 	message := generateMessage("git")
 
-	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
+	return &Result{FS: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
 
-func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (transport.AuthMethod, error) {
+func (r *gitUnpacker) configAuth(ctx context.Context, src *Source) (transport.AuthMethod, error) {
 	var auth transport.AuthMethod
-	if strings.HasPrefix(bundle.Spec.Source.Git.Repository, "http") {
-		userName, password, err := r.getCredentials(ctx, bundle)
+	if strings.HasPrefix(src.Git.Repository, "http") {
+		userName, password, err := r.getCredentials(ctx, src)
 		if err != nil {
 			return nil, err
 		}
 		return &http.BasicAuth{Username: userName, Password: password}, nil
 	}
-	privatekey, host, err := r.getCertificate(ctx, bundle)
+	privatekey, host, err := r.getCertificate(ctx, src)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +173,7 @@ func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (tr
 		User:   "git",
 		Signer: signer,
 	}
-	if bundle.Spec.Source.Git.Auth.InsecureSkipVerify {
+	if src.Git.Auth.InsecureSkipVerify {
 		auth = &sshgit.PublicKeys{
 			User:   "git",
 			Signer: signer,
@@ -174,11 +197,11 @@ func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (tr
 	return auth, nil
 }
 
-// getCredentials reads credentials from the secret specified in the bundle
+// getCredentials reads credentials from the secret specified in the src
 // It returns the username ane password when they are in the secret
-func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (string, string, error) {
+func (r *gitUnpacker) getCredentials(ctx context.Context, src *Source) (string, string, error) {
 	secret := &corev1.Secret{}
-	err := r.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: bundle.Spec.Source.Git.Auth.Secret.Name}, secret)
+	err := r.Reader.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: src.Git.Auth.Secret.Name}, secret)
 	if err != nil {
 		return "", "", err
 	}
@@ -188,11 +211,11 @@ func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.Bundle)
 	return userName, password, nil
 }
 
-// getCertificate reads certificate from the secret specified in the bundle
+// getCertificate reads certificate from the secret specified in the src
 // It returns the privatekey and the entry of the host in known_hosts when they are in the secret
-func (r *Git) getCertificate(ctx context.Context, bundle *rukpakv1alpha1.Bundle) ([]byte, []byte, error) {
+func (r *gitUnpacker) getCertificate(ctx context.Context, src *Source) ([]byte, []byte, error) {
 	secret := &corev1.Secret{}
-	err := r.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: bundle.Spec.Source.Git.Auth.Secret.Name}, secret)
+	err := r.Reader.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: src.Git.Auth.Secret.Name}, secret)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -16,6 +16,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/helm"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 var _ = Describe("helm provisioner bundledeployment", func() {
@@ -41,9 +42,9 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: helm.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeHTTP,
-								HTTP: &rukpakv1alpha1.HTTPSource{
+							Source: source.Source{
+								Type: source.SourceTypeHTTP,
+								HTTP: &source.HTTPSource{
 									URL: "https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz",
 								},
 							},
@@ -155,9 +156,9 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: helm.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeHTTP,
-								HTTP: &rukpakv1alpha1.HTTPSource{
+							Source: source.Source{
+								Type: source.SourceTypeHTTP,
+								HTTP: &source.HTTPSource{
 									URL: "https://github.com/helm/examples/releases/download/hello-world-0.1.0/xxx",
 								},
 							},
@@ -211,9 +212,9 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: helm.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeHTTP,
-								HTTP: &rukpakv1alpha1.HTTPSource{
+							Source: source.Source{
+								Type: source.SourceTypeHTTP,
+								HTTP: &source.HTTPSource{
 									URL: "https://raw.githubusercontent.com/helm/examples/main/LICENSE",
 								},
 							},
@@ -267,9 +268,9 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: helm.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeHTTP,
-								HTTP: &rukpakv1alpha1.HTTPSource{
+							Source: source.Source{
+								Type: source.SourceTypeHTTP,
+								HTTP: &source.HTTPSource{
 									URL: "https://github.com/helm/examples/archive/refs/tags/hello-world-0.1.0.tar.gz",
 								},
 							},
@@ -323,12 +324,12 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: helm.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeGit,
-								Git: &rukpakv1alpha1.GitSource{
+							Source: source.Source{
+								Type: source.SourceTypeGit,
+								Git: &source.GitSource{
 									Repository: "https://github.com/helm/examples",
 									Directory:  "./charts",
-									Ref: rukpakv1alpha1.GitRef{
+									Ref: source.GitRef{
 										Branch: "main",
 									},
 								},
@@ -447,12 +448,12 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: helm.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeGit,
-								Git: &rukpakv1alpha1.GitSource{
+							Source: source.Source{
+								Type: source.SourceTypeGit,
+								Git: &source.GitSource{
 									Repository: "https://github.com/helm/examples",
 									Directory:  "./charts/hello-world",
-									Ref: rukpakv1alpha1.GitRef{
+									Ref: source.GitRef{
 										Branch: "main",
 									},
 								},
@@ -511,9 +512,9 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: helm.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeHTTP,
-								HTTP: &rukpakv1alpha1.HTTPSource{
+							Source: source.Source{
+								Type: source.SourceTypeHTTP,
+								HTTP: &source.HTTPSource{
 									URL: "https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz",
 								},
 							},

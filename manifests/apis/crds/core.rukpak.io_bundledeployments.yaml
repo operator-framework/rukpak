@@ -100,7 +100,7 @@ spec:
                           configMaps:
                             description: ConfigMaps is a list of config map references
                               and their relative directory paths that represent a
-                              bundle filesystem.
+                              source filesystem.
                             items:
                               properties:
                                 configMap:
@@ -126,7 +126,7 @@ spec:
                             type: array
                           git:
                             description: Git is the git repository that backs the
-                              content of this Bundle.
+                              content of this Source.
                             properties:
                               auth:
                                 description: Auth configures the authorization method
@@ -205,7 +205,7 @@ spec:
                             type: object
                           http:
                             description: HTTP is the remote location that backs the
-                              content of this Bundle.
+                              content of this Source.
                             properties:
                               auth:
                                 description: Auth configures the authorization method
@@ -252,8 +252,8 @@ spec:
                             - url
                             type: object
                           image:
-                            description: Image is the bundle image that backs the
-                              content of this bundle.
+                            description: Image is the image that backs the content
+                              of this Source.
                             properties:
                               pullSecret:
                                 description: ImagePullSecretName contains the name
@@ -268,11 +268,11 @@ spec:
                             - ref
                             type: object
                           type:
-                            description: Type defines the kind of Bundle content being
+                            description: Type defines the kind of Source content being
                               sourced.
                             type: string
                           upload:
-                            description: Upload is a source that enables this Bundle's
+                            description: Upload is a source that enables this Source's
                               content to be uploaded via Rukpak's bundle upload service.
                               This source type is primarily useful with bundle development
                               workflows because it enables bundle developers to inject

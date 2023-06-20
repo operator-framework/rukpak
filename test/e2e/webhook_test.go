@@ -10,6 +10,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 var _ = Describe("bundle api validating webhook", func() {
@@ -30,9 +31,9 @@ var _ = Describe("bundle api validating webhook", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
@@ -65,9 +66,9 @@ var _ = Describe("bundle api validating webhook", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeGit,
+						Image: &source.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
@@ -100,11 +101,11 @@ var _ = Describe("bundle api validating webhook", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Git: &source.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: source.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 							},
 						},

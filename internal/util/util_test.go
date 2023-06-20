@@ -6,13 +6,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 var sampleSpec = rukpakv1alpha1.BundleSpec{
 	ProvisionerClassName: "sample",
-	Source: rukpakv1alpha1.BundleSource{
-		Type: rukpakv1alpha1.SourceTypeImage,
-		Image: &rukpakv1alpha1.ImageSource{
+	Source: source.Source{
+		Type: source.SourceTypeImage,
+		Image: &source.ImageSource{
 			Ref: "non-existent",
 		},
 	},

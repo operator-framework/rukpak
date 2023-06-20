@@ -14,6 +14,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 const (
@@ -189,11 +190,11 @@ var _ = Describe("rukpakctl content subcommand", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: source.Source{
+						Type: source.SourceTypeGit,
+						Git: &source.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: source.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 							},
 						},
