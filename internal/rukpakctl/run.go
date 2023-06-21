@@ -18,6 +18,7 @@ import (
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 // Run implements rukpakctl's `run` subcommand
@@ -132,8 +133,8 @@ func buildBundleDeployment(bdName string, bundleLabels map[string]string, biPCN,
 				"spec": map[string]interface{}{
 					"provisionerClassName": bPNC,
 					"source": map[string]interface{}{
-						"type":   rukpakv1alpha1.SourceTypeUpload,
-						"upload": &rukpakv1alpha1.UploadSource{},
+						"type":   source.SourceTypeUpload,
+						"upload": &source.UploadSource{},
 					},
 				},
 			},

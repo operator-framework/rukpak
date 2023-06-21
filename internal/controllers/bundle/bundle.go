@@ -21,9 +21,9 @@ import (
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 type Option func(*controller)
@@ -205,7 +205,7 @@ func (c *controller) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundl
 		return ctrl.Result{}, nil
 	}
 
-	unpackResult, err := c.unpacker.Unpack(ctx, bundle)
+	unpackResult, err := c.unpacker.Unpack(ctx, &bundle.Spec.Source, bundle)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, fmt.Errorf("source bundle content: %v", err))
 	}
@@ -217,7 +217,7 @@ func (c *controller) reconcile(ctx context.Context, bundle *rukpakv1alpha1.Bundl
 		updateStatusUnpacking(&bundle.Status, unpackResult)
 		return ctrl.Result{}, nil
 	case source.StateUnpacked:
-		storeFS, err := c.handler.Handle(ctx, unpackResult.Bundle, bundle)
+		storeFS, err := c.handler.Handle(ctx, unpackResult.FS, bundle)
 		if err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&bundle.Status, err)
 		}

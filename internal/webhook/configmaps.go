@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundles,verbs=list;watch
@@ -37,7 +38,7 @@ func (w *ConfigMap) ValidateCreate(ctx context.Context, obj runtime.Object) erro
 	}
 	bundleReferrers := []string{}
 	for _, bundle := range bundleList.Items {
-		if bundle.Spec.Source.Type == rukpakv1alpha1.SourceTypeConfigMaps {
+		if bundle.Spec.Source.Type == source.SourceTypeConfigMaps {
 			for _, bundleConfigMapRef := range bundle.Spec.Source.ConfigMaps {
 				if bundleConfigMapRef.ConfigMap.Name == cm.Name {
 					bundleReferrers = append(bundleReferrers, bundle.Name)

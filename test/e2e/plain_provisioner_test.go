@@ -34,6 +34,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/rukpakctl"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 const (
@@ -65,9 +66,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: "non-existent-class-name",
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 						},
 					},
@@ -105,9 +106,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 						},
 					},
@@ -133,17 +134,17 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
-				Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
+				Eventually(func() (*source.Source, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 						return nil, err
 					}
 					return bundle.Status.ResolvedSource, nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeImage)),
-					WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.ImageSource { return s.Image }, And(
+					WithTransform(func(s *source.Source) source.SourceType { return s.Type }, Equal(source.SourceTypeImage)),
+					WithTransform(func(s *source.Source) *source.ImageSource { return s.Image }, And(
 						Not(BeNil()),
-						WithTransform(func(i *rukpakv1alpha1.ImageSource) string { return i.Ref }, Not(Equal(""))),
+						WithTransform(func(i *source.ImageSource) string { return i.Ref }, Not(Equal(""))),
 					)),
 				))
 			})
@@ -223,9 +224,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref:                 "docker-registry.rukpak-e2e.svc.cluster.local:5000/bundles/plain-v0:valid",
 							ImagePullSecretName: "registrysecret",
 						},
@@ -252,17 +253,17 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
-				Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
+				Eventually(func() (*source.Source, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 						return nil, err
 					}
 					return bundle.Status.ResolvedSource, nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeImage)),
-					WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.ImageSource { return s.Image }, And(
+					WithTransform(func(s *source.Source) source.SourceType { return s.Type }, Equal(source.SourceTypeImage)),
+					WithTransform(func(s *source.Source) *source.ImageSource { return s.Image }, And(
 						Not(BeNil()),
-						WithTransform(func(i *rukpakv1alpha1.ImageSource) string { return i.Ref }, Not(Equal(""))),
+						WithTransform(func(i *source.ImageSource) string { return i.Ref }, Not(Equal(""))),
 					)),
 				))
 			})
@@ -284,9 +285,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:non-existent-tag"),
 						},
 					},
@@ -358,9 +359,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:empty"),
 						},
 					},
@@ -407,9 +408,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:no-manifests"),
 						},
 					},
@@ -461,11 +462,11 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
+						Source: source.Source{
+							Type: source.SourceTypeGit,
+							Git: &source.GitSource{
 								Repository: "https://github.com/exdx/combo-bundle",
-								Ref: rukpakv1alpha1.GitRef{
+								Ref: source.GitRef{
 									Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 								},
 							},
@@ -513,11 +514,11 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
+						Source: source.Source{
+							Type: source.SourceTypeGit,
+							Git: &source.GitSource{
 								Repository: "https://github.com/exdx/combo-bundle",
-								Ref: rukpakv1alpha1.GitRef{
+								Ref: source.GitRef{
 									Tag: "v0.0.1",
 								},
 							},
@@ -556,17 +557,17 @@ var _ = Describe("plain provisioner bundle", func() {
 				})
 
 				By("eventually writing a non-empty commit hash to the status", func() {
-					Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
+					Eventually(func() (*source.Source, error) {
 						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 							return nil, err
 						}
 						return bundle.Status.ResolvedSource, nil
 					}).Should(And(
 						Not(BeNil()),
-						WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeGit)),
-						WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.GitSource { return s.Git }, And(
+						WithTransform(func(s *source.Source) source.SourceType { return s.Type }, Equal(source.SourceTypeGit)),
+						WithTransform(func(s *source.Source) *source.GitSource { return s.Git }, And(
 							Not(BeNil()),
-							WithTransform(func(i *rukpakv1alpha1.GitSource) string { return i.Ref.Commit }, Not(Equal(""))),
+							WithTransform(func(i *source.GitSource) string { return i.Ref.Commit }, Not(Equal(""))),
 						)),
 					))
 				})
@@ -584,11 +585,11 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
+						Source: source.Source{
+							Type: source.SourceTypeGit,
+							Git: &source.GitSource{
 								Repository: "https://github.com/exdx/combo-bundle.git",
-								Ref: rukpakv1alpha1.GitRef{
+								Ref: source.GitRef{
 									Branch: "main",
 								},
 							},
@@ -627,17 +628,17 @@ var _ = Describe("plain provisioner bundle", func() {
 				})
 
 				By("eventually writing a non-empty commit hash to the status", func() {
-					Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
+					Eventually(func() (*source.Source, error) {
 						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
 							return nil, err
 						}
 						return bundle.Status.ResolvedSource, nil
 					}).Should(And(
 						Not(BeNil()),
-						WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeGit)),
-						WithTransform(func(s *rukpakv1alpha1.BundleSource) *rukpakv1alpha1.GitSource { return s.Git }, And(
+						WithTransform(func(s *source.Source) source.SourceType { return s.Type }, Equal(source.SourceTypeGit)),
+						WithTransform(func(s *source.Source) *source.GitSource { return s.Git }, And(
 							Not(BeNil()),
-							WithTransform(func(i *rukpakv1alpha1.GitSource) string { return i.Ref.Commit }, Not(Equal(""))),
+							WithTransform(func(i *source.GitSource) string { return i.Ref.Commit }, Not(Equal(""))),
 						)),
 					))
 				})
@@ -655,12 +656,12 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
+						Source: source.Source{
+							Type: source.SourceTypeGit,
+							Git: &source.GitSource{
 								Repository: "https://github.com/exdx/combo-bundle",
 								Directory:  "./dev/deploy",
-								Ref: rukpakv1alpha1.GitRef{
+								Ref: source.GitRef{
 									Branch: "main",
 								},
 							},
@@ -729,14 +730,14 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
+						Source: source.Source{
+							Type: source.SourceTypeGit,
+							Git: &source.GitSource{
 								Repository: privateRepo,
-								Ref: rukpakv1alpha1.GitRef{
+								Ref: source.GitRef{
 									Branch: "main",
 								},
-								Auth: rukpakv1alpha1.Authorization{
+								Auth: source.Authorization{
 									Secret: corev1.LocalObjectReference{
 										Name: secret.Name,
 									},
@@ -791,14 +792,14 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
+						Source: source.Source{
+							Type: source.SourceTypeGit,
+							Git: &source.GitSource{
 								Repository: privateRepo,
-								Ref: rukpakv1alpha1.GitRef{
+								Ref: source.GitRef{
 									Branch: "main",
 								},
-								Auth: rukpakv1alpha1.Authorization{
+								Auth: source.Authorization{
 									Secret: corev1.LocalObjectReference{
 										Name: "gitsecret",
 									},
@@ -886,9 +887,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeConfigMaps,
-						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
+					Source: source.Source{
+						Type: source.SourceTypeConfigMaps,
+						ConfigMaps: []source.ConfigMapSource{{
 							ConfigMap: corev1.LocalObjectReference{Name: configmap.ObjectMeta.Name},
 							Path:      "manifests",
 						}},
@@ -937,9 +938,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeConfigMaps,
-						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
+					Source: source.Source{
+						Type: source.SourceTypeConfigMaps,
+						ConfigMaps: []source.ConfigMapSource{{
 							ConfigMap: corev1.LocalObjectReference{Name: "non-exist"},
 							Path:      "manifests",
 						}},
@@ -1013,9 +1014,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeConfigMaps,
-						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
+					Source: source.Source{
+						Type: source.SourceTypeConfigMaps,
+						ConfigMaps: []source.ConfigMapSource{{
 							ConfigMap: corev1.LocalObjectReference{Name: configmap.ObjectMeta.Name},
 							Path:      "manifests",
 						}},
@@ -1065,9 +1066,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type:   rukpakv1alpha1.SourceTypeUpload,
-						Upload: &rukpakv1alpha1.UploadSource{},
+					Source: source.Source{
+						Type:   source.SourceTypeUpload,
+						Upload: &source.UploadSource{},
 					},
 				},
 			}
@@ -1123,9 +1124,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type:   rukpakv1alpha1.SourceTypeUpload,
-						Upload: &rukpakv1alpha1.UploadSource{},
+					Source: source.Source{
+						Type:   source.SourceTypeUpload,
+						Upload: &source.UploadSource{},
 					},
 				},
 			}
@@ -1187,9 +1188,9 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:subdir"),
 						},
 					},
@@ -1235,11 +1236,11 @@ var _ = Describe("plain provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: source.Source{
+						Type: source.SourceTypeGit,
+						Git: &source.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: source.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 							},
 						},
@@ -1397,9 +1398,9 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					Template: &rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},
@@ -1482,11 +1483,11 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					}
 					bd.Spec.Template.Spec = rukpakv1alpha1.BundleSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
+						Source: source.Source{
+							Type: source.SourceTypeGit,
+							Git: &source.GitSource{
 								Repository: "github.com/operator-framework/combo",
-								Ref: rukpakv1alpha1.GitRef{
+								Ref: source.GitRef{
 									Tag: "non-existent-tag",
 								},
 							},
@@ -1633,9 +1634,9 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},
@@ -1692,9 +1693,9 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-missing-crds"),
 								},
 							},
@@ -1759,9 +1760,9 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:subdir"),
 								},
 							},
@@ -1823,9 +1824,9 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:dependent"),
 								},
 							},
@@ -1880,9 +1881,9 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							},
 							Spec: rukpakv1alpha1.BundleSpec{
 								ProvisionerClassName: plain.ProvisionerID,
-								Source: rukpakv1alpha1.BundleSource{
-									Type: rukpakv1alpha1.SourceTypeImage,
-									Image: &rukpakv1alpha1.ImageSource{
+								Source: source.Source{
+									Type: source.SourceTypeImage,
+									Image: &source.ImageSource{
 										Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:provides"),
 									},
 								},
@@ -1941,9 +1942,9 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-crds-and-crs"),
 								},
 							},
@@ -1991,9 +1992,9 @@ var _ = Describe("plain provisioner garbage collection", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 						},
 					},
@@ -2073,9 +2074,9 @@ var _ = Describe("plain provisioner garbage collection", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},
@@ -2167,9 +2168,9 @@ var _ = Describe("plain provisioner garbage collection", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 								},
 							},

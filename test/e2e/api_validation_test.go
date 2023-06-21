@@ -13,6 +13,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 var _ = Describe("bundle api validation", func() {
@@ -31,9 +32,9 @@ var _ = Describe("bundle api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
@@ -66,14 +67,14 @@ var _ = Describe("bundle api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
+					Source: source.Source{
 						Type: "invalid source",
-						Image: &rukpakv1alpha1.ImageSource{
+						Image: &source.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
-						Git: &rukpakv1alpha1.GitSource{
+						Git: &source.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: source.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 								Tag:    "v0.0.1",
 							},
@@ -109,7 +110,7 @@ var _ = Describe("bundle api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
+					Source: source.Source{
 						Type: "invalid source",
 					},
 				},
@@ -142,11 +143,11 @@ var _ = Describe("bundle api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: source.Source{
+						Type: source.SourceTypeGit,
+						Git: &source.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: source.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 								Tag:    "v0.0.1",
 							},
@@ -182,11 +183,11 @@ var _ = Describe("bundle api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: source.Source{
+						Type: source.SourceTypeGit,
+						Git: &source.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref:        rukpakv1alpha1.GitRef{},
+							Ref:        source.GitRef{},
 						},
 					},
 				},
@@ -223,9 +224,9 @@ var _ = Describe("bundle api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
 					ProvisionerClassName: "invalid/class-name",
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: source.Source{
+						Type: source.SourceTypeImage,
+						Image: &source.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
@@ -260,9 +261,9 @@ var _ = Describe("bundle deployment api validation", func() {
 					Template: &rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: "localhost/testdata/bundles/plain-v0:valid",
 								},
 							},
@@ -305,9 +306,9 @@ var _ = Describe("bundle deployment api validation", func() {
 					Template: &rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: "localhost/testdata/bundles/plain-v0:valid",
 								},
 							},
@@ -347,9 +348,9 @@ var _ = Describe("bundle deployment api validation", func() {
 					Template: &rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: "invalid/class-name",
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: "localhost/testdata/bundles/plain-v0:valid",
 								},
 							},

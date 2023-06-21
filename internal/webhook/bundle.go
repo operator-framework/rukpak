@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 type Bundle struct {
@@ -67,18 +68,18 @@ func (b *Bundle) ValidateDelete(_ context.Context, _ runtime.Object) error {
 
 func (b *Bundle) checkBundleSource(ctx context.Context, bundle *rukpakv1alpha1.Bundle) error {
 	switch typ := bundle.Spec.Source.Type; typ {
-	case rukpakv1alpha1.SourceTypeImage:
+	case source.SourceTypeImage:
 		if bundle.Spec.Source.Image == nil {
 			return fmt.Errorf("bundle.spec.source.image must be set for source type \"image\"")
 		}
-	case rukpakv1alpha1.SourceTypeGit:
+	case source.SourceTypeGit:
 		if bundle.Spec.Source.Git == nil {
 			return fmt.Errorf("bundle.spec.source.git must be set for source type \"git\"")
 		}
 		if strings.HasPrefix(filepath.Clean(bundle.Spec.Source.Git.Directory), "../") {
 			return fmt.Errorf(`bundle.spec.source.git.directory begins with "../": directory must define path within the repository`)
 		}
-	case rukpakv1alpha1.SourceTypeConfigMaps:
+	case source.SourceTypeConfigMaps:
 		if len(bundle.Spec.Source.ConfigMaps) == 0 {
 			return fmt.Errorf(`bundle.spec.source.configmaps must be set for source type "configmaps"`)
 		}

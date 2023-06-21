@@ -13,6 +13,7 @@ import (
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/provisioner/registry"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 var _ = Describe("registry provisioner bundle", func() {
@@ -38,9 +39,9 @@ var _ = Describe("registry provisioner bundle", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: registry.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:valid"),
 								},
 							},
@@ -97,9 +98,9 @@ var _ = Describe("registry provisioner bundle", func() {
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: registry.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
+							Source: source.Source{
+								Type: source.SourceTypeImage,
+								Image: &source.ImageSource{
 									Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:invalid"),
 								},
 							},

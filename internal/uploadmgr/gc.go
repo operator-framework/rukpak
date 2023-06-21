@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 type bundleGC struct {
@@ -43,7 +44,7 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 	_, err = bundleInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			bundle := obj.(*rukpakv1alpha1.Bundle)
-			if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
+			if bundle.Spec.Source.Type != source.SourceTypeUpload {
 				return
 			}
 			filename := bundlePath(gc.storageDir, bundle.Name)
@@ -89,7 +90,7 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 				continue
 			}
 			for _, bundle := range bundles.Items {
-				if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
+				if bundle.Spec.Source.Type != source.SourceTypeUpload {
 					continue
 				}
 				existingFiles.Delete(filepath.Base(bundlePath(gc.storageDir, bundle.Name)))

@@ -19,6 +19,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/source"
 )
 
 const DefaultBundleCacheDir = "/var/cache/uploads"
@@ -44,8 +45,8 @@ func newPutHandler(cl client.Client, storageDir string) http.Handler {
 			http.Error(w, err.Error(), int(getCode(err)))
 			return
 		}
-		if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
-			http.Error(w, fmt.Sprintf("bundle source type is %q; expected %q", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeUpload), http.StatusConflict)
+		if bundle.Spec.Source.Type != source.SourceTypeUpload {
+			http.Error(w, fmt.Sprintf("bundle source type is %q; expected %q", bundle.Spec.Source.Type, source.SourceTypeUpload), http.StatusConflict)
 			return
 		}
 
