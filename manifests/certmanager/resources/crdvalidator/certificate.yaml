@@ -1,0 +1,20 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: crd-validation-webhook-certificate
+  namespace: crdvalidator-system
+spec:
+  secretName: crd-validation-webhook-certificate
+  dnsNames:
+    - crd-validation-webhook.crdvalidator-system.svc
+  issuerRef:
+    name: selfsigned
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: crdvalidator-system
+spec:
+  selfSigned: {}

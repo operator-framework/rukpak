@@ -2,6 +2,8 @@ resources:
 - ../base
 - resources/webhook
 - resources/core
+- resources/crdvalidator
+- resources/provisioners
 
 patches:
 - target: 
