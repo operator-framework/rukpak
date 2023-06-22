@@ -73,8 +73,8 @@ clean: ## Remove binaries and test artifacts
 	@rm -rf bin
 
 generate: $(CONTROLLER_GEN) ## Generate code and manifests
-	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:crd:dir=./manifests/apis/crds paths=./api/...
-	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... paths=./internal/webhook/... output:stdout > ./manifests/apis/webhooks/resources/webhook.yaml
+	$(Q)$(CONTROLLER_GEN) crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:crd:dir=./manifests/base/apis/crds paths=./api/...
+	$(Q)$(CONTROLLER_GEN) webhook paths=./api/... paths=./internal/webhook/... output:stdout > ./manifests/base/apis/webhooks/resources/webhook.yaml
 	$(Q)$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=core-admin \
 		paths=./internal/controllers/bundle/... \
@@ -82,13 +82,13 @@ generate: $(CONTROLLER_GEN) ## Generate code and manifests
 		paths=./internal/provisioner/plain/... \
 		paths=./internal/provisioner/registry/... \
 		paths=./internal/uploadmgr/... \
-			output:stdout > ./manifests/core/resources/cluster_role.yaml
-	$(Q)$(CONTROLLER_GEN) rbac:roleName=webhooks-admin paths=./internal/webhook/... output:stdout > ./manifests/apis/webhooks/resources/cluster_role.yaml
+			output:stdout > ./manifests/base/core/resources/cluster_role.yaml
+	$(Q)$(CONTROLLER_GEN) rbac:roleName=webhooks-admin paths=./internal/webhook/... output:stdout > ./manifests/base/apis/webhooks/resources/cluster_role.yaml
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin \
 		paths=./internal/controllers/bundle/... \
 		paths=./internal/controllers/bundledeployment/... \
 		paths=./internal/provisioner/helm/... \
-		    output:stdout > ./manifests/provisioners/helm/resources/cluster_role.yaml
+		    output:stdout > ./manifests/base/provisioners/helm/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -230,4 +230,4 @@ release: $(GORELEASER) ## Run goreleaser
 
 quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
 quickstart: $(KUSTOMIZE) generate ## Generate the installation release manifests
-	$(KUSTOMIZE) build manifests | sed "s/:devel/:$(VERSION)/g" > rukpak.yaml
+	$(KUSTOMIZE) build manifests/certmanager | sed "s/:devel/:$(VERSION)/g" > rukpak.yaml

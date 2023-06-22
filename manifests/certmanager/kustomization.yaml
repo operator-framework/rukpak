@@ -1,8 +1,14 @@
 resources:
-- ./crds
-- ./webhooks
+- ../base
+- resources/certificate.yaml
 
-namespace: rukpak-system
+patches:
+- target: 
+    group: admissionregistration.k8s.io
+    version: v1
+    kind: ValidatingWebhookConfiguration
+    name: validating-webhook-configuration
+  path: patches/cainjection.yaml
 
 replacements:
 - source: # replaces CERTIFICATE_NAMESPACE with namespace of the certificate CR

@@ -3,8 +3,7 @@ namePrefix: rukpak-
 resources:
   - resources/namespace.yaml
   - resources/serviceaccount.yaml
-  - resources/service.yaml
-  - resources/certificate.yaml
+  - resources/service.yaml 
   - resources/deployment.yaml
   - resources/webhook.yaml
   - resources/cluster_role.yaml
@@ -14,12 +13,6 @@ configurations:
 - kustomizeconfig.yaml
 
 patches:
-- target: 
-    group: admissionregistration.k8s.io
-    version: v1
-    kind: ValidatingWebhookConfiguration
-    name: validating-webhook-configuration
-  path: patches/cainjection.yaml
 - target: 
     group: admissionregistration.k8s.io
     version: v1
