@@ -139,7 +139,7 @@ install: generate cert-mgr install-manifests wait ## Install rukpak
 
 MANIFESTS_DIR ?= manifests
 install-manifests:
-	$(KUBECTL) apply -k $(MANIFESTS_DIR)
+	$(KUBECTL) apply -k $(MANIFESTS_DIR)/certmanager
 
 wait:
 	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
