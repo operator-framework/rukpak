@@ -1,11 +1,4 @@
 nameReference:
-- kind: Issuer
-  group: cert-manager.io
-  fieldSpecs:
-  - kind: Certificate
-    group: cert-manager.io
-    path: spec/issuerRef/name
-
 - kind: Service
   version: v1
   fieldSpecs:
@@ -20,9 +13,6 @@ namespace:
   create: true
 
 varReference:
-- kind: Certificate
-  group: cert-manager.io
-  path: spec/dnsNames
 - kind: ValidatingWebhookConfiguration
   group: admissionregistration.k8s.io
   path: metadata/annotations

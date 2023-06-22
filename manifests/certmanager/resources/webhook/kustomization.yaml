@@ -1,5 +1,8 @@
 resources:
 - certificate.yaml
 
+configurations:
+- kustomizeconfig.yaml
+
 namePrefix: rukpak-
 namespace: rukpak-system
