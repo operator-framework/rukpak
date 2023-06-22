@@ -1,6 +1,7 @@
 resources:
 - ../base
-- resources/certificate.yaml
+- resources/webhook
+- resources/core
 
 patches:
 - target: 

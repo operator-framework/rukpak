@@ -1,0 +1,5 @@
+resources:
+- certificate.yaml
+
+namePrefix: rukpak-
+namespace: rukpak-system
