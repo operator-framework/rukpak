@@ -1,8 +1,6 @@
 resources:
+- ../../../../base/apis/webhooks
 - certificate.yaml
 
 configurations:
 - kustomizeconfig.yaml
-
-namePrefix: rukpak-
-namespace: rukpak-system
