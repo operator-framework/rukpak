@@ -46,4 +46,4 @@ spec:
         - name: cert
           secret:
             defaultMode: 420
-            secretName: rukpak-webhook-certificate
+            secretName: WEBHOOK_SECRET_NAME
