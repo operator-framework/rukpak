@@ -3,8 +3,6 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: crd-validation-webhook
-  annotations:
-    cert-manager.io/inject-ca-from: crdvalidator-system/crd-validation-webhook-certificate
 webhooks:
   - name: "webhook.crdvalidator.io"
     rules:

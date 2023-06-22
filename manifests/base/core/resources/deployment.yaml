@@ -41,9 +41,6 @@ spec:
             - containerPort: 8443
               protocol: TCP
               name: https
-          volumeMounts:
-            - name: certs
-              mountPath: /etc/pki/tls
           resources:
             requests:
               cpu: 1m
@@ -71,8 +68,6 @@ spec:
               mountPath: /var/cache/bundles
             - name: upload-cache
               mountPath: /var/cache/uploads
-            - name: certs
-              mountPath: /etc/pki/tls
           resources:
             requests:
               cpu: 10m
@@ -82,7 +77,3 @@ spec:
           emptyDir: {}
         - name: upload-cache
           emptyDir: {}
-        - name: certs
-          secret:
-            secretName: core-cert
-            optional: false

@@ -1,6 +1,5 @@
 resources:
-- ../base
-- resources/webhook
+- resources/apis
 - resources/core
 - resources/crdvalidator
 - resources/provisioners
@@ -11,14 +10,24 @@ patches:
     version: v1
     kind: ValidatingWebhookConfiguration
     name: validating-webhook-configuration
-  path: patches/cainjection.yaml
+  path: patches/validating_webhook_cainjection.yaml
+- target: 
+    group: admissionregistration.k8s.io
+    version: v1
+    kind: ValidatingWebhookConfiguration
+    name: crd-validation-webhook
+  path: patches/crd_validation_cainjection.yaml
+- target:
+    kind: Deployment
+    name: core
+  path: patches/core_deployment_cert_volume.yaml
 
 replacements:
 - source: # replaces CERTIFICATE_NAMESPACE with namespace of the certificate CR
     kind: Certificate
     group: cert-manager.io
     version: v1
-    name: webhook-certificate # this name should match the one in certificate.yaml
+    name: rukpak-webhook-certificate # this name should match the one in certificate.yaml
     fieldPath: metadata.namespace
   targets:
   - select:
@@ -33,7 +42,7 @@ replacements:
     kind: Certificate
     group: cert-manager.io
     version: v1
-    name: webhook-certificate # this name should match the one in certificate.yaml
+    name: rukpak-webhook-certificate # this name should match the one in certificate.yaml
     fieldPath: metadata.name
   targets:
   - select:
@@ -60,7 +69,7 @@ replacements:
       group: cert-manager.io
       version: v1
       kind: Certificate
-      name: webhook-certificate
+      name: rukpak-webhook-certificate
       namespace: system
     fieldPaths:
     - spec.dnsNames.0
@@ -78,7 +87,7 @@ replacements:
       group: cert-manager.io
       version: v1
       kind: Certificate
-      name: webhook-certificate
+      name: rukpak-webhook-certificate
       namespace: system
     fieldPaths:
     - spec.dnsNames.0
