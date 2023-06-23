@@ -26,6 +26,14 @@ patches:
     kind: Deployment
     name: core
   path: patches/core_deployment_cert_args.yaml
+- target:
+    kind: Deployment
+    name: helm-provisioner
+  path: patches/helm_provisioner_deployment_cert_volume.yaml
+- target:
+    kind: Deployment
+    name: helm-provisioner
+  path: patches/helm_provisioner_deployment_cert_args.yaml
 
 replacements:
 - source: # replaces CERTIFICATE_NAMESPACE with namespace of the certificate CR
@@ -64,6 +72,19 @@ replacements:
       namespace: system
     fieldPaths:
     - spec.template.spec.volumes.[name=cert].secret.secretName
+- source: # replaces CERTIFICATE_NAME with name of the certificate CR
+    kind: Certificate
+    group: cert-manager.io
+    version: v1
+    name: crd-validation-webhook-certificate # this name should match the one in certificate.yaml
+    fieldPath: metadata.name
+  targets:
+  - select:
+      kind: Deployment
+      name: crd-validation-webhook
+      namespace: crdvalidator-system
+    fieldPaths:
+    - spec.template.spec.volumes.[name=tls].secret.secretName
 - source: # replaces SERVICE_NAMESPACE with namespace of the service
     kind: Service
     version: v1

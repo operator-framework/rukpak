@@ -35,15 +35,10 @@ spec:
             - "--logtostderr=true"
             - "--v=1"
             - "--client-ca-file=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-            - "--tls-cert-file=/etc/pki/tls/tls.crt"
-            - "--tls-private-key-file=/etc/pki/tls/tls.key"
           ports:
             - containerPort: 8443
               protocol: TCP
               name: https
-          volumeMounts:
-            - name: certs
-              mountPath: /etc/pki/tls
           resources:
             requests:
               cpu: 1m
@@ -62,22 +57,9 @@ spec:
             - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(HELM_PROVISIONER_SERVICE_NAME).$(HELM_PROVISIONER_SERVICE_NAMESPACE).svc"
-            - "--bundle-ca-file=/etc/pki/tls/ca.crt"
           ports:
             - containerPort: 8080
-          volumeMounts:
-            - name: bundle-cache
-              mountPath: /var/cache/bundles
-            - name: certs
-              mountPath: /etc/pki/tls
           resources:
             requests:
               cpu: 10m
               memory: 160Mi
-      volumes:
-        - name: bundle-cache
-          emptyDir: {}
-        - name: certs
-          secret:
-            secretName: helm-provisioner-cert
-            optional: false
