@@ -1,4 +1,5 @@
 resources:
+- ../base # Include all base manifests, apply the following resources and changes over the top
 - resources/apis
 - resources/core
 - resources/crdvalidator

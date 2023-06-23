@@ -1,5 +1,5 @@
 resources:
-  - ../../../manifests/
+  - ../../../manifests/certmanager
   - ./resources/service.yaml
 
 patchesJson6902:

@@ -1,5 +1,3 @@
 resources:
-- ../../../base/core
 - certificate.yaml
 - rukpak_issuer.yaml
-
