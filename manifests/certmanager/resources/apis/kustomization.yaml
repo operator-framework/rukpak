@@ -1,5 +1,4 @@
 resources:
-- ./crds
 - ./webhooks
 
 namespace: rukpak-system

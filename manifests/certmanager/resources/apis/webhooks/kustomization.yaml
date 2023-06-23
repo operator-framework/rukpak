@@ -1,5 +1,4 @@
 resources:
-- ../../../../base/apis/webhooks
 - certificate.yaml
 
 configurations:
