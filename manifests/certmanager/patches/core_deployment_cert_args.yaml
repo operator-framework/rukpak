@@ -1,0 +1,9 @@
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--tls-cert-file=/etc/pki/tls/tls.crt"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--tls-private-key-file=/etc/pki/tls/tls.key"
+- op: add
+  path: /spec/template/spec/containers/1/args/-
+  value: "--bundle-ca-file=/etc/pki/tls/ca.crt"

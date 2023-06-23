@@ -22,6 +22,10 @@ patches:
     kind: Deployment
     name: core
   path: patches/core_deployment_cert_volume.yaml
+- target:
+    kind: Deployment
+    name: core
+  path: patches/core_deployment_cert_args.yaml
 
 replacements:
 - source: # replaces CERTIFICATE_NAMESPACE with namespace of the certificate CR
