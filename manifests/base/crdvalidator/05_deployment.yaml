@@ -28,4 +28,4 @@ spec:
       volumes:
         - name: tls
           secret:
-            secretName: crd-validation-webhook-certificate
+            secretName: CRD_VALIDATION_WEBHOOK_SECRET_NAME
