@@ -1,5 +1,5 @@
 resources:
-- ../base # Include all base manifests, apply the following resources and changes over the top
+- ../../base # Include all base manifests, apply the following resources and changes over the top
 - resources/apis
 - resources/core
 - resources/crdvalidator
@@ -21,19 +21,11 @@ patches:
 - target:
     kind: Deployment
     name: core
-  path: patches/core_deployment_cert_volume.yaml
-- target:
-    kind: Deployment
-    name: core
-  path: patches/core_deployment_cert_args.yaml
+  path: patches/core_deployment_certs.yaml
 - target:
     kind: Deployment
     name: helm-provisioner
-  path: patches/helm_provisioner_deployment_cert_volume.yaml
-- target:
-    kind: Deployment
-    name: helm-provisioner
-  path: patches/helm_provisioner_deployment_cert_args.yaml
+  path: patches/helm_provisioner_deployment_certs.yaml
 
 replacements:
 - source: # replaces CERTIFICATE_NAMESPACE with namespace of the certificate CR

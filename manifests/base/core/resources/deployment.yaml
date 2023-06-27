@@ -39,6 +39,7 @@ spec:
             - containerPort: 8443
               protocol: TCP
               name: https
+          volumeMounts: []
           resources:
             requests:
               cpu: 1m
