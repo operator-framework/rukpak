@@ -105,7 +105,7 @@ test: test-unit test-e2e ## Run the tests
 ENVTEST_VERSION = $(shell go list -m k8s.io/client-go | cut -d" " -f2 | sed 's/^v0\.\([[:digit:]]\{1,\}\)\.[[:digit:]]\{1,\}$$/1.\1.x/')
 UNIT_TEST_DIRS=$(shell go list ./... | grep -v /test/)
 test-unit: $(SETUP_ENVTEST) ## Run the unit tests
-	eval $$($(SETUP_ENVTEST) use -p env $(ENVTEST_VERSION)) && go test -tags $(GO_BUILD_TAGS) -count=1 -short $(UNIT_TEST_DIRS)
+	eval $$($(SETUP_ENVTEST) use -p env $(ENVTEST_VERSION)) && go test -tags $(GO_BUILD_TAGS) -count=1 -short $(UNIT_TEST_DIRS) -coverprofile cover.out
 
 FOCUS := $(if $(TEST),-v --focus "$(TEST)")
 E2E_FLAGS ?=
