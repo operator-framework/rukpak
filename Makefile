@@ -137,7 +137,7 @@ local-git: ## Setup in-cluster git repository
 
 install: generate cert-mgr install-manifests wait ## Install rukpak
 
-MANIFESTS_DIR ?= manifests/certmanager
+MANIFESTS_DIR ?= manifests/overlays/cert-manager
 install-manifests:
 	$(KUBECTL) apply -k $(MANIFESTS_DIR)
 
@@ -230,4 +230,4 @@ release: $(GORELEASER) ## Run goreleaser
 
 quickstart: VERSION ?= $(shell git describe --abbrev=0 --tags)
 quickstart: $(KUSTOMIZE) generate ## Generate the installation release manifests
-	$(KUSTOMIZE) build manifests/certmanager | sed "s/:devel/:$(VERSION)/g" > rukpak.yaml
+	$(KUSTOMIZE) build manifests/overlays/cert-manager | sed "s/:devel/:$(VERSION)/g" > rukpak.yaml

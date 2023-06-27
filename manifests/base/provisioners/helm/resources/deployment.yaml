@@ -39,6 +39,7 @@ spec:
             - containerPort: 8443
               protocol: TCP
               name: https
+          volumeMounts: []
           resources:
             requests:
               cpu: 1m
@@ -59,7 +60,13 @@ spec:
             - "--http-external-address=https://$(HELM_PROVISIONER_SERVICE_NAME).$(HELM_PROVISIONER_SERVICE_NAMESPACE).svc"
           ports:
             - containerPort: 8080
+          volumeMounts:
+            - name: bundle-cache
+              mountPath: /var/cache/bundles
           resources:
             requests:
               cpu: 10m
               memory: 160Mi
+      volumes:
+        - name: bundle-cache
+          emptyDir: {}
