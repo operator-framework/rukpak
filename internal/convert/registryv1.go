@@ -321,6 +321,8 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 	}
 	for _, obj := range in.Others {
 		obj := obj
+		// Default the namespace of other bundled objects to the installNamespace, like in OLMv0.
+		obj.SetNamespace(installNamespace)
 		objs = append(objs, &obj)
 	}
 	for _, obj := range deployments {
