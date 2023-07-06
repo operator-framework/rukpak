@@ -319,14 +319,14 @@ func SortBundlesByCreation(bundles *rukpakv1alpha1.BundleList) {
 	})
 }
 
-// GetPodNamespace checks whether the controller is running in a Pod vs.
+// PodNamespace checks whether the controller is running in a Pod vs.
 // being run locally by inspecting the namespace file that gets mounted
 // automatically for Pods at runtime. If that file doesn't exist, then
-// return the @defaultNamespace namespace parameter.
-func PodNamespace(defaultNamespace string) string {
+// return DefaultSystemNamespace.
+func PodNamespace() string {
 	namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
-		return defaultNamespace
+		return DefaultSystemNamespace
 	}
 	return string(namespace)
 }
