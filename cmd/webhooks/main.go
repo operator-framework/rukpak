@@ -52,7 +52,7 @@ func main() {
 	var rukpakVersion bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&systemNamespace, "system-namespace", util.DefaultSystemNamespace, "Configures the namespace that gets used to deploy system resources.")
+	flag.StringVar(&systemNamespace, "system-namespace", "", "Configures the namespace that gets used to deploy system resources.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	opts := zap.Options{
 		Development: true,
@@ -69,10 +69,12 @@ func main() {
 	setupLog.Info("starting up the rukpak webhooks", "git commit", version.String())
 
 	cfg := ctrl.GetConfigOrDie()
-	systemNs := util.PodNamespace(systemNamespace)
+	if systemNamespace == "" {
+		systemNamespace = util.PodNamespace()
+	}
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
-		Namespace:              systemNs,
+		Namespace:              systemNamespace,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
@@ -84,7 +86,7 @@ func main() {
 
 	if err = (&webhook.Bundle{
 		Client:          mgr.GetClient(),
-		SystemNamespace: systemNs,
+		SystemNamespace: systemNamespace,
 	}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", rukpakv1alpha1.BundleKind)
 		os.Exit(1)

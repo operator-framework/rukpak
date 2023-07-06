@@ -79,7 +79,7 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&unpackImage, "unpack-image", util.DefaultUnpackImage, "Configures the container image that gets used to unpack Bundle contents.")
 	flag.StringVar(&baseUploadManagerURL, "base-upload-manager-url", "", "The base URL from which to fetch uploaded bundles.")
-	flag.StringVar(&systemNamespace, "system-namespace", util.DefaultSystemNamespace, "Configures the namespace that gets used to deploy system resources.")
+	flag.StringVar(&systemNamespace, "system-namespace", "", "Configures the namespace that gets used to deploy system resources.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -107,10 +107,12 @@ func main() {
 	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
 
 	cfg := ctrl.GetConfigOrDie()
-	systemNs := util.PodNamespace(systemNamespace)
+	if systemNamespace == "" {
+		systemNamespace = util.PodNamespace()
+	}
 	systemNsCluster, err := cluster.New(cfg, func(opts *cluster.Options) {
 		opts.Scheme = scheme
-		opts.Namespace = systemNs
+		opts.Namespace = systemNamespace
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to create system namespace cluster")
@@ -197,7 +199,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNs, unpackImage, baseUploadManagerURL, rootCAs)
+	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, baseUploadManagerURL, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
@@ -212,12 +214,12 @@ func main() {
 	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
 	acg := helmclient.NewActionClientGetter(cfgGetter)
 	commonBDProvisionerOptions := []bundledeployment.Option{
-		bundledeployment.WithReleaseNamespace(systemNs),
+		bundledeployment.WithReleaseNamespace(systemNamespace),
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNs, append(
+	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
 		commonBundleProvisionerOptions,
 		bundle.WithProvisionerID(helm.ProvisionerID),
 		bundle.WithHandler(bundle.HandlerFunc(helm.HandleBundle)),
