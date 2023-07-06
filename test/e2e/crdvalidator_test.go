@@ -14,7 +14,7 @@ import (
 	"github.com/operator-framework/rukpak/test/testutil"
 )
 
-var _ = Describe("crdvalidator", func() {
+var _ = Describe("crdvalidator", Label("crd-validator"), func() {
 	When("a crd event is emitted", func() {
 		var ctx context.Context
 

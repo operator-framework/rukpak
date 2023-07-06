@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -19,12 +20,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 var (
-	cfg        *rest.Config
-	c          client.Client
-	kubeClient kubernetes.Interface
+	cfg             *rest.Config
+	c               client.Client
+	kubeClient      kubernetes.Interface
+	systemNamespace = util.DefaultSystemNamespace
+)
+
+const (
+	defaultUploadServiceName = util.DefaultUploadServiceName
+	testdataDir              = "../../testdata"
 )
 
 func TestE2E(t *testing.T) {
@@ -36,6 +44,10 @@ func TestE2E(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	cfg = ctrl.GetConfigOrDie()
+
+	if val := os.Getenv("RUKPAK_NAMESPACE"); val != "" {
+		systemNamespace = val
+	}
 
 	scheme := runtime.NewScheme()
 	Expect(rukpakv1alpha1.AddToScheme(scheme)).To(Succeed())
@@ -52,4 +64,5 @@ var _ = BeforeSuite(func() {
 
 	kubeClient, err = kubernetes.NewForConfig(cfg)
 	Expect(err).ToNot(HaveOccurred())
+
 })

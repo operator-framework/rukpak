@@ -16,7 +16,7 @@ import (
 )
 
 var _ = Describe("registry provisioner bundle", func() {
-	When("a BundleDeployment targets a registry+v1 Bundle", func() {
+	When("a BundleDeployment targets a registry+v1 Bundle", Label("registry-src"), func() {
 		var (
 			bd  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context
@@ -75,7 +75,7 @@ var _ = Describe("registry provisioner bundle", func() {
 			))
 		})
 	})
-	When("a BundleDeployment targets an invalid registry+v1 Bundle", func() {
+	When("a BundleDeployment targets an invalid registry+v1 Bundle", Label("registry-src"), func() {
 		var (
 			bd  *rukpakv1alpha1.BundleDeployment
 			ctx context.Context

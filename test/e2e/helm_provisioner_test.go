@@ -84,7 +84,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() (*appsv1.DeploymentCondition, error) {
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: systemNamespace}, deployment); err != nil {
 						return nil, err
 					}
 					for _, c := range deployment.Status.Conditions {
@@ -105,7 +105,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() error {
-					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment)
+					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: systemNamespace}, deployment)
 				}).Should(Succeed())
 
 				By("deleting the deployment resource in the helm chart")
@@ -113,7 +113,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 
 				By("verifying the deleted deployment resource in the helm chart gets recreated")
 				Eventually(func() (*appsv1.DeploymentCondition, error) {
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: systemNamespace}, deployment); err != nil {
 						return nil, err
 					}
 					for _, c := range deployment.Status.Conditions {
@@ -370,7 +370,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() (*appsv1.DeploymentCondition, error) {
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: systemNamespace}, deployment); err != nil {
 						return nil, err
 					}
 					for _, c := range deployment.Status.Conditions {
@@ -398,7 +398,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() error {
-					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment)
+					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: systemNamespace}, deployment)
 				}).Should(Succeed())
 
 				By("deleting the deployment resource in the helm chart")
@@ -406,7 +406,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 
 				By("verifying the deleted deployment resource in the helm chart gets recreated")
 				Eventually(func() (*appsv1.DeploymentCondition, error) {
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: systemNamespace}, deployment); err != nil {
 						return nil, err
 					}
 					for _, c := range deployment.Status.Conditions {
@@ -551,7 +551,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 			deployment := &appsv1.Deployment{}
 
 			Eventually(func() (*appsv1.DeploymentCondition, error) {
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-fromvalues", Namespace: defaultSystemNamespace}, deployment); err != nil {
+				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-fromvalues", Namespace: systemNamespace}, deployment); err != nil {
 					return nil, err
 				}
 				for _, c := range deployment.Status.Conditions {

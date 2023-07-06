@@ -36,12 +36,6 @@ import (
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
-const (
-	defaultSystemNamespace   = util.DefaultSystemNamespace
-	defaultUploadServiceName = util.DefaultUploadServiceName
-	testdataDir              = "../../testdata"
-)
-
 func Logf(f string, v ...interface{}) {
 	if !strings.HasSuffix(f, "\n") {
 		f += "\n"
@@ -90,7 +84,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			}, 10*time.Second, 1*time.Second).Should(BeTrue())
 		})
 	})
-	When("a valid Bundle referencing a remote container image is created", func() {
+	When("a valid Bundle referencing a remote container image is created", Label("registry-src"), func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -159,7 +153,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			Eventually(func() bool {
 				pods := &corev1.PodList{}
 				if err := c.List(ctx, pods, &client.ListOptions{
-					Namespace:     defaultSystemNamespace,
+					Namespace:     systemNamespace,
 					LabelSelector: selector,
 				}); err != nil {
 					return false
@@ -208,7 +202,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a valid Bundle referencing a remote private container image is created", func() {
+	When("a valid Bundle referencing a remote private container image is created", Label("registry-src"), func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -269,7 +263,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("an invalid Bundle referencing a remote container image is created", func() {
+	When("an invalid Bundle referencing a remote container image is created", Label("registry-src"), func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -307,7 +301,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				pod := &corev1.Pod{}
 				if err := c.Get(ctx, types.NamespacedName{
 					Name:      bundle.GetName(),
-					Namespace: defaultSystemNamespace,
+					Namespace: systemNamespace,
 				}, pod); err != nil {
 					return false
 				}
@@ -343,7 +337,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing no manifests is created", func() {
+	When("a bundle containing no manifests is created", Label("registry-src"), func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -392,7 +386,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing an empty manifests directory is created", func() {
+	When("a bundle containing an empty manifests directory is created", Label("registry-src"), func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -716,7 +710,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				secret = &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "gitsecret-",
-						Namespace:    defaultSystemNamespace,
+						Namespace:    systemNamespace,
 					},
 					Data: map[string][]byte{"username": []byte(username), "password": []byte(password)},
 					Type: "Opaque",
@@ -778,7 +772,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 
-		When("the bundle is backed by a local git repository", func() {
+		When("the bundle is backed by a local git repository", Label("local-git-src"), func() {
 			var (
 				bundle      *rukpakv1alpha1.Bundle
 				privateRepo string
@@ -873,7 +867,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			configmap = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "bundle-configmap-valid-",
-					Namespace:    defaultSystemNamespace,
+					Namespace:    systemNamespace,
 				},
 				Data:      data,
 				Immutable: pointer.Bool(true),
@@ -967,7 +961,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message },
-					ContainSubstring(fmt.Sprintf("source bundle content: get configmap %[1]s/%[2]s: ConfigMap %[2]q not found", defaultSystemNamespace, "non-exist"))),
+					ContainSubstring(fmt.Sprintf("source bundle content: get configmap %[1]s/%[2]s: ConfigMap %[2]q not found", systemNamespace, "non-exist"))),
 			))
 		})
 	})
@@ -1000,7 +994,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			configmap = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "bundle-configmap-invalid-",
-					Namespace:    defaultSystemNamespace,
+					Namespace:    systemNamespace,
 				},
 				Data:      data,
 				Immutable: pointer.Bool(true),
@@ -1074,12 +1068,12 @@ var _ = Describe("plain provisioner bundle", func() {
 			err := c.Create(ctx, bundle)
 			Expect(err).ToNot(HaveOccurred())
 
-			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: systemNamespace, Name: "rukpak-ca"})
 			Expect(err).ToNot(HaveOccurred())
 
 			bu := rukpakctl.BundleUploader{
 				UploadServiceName:      defaultUploadServiceName,
-				UploadServiceNamespace: defaultSystemNamespace,
+				UploadServiceNamespace: systemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
 			}
@@ -1132,12 +1126,12 @@ var _ = Describe("plain provisioner bundle", func() {
 			err := c.Create(ctx, bundle)
 			Expect(err).ToNot(HaveOccurred())
 
-			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: systemNamespace, Name: "rukpak-ca"})
 			Expect(err).ToNot(HaveOccurred())
 
 			bu := rukpakctl.BundleUploader{
 				UploadServiceName:      defaultUploadServiceName,
-				UploadServiceNamespace: defaultSystemNamespace,
+				UploadServiceNamespace: systemNamespace,
 				Cfg:                    cfg,
 				RootCAs:                rootCAs,
 			}
@@ -1168,7 +1162,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing nested directory is created", func() {
+	When("a bundle containing nested directory is created", Label("registry-src"), func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -1281,7 +1275,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				sa = corev1.ServiceAccount{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "rukpak-svr-sa",
-						Namespace: defaultSystemNamespace,
+						Namespace: systemNamespace,
 					},
 				}
 				err := c.Create(ctx, &sa)
@@ -1291,10 +1285,10 @@ var _ = Describe("plain provisioner bundle", func() {
 				crb = rbacv1.ClusterRoleBinding{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "rukpak-svr-crb",
-						Namespace: defaultSystemNamespace,
+						Namespace: systemNamespace,
 					},
 
-					Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: "rukpak-svr-sa", Namespace: defaultSystemNamespace}},
+					Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: "rukpak-svr-sa", Namespace: systemNamespace}},
 					RoleRef:  rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "ClusterRole", Name: "bundle-reader"},
 				}
 
@@ -1307,7 +1301,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				job = batchv1.Job{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "rukpak-svr-job",
-						Namespace: defaultSystemNamespace,
+						Namespace: systemNamespace,
 					},
 					Spec: batchv1.JobSpec{
 						Template: corev1.PodTemplateSpec{
@@ -1329,7 +1323,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				err = c.Create(ctx, &job)
 				Expect(err).ToNot(HaveOccurred())
 				Eventually(func() (bool, error) {
-					err = c.Get(ctx, types.NamespacedName{Name: "rukpak-svr-job", Namespace: defaultSystemNamespace}, &job)
+					err = c.Get(ctx, types.NamespacedName{Name: "rukpak-svr-job", Namespace: systemNamespace}, &job)
 					if err != nil {
 						return false, err
 					}
@@ -1359,7 +1353,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				Eventually(func() (bool, error) {
 					// Get logs of the Pod
 					pod = pods.Items[0]
-					logReader, err := kubeClient.CoreV1().Pods(defaultSystemNamespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(context.Background())
+					logReader, err := kubeClient.CoreV1().Pods(systemNamespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(context.Background())
 					if err != nil {
 						return false, err
 					}
@@ -1379,7 +1373,7 @@ var _ = Describe("plain provisioner bundle", func() {
 	})
 })
 
-var _ = Describe("plain provisioner bundledeployment", func() {
+var _ = Describe("plain provisioner bundledeployment", Label("registry-src"), func() {
 	Context("embedded bundle template", func() {
 		var (
 			bd  *rukpakv1alpha1.BundleDeployment
@@ -1975,7 +1969,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 	})
 })
 
-var _ = Describe("plain provisioner garbage collection", func() {
+var _ = Describe("plain provisioner garbage collection", Label("registry-src"), func() {
 	When("a Bundle has been deleted", func() {
 		var (
 			ctx context.Context
@@ -2022,7 +2016,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			Eventually(func() bool {
 				pods := &corev1.PodList{}
 				if err := c.List(ctx, pods, &client.ListOptions{
-					Namespace:     defaultSystemNamespace,
+					Namespace:     systemNamespace,
 					LabelSelector: selector,
 				}); err != nil {
 					return false
@@ -2218,7 +2212,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 
 func checkProvisionerBundle(ctx context.Context, object client.Object, provisionerPodName string) error {
 	req := kubeClient.CoreV1().RESTClient().Post().
-		Namespace(defaultSystemNamespace).
+		Namespace(systemNamespace).
 		Resource("pods").
 		Name(provisionerPodName).
 		SubResource("exec").
