@@ -115,11 +115,6 @@ type HTTPSource struct {
 	Auth Authorization `json:"auth,omitempty"`
 }
 
-type ConfigMapRef struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
-
 type GitRef struct {
 	// Branch refers to the branch to checkout from the repository.
 	// The Branch should contain the bundle manifests in the specified directory.
