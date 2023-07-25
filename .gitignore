@@ -18,3 +18,5 @@ dist/
 
 # Release artifacts
 rukpak.yaml
+
+.tiltbuild/
