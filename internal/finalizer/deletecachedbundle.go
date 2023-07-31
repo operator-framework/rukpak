@@ -6,7 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/finalizer"
 
-	"github.com/operator-framework/rukpak/internal/storage"
+	"github.com/operator-framework/rukpak/pkg/storage"
 )
 
 var _ finalizer.Finalizer = &DeleteCachedBundle{}
