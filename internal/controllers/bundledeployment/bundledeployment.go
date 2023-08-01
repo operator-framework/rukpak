@@ -519,7 +519,7 @@ func (p *postrenderer) Run(renderedManifests *bytes.Buffer) (*bytes.Buffer, erro
 		if err != nil {
 			return nil, err
 		}
-		obj.SetLabels(p.labels)
+		obj.SetLabels(util.MergeMaps(obj.GetLabels(), p.labels))
 		b, err := obj.MarshalJSON()
 		if err != nil {
 			return nil, err
