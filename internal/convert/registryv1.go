@@ -26,6 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
+	registrybundle "github.com/operator-framework/operator-registry/pkg/lib/bundle"
+
 	registry "github.com/operator-framework/rukpak/internal/operator-registry"
 	"github.com/operator-framework/rukpak/internal/util"
 )
@@ -321,6 +323,13 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 	}
 	for _, obj := range in.Others {
 		obj := obj
+		supported, namespaced := registrybundle.IsSupported(obj.GetKind())
+		if !supported {
+			return nil, fmt.Errorf("bundle contains unsupported resource: Name: %v, Kind: %v", obj.GetName(), obj.GetKind())
+		}
+		if namespaced {
+			obj.SetNamespace(installNamespace)
+		}
 		objs = append(objs, &obj)
 	}
 	for _, obj := range deployments {
