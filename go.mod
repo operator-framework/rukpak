@@ -16,7 +16,7 @@ require (
 	github.com/operator-framework/helm-operator-plugins v0.0.11
 	github.com/operator-framework/operator-registry v1.28.0
 	github.com/spf13/cobra v1.6.1
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.4
 	golang.org/x/crypto v0.7.0
 	golang.org/x/sync v0.2.0
 	helm.sh/helm/v3 v3.11.1
