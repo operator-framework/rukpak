@@ -28,17 +28,23 @@ var (
 
 const (
 	TypeHasValidBundle = "HasValidBundle"
+	TypeHealthy        = "Healthy"
 	TypeInstalled      = "Installed"
 
-	ReasonBundleLoadFailed         = "BundleLoadFailed"
-	ReasonReadingContentFailed     = "ReadingContentFailed"
-	ReasonErrorGettingClient       = "ErrorGettingClient"
-	ReasonErrorGettingReleaseState = "ErrorGettingReleaseState"
-	ReasonInstallFailed            = "InstallFailed"
-	ReasonUpgradeFailed            = "UpgradeFailed"
-	ReasonReconcileFailed          = "ReconcileFailed"
-	ReasonCreateDynamicWatchFailed = "CreateDynamicWatchFailed"
-	ReasonInstallationSucceeded    = "InstallationSucceeded"
+	ReasonBundleLoadFailed          = "BundleLoadFailed"
+	ReasonCreateDynamicWatchFailed  = "CreateDynamicWatchFailed"
+	ReasonErrorGettingClient        = "ErrorGettingClient"
+	ReasonErrorGettingReleaseState  = "ErrorGettingReleaseState"
+	ReasonHealthy                   = "Healthy"
+	ReasonInstallationStatusFalse   = "InstallationStatusFalse"
+	ReasonInstallationStatusUnknown = "InstallationStatusUnknown"
+	ReasonInstallationSucceeded     = "InstallationSucceeded"
+	ReasonInstallFailed             = "InstallFailed"
+	ReasonObjectLookupFailure       = "ObjectLookupFailure"
+	ReasonReadingContentFailed      = "ReadingContentFailed"
+	ReasonReconcileFailed           = "ReconcileFailed"
+	ReasonUnhealthy                 = "Unhealthy"
+	ReasonUpgradeFailed             = "UpgradeFailed"
 )
 
 // BundleDeploymentSpec defines the desired state of BundleDeployment
