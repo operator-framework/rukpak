@@ -20,9 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// BundleDeploymentSource configures the sources
-// from where the bundle content needs to be
-// downloaded, and the location to unpack it.
 type BundleDeplopymentSource struct {
 	// Kind of source being passed
 
@@ -64,45 +61,36 @@ type GitSource struct {
 	// Repository is a URL link to the git repository containing the bundle.
 	// Repository is required and the URL should be parsable by a standard git tool.
 	Repository string `json:"repository"`
-
 	// Directory refers to the location of the bundle within the git repository.
-	// Directory is optional and if not set defaults to `manifests`.
-
-	// +kubebuilder:default:=manifests
 	Directory string `json:"directory,omitempty"`
-
 	// Ref configures the git source to clone a specific branch, tag, or commit
 	// from the specified repo. Ref is required, and exactly one field within Ref
 	// is required. Setting more than one field or zero fields will result in an
 	// error.
 	Ref GitRef `json:"ref"`
-
-	// Auth configures the authentication method if necessary.
-	Auth *Authentication `json:"auth,omitempty"`
+	// Auth configures the authorization method if necessary.
+	Auth Authorization `json:"auth,omitempty"`
 }
 
 type GitRef struct {
 	// Branch refers to the branch to checkout from the repository.
 	// The Branch should contain the bundle manifests in the specified directory.
 	Branch string `json:"branch,omitempty"`
-
 	// Tag refers to the tag to checkout from the repository.
 	// The Tag should contain the bundle manifests in the specified directory.
 	Tag string `json:"tag,omitempty"`
-
 	// Commit refers to the commit to checkout from the repository.
 	// The Commit should contain the bundle manifests in the specified directory.
 	Commit string `json:"commit,omitempty"`
 }
 
-type Authentication struct {
+type Authorization struct {
 	// Secret contains reference to the secret that has authorization information and is in the namespace that the provisioner is deployed.
 	// The secret is expected to contain `data.username` and `data.password` for the username and password, respectively for http(s) scheme.
 	// Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
 	// For the ssh authorization of the GitSource, the secret is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts` for the ssh privatekey and the host entry in the known_hosts file respectively.
 	// Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
 	Secret corev1.LocalObjectReference `json:"secret,omitempty"`
-
 	// InsecureSkipVerify controls whether a client verifies the server's certificate chain and host name. If InsecureSkipVerify
 	// is true, the clone operation will accept any certificate presented by the server and any host name in that
 	// certificate. In this mode, TLS is susceptible to machine-in-the-middle attacks unless custom verification is
@@ -112,7 +100,6 @@ type Authentication struct {
 type HTTPSource struct {
 	// URL is where the bundle contents is.
 	URL string `json:"url"`
-
-	// Auth configures the authentication method if necessary.
-	Auth *Authentication `json:"auth,omitempty"`
+	// Auth configures the authorization method if necessary.
+	Auth Authorization `json:"auth,omitempty"`
 }

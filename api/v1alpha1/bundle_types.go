@@ -100,6 +100,8 @@ type GitSource struct {
 	Auth Authorization `json:"auth,omitempty"`
 }
 
+// +kubebuilder:storageversion
+
 type ConfigMapSource struct {
 	// ConfigMap is a reference to a configmap in the rukpak system namespace
 	ConfigMap corev1.LocalObjectReference `json:"configMap"`

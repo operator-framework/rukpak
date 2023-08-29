@@ -23,6 +23,7 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}
+//+kubebuilder:storageversion
 
 // BundleDeployment is the Schema for the bundledeployments API
 type BundleDeployment struct {
@@ -35,33 +36,24 @@ type BundleDeployment struct {
 
 // BundleDeploymentSpec defines the desired state of BundleDeployment
 type BundleDeploymentSpec struct {
-	// Sources configures how to pull the bundle content.
+	// Source configures how to pull the bundle content.
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinItems:=1
 	Sources []BundleDeplopymentSource `json:"sources"`
-
 	// Format refers to the bundle type which is being passed through
 	// the bundle deployment API.
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=plain;helm;registry
 	Format FormatType `json:"format"`
-
 	// Paused is used to configure whether we want the
-	// bundle deployment to reconcile, or remain in the
+	// bundle deployment to reconcile, or remmain in the
 	// last observed state.
 
 	// +kubebuilder:default:=false
 	// +optional
-	Paused bool `json:"paused,omitempty"`
-
-	// DefaultNamespace refers to the namespace where
-	// namespace-scoped objects would be created if not
-	// explicitly set within the bundle.
-
-	// +optional
-	DefaultNamespace string `json:"defaultnamespace,omitempty"`
+	Paused bool `json:"paused"`
 }
 
 // FormatType refers to the allowed bundle formats that
@@ -82,9 +74,9 @@ type BundleDeploymentStatus struct {
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // BundleDeploymentList contains a list of BundleDeployment
+
+// +kubebuilder:object:root=true
 type BundleDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
