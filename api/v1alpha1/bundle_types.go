@@ -154,15 +154,16 @@ type BundleStatus struct {
 	ContentURL         string             `json:"contentURL,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name=Type,type=string,JSONPath=`.spec.source.type`
-//+kubebuilder:printcolumn:name=Phase,type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
-//+kubebuilder:printcolumn:name=Provisioner,type=string,JSONPath=`.spec.provisionerClassName`,priority=1
-//+kubebuilder:printcolumn:name=Resolved Source,type=string,JSONPath=`.status.resolvedSource`,priority=1
-
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name=Type,type=string,JSONPath=`.spec.source.type`
+// +kubebuilder:printcolumn:name=Phase,type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name=Provisioner,type=string,JSONPath=`.spec.provisionerClassName`,priority=1
+// +kubebuilder:printcolumn:name=Resolved Source,type=string,JSONPath=`.status.resolvedSource`,priority=1
+// +kubebuilder:storageversion
+//
 // Bundle is the Schema for the bundles API
 type Bundle struct {
 	metav1.TypeMeta   `json:",inline"`

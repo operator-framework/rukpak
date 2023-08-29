@@ -74,6 +74,7 @@ type BundleDeploymentStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}
+// +kubebuilder:storageversion
 //+kubebuilder:printcolumn:name="Active Bundle",type=string,JSONPath=`.status.activeBundle`
 //+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
