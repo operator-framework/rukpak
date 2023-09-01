@@ -20,6 +20,27 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+type SourceType string
+
+const (
+	SourceTypeImage SourceType = "image"
+	SourceTypeGit   SourceType = "git"
+	SourceTypeHTTP  SourceType = "http"
+
+	TypeUnpacked = "Unpacked"
+
+	ReasonUnpackPending             = "UnpackPending"
+	ReasonUnpacking                 = "Unpacking"
+	ReasonUnpackSuccessful          = "UnpackSuccessful"
+	ReasonUnpackFailed              = "UnpackFailed"
+	ReasonProcessingFinalizerFailed = "ProcessingFinalizerFailed"
+
+	PhasePending   = "Pending"
+	PhaseUnpacking = "Unpacking"
+	PhaseFailing   = "Failing"
+	PhaseUnpacked  = "Unpacked"
+)
+
 type BundleDeplopymentSource struct {
 	// Kind of source being passed
 

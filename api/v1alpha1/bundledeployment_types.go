@@ -80,7 +80,7 @@ type BundleDeploymentStatus struct {
 //+kubebuilder:printcolumn:name=Provisioner,type=string,JSONPath=`.spec.provisionerClassName`,priority=1
 
 // BundleDeployment is the Schema for the bundledeployments API
-// +kubebuilder:storageversion
+
 type BundleDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

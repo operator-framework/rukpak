@@ -17,24 +17,9 @@ spec:
     singular: bundledeployment
   scope: Cluster
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.activeBundle
-      name: Active Bundle
-      type: string
-    - jsonPath: .status.conditions[?(.type=="Installed")].reason
-      name: Install State
-      type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    - jsonPath: .spec.provisionerClassName
-      name: Provisioner
-      priority: 1
-      type: string
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: BundleDeployment is the Schema for the bundledeployments API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -373,9 +358,7 @@ spec:
         - spec
         type: object
     served: true
-    storage: true
-    subresources:
-      status: {}
+    storage: false
   - name: v1alpha2
     schema:
       openAPIV3Schema:
@@ -566,6 +549,10 @@ spec:
           status:
             description: BundleDeploymentStatus defines the observed state of BundleDeployment
             properties:
+              cachedbundles:
+                items:
+                  type: string
+                type: array
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
@@ -642,6 +629,6 @@ spec:
         - spec
         type: object
     served: true
-    storage: false
+    storage: true
     subresources:
       status: {}

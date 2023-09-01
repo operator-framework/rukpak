@@ -27,11 +27,10 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
-	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
+	v1alpha2bd "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/controllers/bundledeployment"
+	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,12 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/controllers/bundle"
-	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
+	"github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/finalizer"
-	"github.com/operator-framework/rukpak/internal/provisioner/plain"
-	"github.com/operator-framework/rukpak/internal/provisioner/registry"
-	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
@@ -63,6 +58,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(rukpakv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(v1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -109,13 +105,6 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("starting up the core controllers and servers", "git commit", version.String(), "unpacker image", unpackImage)
 
-	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha1.BundleKind, rukpakv1alpha1.BundleDeploymentKind})
-	if err != nil {
-		setupLog.Error(err, "unable to create dependent label selector for cache")
-		os.Exit(1)
-	}
-	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
-
 	cfg := ctrl.GetConfigOrDie()
 	if systemNamespace == "" {
 		systemNamespace = util.PodNamespace()
@@ -138,11 +127,7 @@ func main() {
 		LeaderElectionID:       "core.rukpak.io",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
-				&rukpakv1alpha1.BundleDeployment{}: {},
-				&rukpakv1alpha1.Bundle{}:           {},
-			},
-			DefaultSelector: cache.ObjectSelector{
-				Label: dependentSelector,
+				&v1alpha2.BundleDeployment{}: {},
 			},
 		}),
 	})
@@ -218,52 +203,58 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, baseUploadManagerURL, rootCAs)
+	unpacker, err := v1alpha2source.NewDefaultUnpackerWithOpts(systemNsCluster, systemNamespace)
+	// unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, baseUploadManagerURL, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
 	}
 
-	commonBundleProvisionerOptions := []bundle.Option{
-		bundle.WithUnpacker(unpacker),
-		bundle.WithFinalizers(bundleFinalizers),
-		bundle.WithStorage(bundleStorage),
-	}
+	// commonBundleProvisionerOptions := []bundle.Option{
+	// 	bundle.WithUnpacker(unpacker),
+	// 	bundle.WithFinalizers(bundleFinalizers),
+	// 	bundle.WithStorage(bundleStorage),
+	// }
 
-	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	acg := helmclient.NewActionClientGetter(cfgGetter)
-	commonBDProvisionerOptions := []bundledeployment.Option{
-		bundledeployment.WithReleaseNamespace(systemNamespace),
-		bundledeployment.WithActionClientGetter(acg),
-		bundledeployment.WithStorage(bundleStorage),
-	}
+	// cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	// acg := helmclient.NewActionClientGetter(cfgGetter)
+	// commonBDProvisionerOptions := []bundledeployment.Option{
+	// 	bundledeployment.WithReleaseNamespace(systemNamespace),
+	// 	bundledeployment.WithActionClientGetter(acg),
+	// 	bundledeployment.WithStorage(bundleStorage),
+	// }
 
-	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-		commonBundleProvisionerOptions,
-		bundle.WithProvisionerID(plain.ProvisionerID),
-		bundle.WithHandler(bundle.HandlerFunc(plain.HandleBundle)),
-	)...); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", plain.ProvisionerID)
+	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
+	// 	commonBundleProvisionerOptions,
+	// 	bundle.WithProvisionerID(plain.ProvisionerID),
+	// 	bundle.WithHandler(bundle.HandlerFunc(plain.HandleBundle)),
+	// )...); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", plain.ProvisionerID)
+	// 	os.Exit(1)
+	// }
+
+	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
+	// 	commonBundleProvisionerOptions,
+	// 	bundle.WithProvisionerID(registry.ProvisionerID),
+	// 	bundle.WithHandler(bundle.HandlerFunc(registry.HandleBundle)),
+	// )...); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", registry.ProvisionerID)
+	// 	os.Exit(1)
+	// }
+
+	if err := v1alpha2bd.SetupWithManager(mgr, v1alpha2bd.WithUnpacker(unpacker)); err != nil {
+		setupLog.Error(err, "unable to create controller")
 		os.Exit(1)
 	}
 
-	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-		commonBundleProvisionerOptions,
-		bundle.WithProvisionerID(registry.ProvisionerID),
-		bundle.WithHandler(bundle.HandlerFunc(registry.HandleBundle)),
-	)...); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", registry.ProvisionerID)
-		os.Exit(1)
-	}
-
-	if err := bundledeployment.SetupWithManager(mgr, append(
-		commonBDProvisionerOptions,
-		bundledeployment.WithProvisionerID(plain.ProvisionerID),
-		bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
-	)...); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
-		os.Exit(1)
-	}
+	// if err := bundledeployment.SetupWithManager(mgr, append(
+	// 	commonBDProvisionerOptions,
+	// 	bundledeployment.WithProvisionerID(plain.ProvisionerID),
+	// 	bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
+	// )...); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
+	// 	os.Exit(1)
+	// }
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
