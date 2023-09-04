@@ -1426,6 +1426,18 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 			))
+			By("waiting until the BD reports a healthy condition")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHealthy), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHealthy)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonHealthy)),
+			))
 		})
 		AfterEach(func() {
 			By("deleting the testing BD resource")
@@ -1602,7 +1614,6 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
 					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 				))
-
 				By("verifying that the old Bundle no longer exists")
 				Eventually(func() error {
 					return c.Get(ctx, client.ObjectKeyFromObject(originalBundle), &rukpakv1alpha1.Bundle{})
@@ -1734,6 +1745,18 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					ContainSubstring(`no matches for kind "OLMConfig" in version "operators.coreos.com/v1"`),
 					ContainSubstring(`no matches for kind "OperatorGroup" in version "operators.coreos.com/v1"`),
 				)),
+			))
+			By("waiting until the BD reports a non healthy condition")
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHealthy), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHealthy)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationStatusFalse)),
 			))
 		})
 	})

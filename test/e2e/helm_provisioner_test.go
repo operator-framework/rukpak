@@ -567,7 +567,6 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Reason }, Equal("MinimumReplicasAvailable")),
 				WithTransform(func(c *appsv1.DeploymentCondition) string { return c.Message }, ContainSubstring("Deployment has minimum availability.")),
 			))
-
 		})
 	})
 })

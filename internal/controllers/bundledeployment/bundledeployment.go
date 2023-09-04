@@ -35,9 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/healthchecks"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/features"
 )
 
 /*
@@ -263,12 +265,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 	cl, err := c.acg.ActionClientFor(bd)
 	bd.SetNamespace("")
 	if err != nil {
-		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-			Type:    rukpakv1alpha1.TypeInstalled,
-			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonErrorGettingClient,
-			Message: err.Error(),
-		})
+		setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonErrorGettingClient, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -281,12 +278,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 
 	rel, state, err := c.getReleaseState(cl, bd, chrt, values, post)
 	if err != nil {
-		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-			Type:    rukpakv1alpha1.TypeInstalled,
-			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonErrorGettingReleaseState,
-			Message: err.Error(),
-		})
+		setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonErrorGettingReleaseState, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -306,12 +298,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonInstallFailed,
-				Message: err.Error(),
-			})
+			setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonInstallFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
@@ -326,12 +313,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
-				Message: err.Error(),
-			})
+			setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonUpgradeFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	case stateUnchanged:
@@ -339,12 +321,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonReconcileFailed,
-				Message: err.Error(),
-			})
+			setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonReconcileFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	default:
@@ -353,24 +330,14 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 
 	relObjects, err := util.ManifestObjects(strings.NewReader(rel.Manifest), fmt.Sprintf("%s-release-manifest", rel.Name))
 	if err != nil {
-		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-			Type:    rukpakv1alpha1.TypeInstalled,
-			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-			Message: err.Error(),
-		})
+		setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonCreateDynamicWatchFailed, err.Error())
 		return ctrl.Result{}, err
 	}
 
 	for _, obj := range relObjects {
 		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
-			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-				Message: err.Error(),
-			})
+			setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonCreateDynamicWatchFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 
@@ -391,12 +358,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			}
 			return nil
 		}(); err != nil {
-			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-				Type:    rukpakv1alpha1.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
-				Message: err.Error(),
-			})
+			setInstalledAndHealthyFalse(bd, rukpakv1alpha1.ReasonCreateDynamicWatchFailed, err.Error())
 			return ctrl.Result{}, err
 		}
 	}
@@ -408,11 +370,48 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 	})
 	bd.Status.ActiveBundle = bundle.GetName()
 
+	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentHealth) {
+		if err = healthchecks.AreObjectsHealthy(ctx, c.cl, relObjects); err != nil {
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeHealthy,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonUnhealthy,
+				Message: err.Error(),
+			})
+			return ctrl.Result{}, err
+		}
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHealthy,
+			Status:  metav1.ConditionTrue,
+			Reason:  rukpakv1alpha1.ReasonHealthy,
+			Message: "BundleDeployment is healthy",
+		})
+	}
 	if err := c.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to delete old bundles: %v", err)
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// setInstalledAndHealthyFalse sets the Installed and if the feature gate is enabled, the Healthy conditions to False,
+// and allows to set the Installed condition reason and message.
+func setInstalledAndHealthyFalse(bd *rukpakv1alpha1.BundleDeployment, installedConditionReason, installedConditionMessage string) {
+	meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeInstalled,
+		Status:  metav1.ConditionFalse,
+		Reason:  installedConditionReason,
+		Message: installedConditionMessage,
+	})
+
+	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentHealth) {
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHealthy,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+			Message: "Installed condition is false",
+		})
+	}
 }
 
 // reconcileOldBundles is responsible for garbage collecting any Bundles
