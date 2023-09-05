@@ -1,17 +1,19 @@
-package healthchecks
+package generic
 
 import (
+	"context"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestGetObjectsHealth(t *testing.T) {
+func TestAreObjectsHealthy(t *testing.T) {
 	for _, tt := range []struct {
 		name        string
 		resources   []client.Object
@@ -371,8 +373,12 @@ func TestGetObjectsHealth(t *testing.T) {
 			expectedErr: true,
 		},
 	} {
+		ctx := context.Background()
+		// Instantiate a fake client.
+		client := fakeClient{}
+
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetObjectsHealth(tt.resources)
+			got, err := AreObjectsHealthy(ctx, client, tt.resources)
 			if (err != nil) != tt.expectedErr {
 				t.Errorf("AreRelObjectsHealthy() testName=%q  error = %v, expectedErr %v", tt.name, err, tt.expectedErr)
 				return
@@ -382,4 +388,16 @@ func TestGetObjectsHealth(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Fake client for testing, implementing the client.Client interface.
+type fakeClient struct {
+	client.Client
+}
+
+// Get is a fake implementation of the client.Client.Get method, the generic healthcheck only requires the Get method.
+// As we are passing the actual resources with the full status populated, we can just return nil. In a normal situation,
+// the resource will be missing the status field, but for testing we are populating the full object.
+func (f fakeClient) Get(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+	return nil
 }

@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/healthchecks/generic"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/pkg/storage"
@@ -269,6 +270,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			Reason:  rukpakv1alpha1.ReasonErrorGettingClient,
 			Message: err.Error(),
 		})
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHealthy,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+			Message: "Installed condition is false",
+		})
 		return ctrl.Result{}, err
 	}
 
@@ -286,6 +293,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			Status:  metav1.ConditionFalse,
 			Reason:  rukpakv1alpha1.ReasonErrorGettingReleaseState,
 			Message: err.Error(),
+		})
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHealthy,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+			Message: "Installed condition is false",
 		})
 		return ctrl.Result{}, err
 	}
@@ -312,6 +325,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 				Reason:  rukpakv1alpha1.ReasonInstallFailed,
 				Message: err.Error(),
 			})
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeHealthy,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+				Message: "Installed condition is false",
+			})
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
@@ -332,6 +351,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 				Reason:  rukpakv1alpha1.ReasonUpgradeFailed,
 				Message: err.Error(),
 			})
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeHealthy,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+				Message: "Installed condition is false",
+			})
 			return ctrl.Result{}, err
 		}
 	case stateUnchanged:
@@ -344,6 +369,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 				Status:  metav1.ConditionFalse,
 				Reason:  rukpakv1alpha1.ReasonReconcileFailed,
 				Message: err.Error(),
+			})
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeHealthy,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+				Message: "Installed condition is false",
 			})
 			return ctrl.Result{}, err
 		}
@@ -359,6 +390,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
 			Message: err.Error(),
 		})
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHealthy,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+			Message: "Installed condition is false",
+		})
 		return ctrl.Result{}, err
 	}
 
@@ -370,6 +407,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 				Status:  metav1.ConditionFalse,
 				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
 				Message: err.Error(),
+			})
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeHealthy,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+				Message: "Installed condition is false",
 			})
 			return ctrl.Result{}, err
 		}
@@ -397,6 +440,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 				Reason:  rukpakv1alpha1.ReasonCreateDynamicWatchFailed,
 				Message: err.Error(),
 			})
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeHealthy,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonInstallationStatusFalse,
+				Message: "Installed condition is false",
+			})
 			return ctrl.Result{}, err
 		}
 	}
@@ -407,6 +456,22 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 		Message: fmt.Sprintf("Instantiated bundle %s successfully", bundle.GetName()),
 	})
 	bd.Status.ActiveBundle = bundle.GetName()
+
+	if _, err = generic.AreObjectsHealthy(ctx, c.cl, relObjects); err != nil {
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeHealthy,
+			Status:  metav1.ConditionFalse,
+			Reason:  rukpakv1alpha1.ReasonUnhealthy,
+			Message: err.Error(),
+		})
+		return ctrl.Result{}, err
+	}
+	meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+		Type:    rukpakv1alpha1.TypeHealthy,
+		Status:  metav1.ConditionTrue,
+		Reason:  rukpakv1alpha1.ReasonHealthy,
+		Message: fmt.Sprintf("bundleDeployment is healthy"),
+	})
 
 	if err := c.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to delete old bundles: %v", err)
