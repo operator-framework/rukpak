@@ -122,11 +122,6 @@ func (u *defaultUnpacker) initialize() (Unpacker, error) {
 	if u.systemNsCluster == nil {
 		return nil, fmt.Errorf("systemNsCluster cannot be empty, cannot initialize")
 	}
-	// cfg := u.systemNsCluster.GetConfig()
-	// kubeClient, err := kubernetes.NewForConfig(cfg)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	if httpTransport.TLSClientConfig == nil {

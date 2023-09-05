@@ -102,11 +102,14 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2.BundleDeployment) (ctrl.Result, error) {
 
-	_, err := b.unpackContents(ctx, bd)
+	bundleDepFS, err := b.unpackContents(ctx, bd)
 	if err != nil {
-		setUnpackStatusFailing(&bd.Status.Conditions, fmt.Sprintf("unpacking failed %q", bd.GetName()), bd.Generation)
+		return ctrl.Result{}, fmt.Errorf("error unpacking contents: %v", err)
 	}
-	setUnpackStatusSuccess(&bd.Status.Conditions, fmt.Sprintf("unpacking successful %q", bd.GetName()), bd.Generation)
+
+	if err = b.validateContents(bd, bundleDepFS); err != nil {
+		return ctrl.Result{}, fmt.Errorf("error validating contents for bundle %s with format %s: %v", bd.Name, bd.Spec.Format, err)
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -119,31 +122,22 @@ func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1a
 	// set a base filesystem path and unpack contents under the root filepath defined by
 	// bundledeployment name.
 	bundleDepFs := afero.NewBasePathFs(afero.NewOsFs(), bd.GetName())
-	// unpackedResults := make([]v1alpha2source.Result, len(bd.Spec.Sources))
 	errs := make([]error, 0)
 
 	for _, source := range bd.Spec.Sources {
-		_, err := b.unpacker.Unpack(ctx, bd.Name, &source, bundleDepFs)
+		res, err := b.unpacker.Unpack(ctx, bd.Name, &source, bundleDepFs)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("error unpacking from %s source: %v", source.Kind, err))
+			errs = append(errs, fmt.Errorf("error unpacking from %s source: %q:  %v", source.Kind, res.Message, err))
 		}
 	}
+
+	setUnpackStatusSuccess(&bd.Status.Conditions, fmt.Sprintf("unpacking successful %q", bd.GetName()), bd.Generation)
 	return &bundleDepFs, apimacherrors.NewAggregate(errs)
 }
 
 // validateContents validates if the unpacked bundle contents are of the right format.
 func (b *bundleDeploymentReconciler) validateContents(bd *v1alpha2.BundleDeployment, fs *afero.Fs) error {
 	format := bd.Spec.Format
-
-	// Fetch contents from the unpacked path and pass it on for validation.
-	ok, err := afero.DirExists(*fs, bd.GetName())
-	if err != nil {
-		return fmt.Errorf("error accessing the downloaded content %v", err)
-	}
-
-	if !ok {
-		return fmt.Errorf("unpacked directory does not exist %s", bd.GetName())
-	}
 
 	if format == v1alpha2.FormatPlain {
 		// Validate contents for each format
