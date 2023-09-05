@@ -25,6 +25,8 @@ var (
 	BundleDeploymentKind = BundleDeploymentGVK.Kind
 )
 
+type FormatType string
+
 const (
 	FormatPlain      = "plain"
 	FormatRegistryV1 = "registry"

@@ -21,13 +21,12 @@ import (
 	"fmt"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
+	v1alpha2validators "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/validator"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
@@ -40,7 +39,8 @@ import (
 
 // BundleDeploymentReconciler reconciles a BundleDeployment object
 type bundleDeploymentReconciler struct {
-	unpacker v1alpha2source.Unpacker
+	unpacker   v1alpha2source.Unpacker
+	validators []v1alpha2validators.Validator
 	client.Client
 	Scheme     *runtime.Scheme
 	Recorder   record.EventRecorder
@@ -52,6 +52,12 @@ type Option func(bd *bundleDeploymentReconciler)
 func WithUnpacker(u v1alpha2source.Unpacker) Option {
 	return func(bd *bundleDeploymentReconciler) {
 		bd.unpacker = u
+	}
+}
+
+func WithValidators(u ...v1alpha2validators.Validator) Option {
+	return func(bd *bundleDeploymentReconciler) {
+		bd.validators = u
 	}
 }
 
@@ -107,7 +113,7 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 		return ctrl.Result{}, fmt.Errorf("error unpacking contents: %v", err)
 	}
 
-	if err = b.validateContents(bd, bundleDepFS); err != nil {
+	if err = b.validateContents(ctx, bd, bundleDepFS); err != nil {
 		return ctrl.Result{}, fmt.Errorf("error validating contents for bundle %s with format %s: %v", bd.Name, bd.Spec.Format, err)
 	}
 
@@ -131,18 +137,30 @@ func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1a
 		}
 	}
 
+	if len(errs) != 0 {
+		setUnpackStatusFailing(&bd.Status.Conditions, fmt.Sprintf("unpacking failure %q", bd.GetName()), bd.Generation)
+	}
+
 	setUnpackStatusSuccess(&bd.Status.Conditions, fmt.Sprintf("unpacking successful %q", bd.GetName()), bd.Generation)
 	return &bundleDepFs, apimacherrors.NewAggregate(errs)
 }
 
 // validateContents validates if the unpacked bundle contents are of the right format.
-func (b *bundleDeploymentReconciler) validateContents(bd *v1alpha2.BundleDeployment, fs *afero.Fs) error {
-	format := bd.Spec.Format
+func (b *bundleDeploymentReconciler) validateContents(ctx context.Context, bd *v1alpha2.BundleDeployment, fs *afero.Fs) error {
+	setValidatePending(&bd.Status.Conditions, fmt.Sprintf("validating bundledeployment %q", bd.GetName()), bd.Generation)
 
-	if format == v1alpha2.FormatPlain {
-		// Validate contents for each format
+	errs := make([]error, 0)
+	for _, validator := range b.validators {
+		if err := validator.Validate(ctx, *fs, bd); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	return nil
+	if len(errs) != 0 {
+		setValidateFailing(&bd.Status.Conditions, fmt.Sprintf("validating failure %q", bd.GetName()), bd.Generation)
+	}
+
+	setValidateSuccess(&bd.Status.Conditions, fmt.Sprintf("validating successful %q", bd.GetName()), bd.Generation)
+	return apimacherrors.NewAggregate(errs)
 }
 
 func SetupWithManager(mgr manager.Manager, opts ...Option) error {
@@ -160,37 +178,4 @@ func SetupWithManager(mgr manager.Manager, opts ...Option) error {
 
 	bd.controller = controller
 	return nil
-}
-
-// setUnpackStatusPending sets the resolved status condition to success.
-func setUnpackStatusPending(conditions *[]metav1.Condition, message string, generation int64) {
-	apimeta.SetStatusCondition(conditions, metav1.Condition{
-		Type:               v1alpha2.TypeUnpacked,
-		Status:             metav1.ConditionFalse,
-		Reason:             v1alpha2.ReasonUnpacking,
-		Message:            message,
-		ObservedGeneration: generation,
-	})
-}
-
-// setUnpackStatusFailing sets the resolved status condition to success.
-func setUnpackStatusFailing(conditions *[]metav1.Condition, message string, generation int64) {
-	apimeta.SetStatusCondition(conditions, metav1.Condition{
-		Type:               v1alpha2.TypeUnpacked,
-		Status:             metav1.ConditionFalse,
-		Reason:             v1alpha2.ReasonUnpackFailed,
-		Message:            message,
-		ObservedGeneration: generation,
-	})
-}
-
-// setUnpackStatusSuccess sets the resolved status condition to success.
-func setUnpackStatusSuccess(conditions *[]metav1.Condition, message string, generation int64) {
-	apimeta.SetStatusCondition(conditions, metav1.Condition{
-		Type:               v1alpha2.TypeUnpacked,
-		Status:             metav1.ConditionTrue,
-		Reason:             v1alpha2.ReasonUnpackSuccessful,
-		Message:            message,
-		ObservedGeneration: generation,
-	})
 }

@@ -42,6 +42,7 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	v1alpha2validators "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/validator"
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -203,7 +204,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := v1alpha2source.NewDefaultUnpackerWithOpts(systemNsCluster, systemNamespace)
+	defaultUnpacker, err := v1alpha2source.NewDefaultUnpackerWithOpts(systemNsCluster, systemNamespace)
 	// unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, baseUploadManagerURL, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
@@ -242,7 +243,9 @@ func main() {
 	// 	os.Exit(1)
 	// }
 
-	if err := v1alpha2bd.SetupWithManager(mgr, v1alpha2bd.WithUnpacker(unpacker)); err != nil {
+	if err := v1alpha2bd.SetupWithManager(mgr,
+		v1alpha2bd.WithUnpacker(defaultUnpacker),
+		v1alpha2bd.WithValidators(v1alpha2validators.NewDefaultValidator())); err != nil {
 		setupLog.Error(err, "unable to create controller")
 		os.Exit(1)
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"github.com/spf13/afero"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -43,9 +44,9 @@ type Plain struct {
 	Objects []client.Object
 }
 
-func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
+func RegistryV1ToPlain(rv1 afero.Fs) (fs.FS, error) {
 	reg := RegistryV1{}
-	fileData, err := fs.ReadFile(rv1, filepath.Join("metadata", "annotations.yaml"))
+	fileData, err := afero.ReadFile(rv1, filepath.Join("metadata", "annotations.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
 	var objects []*unstructured.Unstructured
 	const manifestsDir = "manifests"
 
-	entries, err := fs.ReadDir(rv1, manifestsDir)
+	entries, err := afero.ReadDir(rv1, manifestsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +67,7 @@ func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
 		if e.IsDir() {
 			return nil, fmt.Errorf("subdirectories are not allowed within the %q directory of the bundle image filesystem: found %q", manifestsDir, filepath.Join(manifestsDir, e.Name()))
 		}
-		fileData, err := fs.ReadFile(rv1, filepath.Join(manifestsDir, e.Name()))
+		fileData, err := afero.ReadFile(rv1, filepath.Join(manifestsDir, e.Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -122,6 +123,7 @@ func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
 	}
 
 	now := time.Now()
+	// TODO: Use afero.NewMemMapFs() instead for uniformity
 	plainFS := fstest.MapFS{
 		".": &fstest.MapFile{
 			Data:    nil,

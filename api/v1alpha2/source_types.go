@@ -27,12 +27,17 @@ const (
 	SourceTypeGit   SourceType = "git"
 	SourceTypeHTTP  SourceType = "http"
 
-	TypeUnpacked = "Unpacked"
+	TypeUnpacked  = "Unpacked"
+	TypeValidated = "Validated"
 
 	ReasonUnpackPending             = "UnpackPending"
 	ReasonUnpacking                 = "Unpacking"
 	ReasonUnpackSuccessful          = "UnpackSuccessful"
 	ReasonUnpackFailed              = "UnpackFailed"
+	ReasonValidatePending           = "Validating"
+	ReasonValidating                = "Validating"
+	ReasonValidateSuccessful        = "ValidateSuccessful"
+	ReasonValidateFailed            = "ValidateFailed"
 	ReasonProcessingFinalizerFailed = "ProcessingFinalizerFailed"
 
 	PhasePending   = "Pending"
