@@ -79,8 +79,6 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc *v1alph
 		return nil, fmt.Errorf("error creating storagepath %q", err)
 	}
 
-	fmt.Println("removing contents and creating new")
-
 	// refers to the full local path where contents need to be stored.
 	storagePath := filepath.Join(bundeDepName, filepath.Clean(bundleSrc.Destination))
 
@@ -89,8 +87,6 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc *v1alph
 	if err != nil {
 		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
 	}
-
-	fmt.Println("cloned", repo)
 
 	commitHash, err := repo.ResolveRevision("HEAD")
 	if err != nil {

@@ -22,6 +22,7 @@ import (
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
 
+	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
 	v1alpha2validators "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/validator"
 	"github.com/spf13/afero"
@@ -41,6 +42,7 @@ import (
 type bundleDeploymentReconciler struct {
 	unpacker   v1alpha2source.Unpacker
 	validators []v1alpha2validators.Validator
+	deployer   v1alpha2deployer.Deployer
 	client.Client
 	Scheme     *runtime.Scheme
 	Recorder   record.EventRecorder
@@ -61,6 +63,12 @@ func WithValidators(u ...v1alpha2validators.Validator) Option {
 	}
 }
 
+func WithDeployer(u v1alpha2deployer.Deployer) Option {
+	return func(bd *bundleDeploymentReconciler) {
+		bd.deployer = u
+	}
+}
+
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/status,verbs=update;patch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/finalizers,verbs=update
@@ -71,6 +79,7 @@ func WithValidators(u ...v1alpha2validators.Validator) Option {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	fmt.Println("reconciling")
 	log := log.FromContext(ctx)
 
 	existingBD := &v1alpha2.BundleDeployment{}
@@ -107,7 +116,6 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2.BundleDeployment) (ctrl.Result, error) {
-
 	bundleDepFS, err := b.unpackContents(ctx, bd)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("error unpacking contents: %v", err)
@@ -116,6 +124,11 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 	if err = b.validateContents(ctx, bd, bundleDepFS); err != nil {
 		return ctrl.Result{}, fmt.Errorf("error validating contents for bundle %s with format %s: %v", bd.Name, bd.Spec.Format, err)
 	}
+
+	if err := b.deployContents(ctx, bd, bundleDepFS); err != nil {
+		return ctrl.Result{}, fmt.Errorf("error deploying contents: %v", err)
+	}
+	fmt.Println("deployed contents successfully")
 
 	return ctrl.Result{}, nil
 }
@@ -161,6 +174,14 @@ func (b *bundleDeploymentReconciler) validateContents(ctx context.Context, bd *v
 
 	setValidateSuccess(&bd.Status.Conditions, fmt.Sprintf("validating successful %q", bd.GetName()), bd.Generation)
 	return apimacherrors.NewAggregate(errs)
+}
+
+func (b *bundleDeploymentReconciler) deployContents(ctx context.Context, bd *v1alpha2.BundleDeployment, fs *afero.Fs) error {
+	err := b.deployer.Deploy(ctx, *fs, bd)
+	if err != nil {
+		return fmt.Errorf("error deploying contents: %v", err)
+	}
+	return nil
 }
 
 func SetupWithManager(mgr manager.Manager, opts ...Option) error {

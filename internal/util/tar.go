@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
+
+	"github.com/spf13/afero"
 )
 
 // FSToTarGZ writes the filesystem represented by fsys to w as a gzipped tar archive.
@@ -43,6 +45,50 @@ func FSToTarGZ(w io.Writer, fsys fs.FS) error {
 			return fmt.Errorf("write tar header for %q: %v", path, err)
 		}
 		if d.IsDir() {
+			return nil
+		}
+		f, err := fsys.Open(path)
+		if err != nil {
+			return fmt.Errorf("open file %q: %v", path, err)
+		}
+		if _, err := io.Copy(tw, f); err != nil {
+			return fmt.Errorf("write tar data for %q: %v", path, err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("generate tar.gz from FS: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		return err
+	}
+	return gzw.Close()
+}
+
+func AferoFSToTarGZ(w io.Writer, fsys afero.Fs) error {
+	gzw := gzip.NewWriter(w)
+	tw := tar.NewWriter(gzw)
+
+	if err := afero.Walk(fsys, ".", func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.Mode().Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		h, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return fmt.Errorf("get file info for %q: %v", path, err)
+		}
+		h.Uid = 0
+		h.Gid = 0
+		h.Uname = ""
+		h.Gname = ""
+		h.Name = path
+		if err := tw.WriteHeader(h); err != nil {
+			return fmt.Errorf("write tar header for %q: %v", path, err)
+		}
+		if info.IsDir() {
 			return nil
 		}
 		f, err := fsys.Open(path)

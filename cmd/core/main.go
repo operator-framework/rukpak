@@ -27,7 +27,9 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
+	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	v1alpha2bd "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/controllers/bundledeployment"
+	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -217,8 +219,9 @@ func main() {
 	// 	bundle.WithStorage(bundleStorage),
 	// }
 
-	// cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	// acg := helmclient.NewActionClientGetter(cfgGetter)
+	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	acg := helmclient.NewActionClientGetter(cfgGetter)
+	deployer := v1alpha2deployer.NewDefaultHelmDeployerWithOpts(v1alpha2deployer.WithActionClientGetter(acg), v1alpha2deployer.WithReleaseNamespace(systemNamespace))
 	// commonBDProvisionerOptions := []bundledeployment.Option{
 	// 	bundledeployment.WithReleaseNamespace(systemNamespace),
 	// 	bundledeployment.WithActionClientGetter(acg),
@@ -245,7 +248,8 @@ func main() {
 
 	if err := v1alpha2bd.SetupWithManager(mgr,
 		v1alpha2bd.WithUnpacker(defaultUnpacker),
-		v1alpha2bd.WithValidators(v1alpha2validators.NewDefaultValidator())); err != nil {
+		v1alpha2bd.WithValidators(v1alpha2validators.NewDefaultValidator()),
+		v1alpha2bd.WithDeployer(deployer)); err != nil {
 		setupLog.Error(err, "unable to create controller")
 		os.Exit(1)
 	}

@@ -18,11 +18,27 @@ package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
 	BundleDeploymentGVK  = SchemeBuilder.GroupVersion.WithKind("BundleDeployment")
 	BundleDeploymentKind = BundleDeploymentGVK.Kind
+)
+
+const (
+	TypeHasValidBundle = "HasValidBundle"
+	TypeInstalled      = "Installed"
+
+	ReasonBundleLoadFailed         = "BundleLoadFailed"
+	ReasonReadingContentFailed     = "ReadingContentFailed"
+	ReasonErrorGettingClient       = "ErrorGettingClient"
+	ReasonErrorGettingReleaseState = "ErrorGettingReleaseState"
+	ReasonInstallFailed            = "InstallFailed"
+	ReasonUpgradeFailed            = "UpgradeFailed"
+	ReasonReconcileFailed          = "ReconcileFailed"
+	ReasonCreateDynamicWatchFailed = "CreateDynamicWatchFailed"
+	ReasonInstallationSucceeded    = "InstallationSucceeded"
 )
 
 type FormatType string
@@ -68,6 +84,11 @@ type BundleDeploymentSpec struct {
 	// +kubebuilder:default:=false
 	// +optional
 	Paused bool `json:"paused"`
+	// Config is provisioner specific configurations
+	// TODO: This should be become deployer specific.
+	// Should move to helm deployer configuration.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Config runtime.RawExtension `json:"config,omitempty"`
 }
 
 // FormatType refers to the allowed bundle formats that
