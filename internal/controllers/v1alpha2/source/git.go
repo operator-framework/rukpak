@@ -13,8 +13,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/controllers/utils"
-
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -38,36 +36,39 @@ type Git struct {
 
 func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
 	// Validate inputs
-	if err := r.Validate(bundleSrc); err != nil {
+	if err := r.validate(bundleSrc); err != nil {
 		return nil, fmt.Errorf("unpacking unsuccessful %v", err)
 	}
-	gitsource := bundleSrc.Git
-	if gitsource.Repository == "" {
-		// This should never happen because the validation webhook rejects git bundles without repository
-		return nil, errors.New("missing git source information: repository must be provided")
-	}
 
-	if bundleSrc.Destination == "" {
-		bundleSrc.Destination = "/manifests"
-	}
-
-	// check if cached content exists
-	cacheDir, err := checkCachedContentExists(bundleSrc, base)
+	// Check if cached content exists for this bundle deployment.
+	// If it exists copy the contents to the necessary local destination
+	// and return the result.
+	localcacheDir, err := getCachedContentPath(bundeDepName, bundleSrc, base)
 	if err != nil {
-		return nil, fmt.Errorf("error finding cached content %v", err)
+		return nil, fmt.Errorf("error verifying if cached content exists %v", err)
 	}
 
-	fmt.Println("cacheExists", cacheDir)
-	storagePath := filepath.Join("bd-v1test", filepath.Clean(bundleSrc.Destination))
-	if cacheDir != "" {
+	// refers to the full local path where contents need to be stored.
+	storagePath := filepath.Join(bundeDepName, filepath.Clean(bundleSrc.Destination))
+
+	if localcacheDir != "" {
 		// copy the contents into the destination speified in the source.
 		if err := base.RemoveAll(filepath.Clean(bundleSrc.Destination)); err != nil {
 			return nil, fmt.Errorf("error removing dir %v", err)
 		}
-		if err := copy.Copy(filepath.Join("bd-v1test", "cache", cacheDir), storagePath); err != nil {
+		if err := copy.Copy(filepath.Join(bundeDepName, CacheDir, localcacheDir), storagePath); err != nil {
 			return nil, fmt.Errorf("error fetching cached content %v", err)
 		}
-		return nil, nil
+		// TODO: pass the resolved source that contains the resolved git reference.
+		return &Result{ResolvedSource: &v1alpha2.BundleDeplopymentSource{
+			Kind: v1alpha2.SourceTypeGit,
+		}, State: StateUnpacked, Message: "Re-storing unpacked bundle from cache"}, nil
+	}
+
+	// Proceed with downloading content from git.
+	gitsource := bundleSrc.Git
+	if bundleSrc.Destination == "" {
+		bundleSrc.Destination = "/manifests"
 	}
 
 	// Set options for clone
@@ -97,29 +98,48 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc *v1alph
 	}
 
 	// create a destination path to clone the repository to.
-	// destination would be <bd-name>/bd.spec.sources[i].destination.
-	// verify if path already exists if so, clean up
-	// TODO: add validation marker.
-
+	// destination would be <bd-name>/bd.spec.sources.destination.
+	// verify if path already exists if so, clean up.
 	if err := base.RemoveAll(filepath.Clean(bundleSrc.Destination)); err != nil {
-		return nil, fmt.Errorf("error removing dir %v", err)
+		return nil, fmt.Errorf("error removing contents from local destination %v", err)
 	}
-
-	if err := os.MkdirAll(storagePath, 0755); err != nil {
+	if err := base.MkdirAll(storagePath, 0755); err != nil {
 		return nil, fmt.Errorf("error creating storagepath %q", err)
 	}
 
-	if err := createFile(storagePath); err != nil {
-		return nil, err
+	// clone to local.
+	repo, err := git.PlainCloneContext(ctx, storagePath, false, &cloneOpts)
+	if err != nil {
+		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
 	}
 
-	cachePath := filepath.Join("bd-v1test", "cache", utils.GetCacheDirName("bd-v1test", *bundleSrc))
-	// create a cache too
-	if err := os.MkdirAll(cachePath, 0755); err != nil {
-		return nil, fmt.Errorf("error creating cachedDir %v", err)
+	commitHash, err := repo.ResolveRevision("HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("resolve commit hash: %v", err)
 	}
 
-	return nil, nil
+	resolvedGit := bundleSrc.Git.DeepCopy()
+	resolvedGit.Ref = v1alpha2.GitRef{
+		Commit: commitHash.String(),
+	}
+
+	resolvedSource := &v1alpha2.BundleDeplopymentSource{
+		Kind: v1alpha2.SourceTypeGit,
+		Git:  resolvedGit,
+	}
+
+	// cache the downloaded content.
+	// TODO: create a glocal cache during setup of the controller
+	// and pass it on unpackers. Each bundledeployment should not
+	// have its own cache.
+	if err := base.Mkdir(localcacheDir, 0755); err != nil {
+		return nil, fmt.Errorf("error creating local cached directory %s: %v", localcacheDir, err)
+	}
+	if err := copy.Copy(storagePath, filepath.Join(bundeDepName, CacheDir, localcacheDir)); err != nil {
+		return nil, fmt.Errorf("error storing cached content %v", err)
+	}
+
+	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked, Message: "Successfully unpacked git bundle"}, nil
 }
 
 func createFile(path string) error {
@@ -132,49 +152,15 @@ func createFile(path string) error {
 	return nil
 }
 
-func checkCachedContentExists(bundleSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) (string, error) {
-	cachedDirName := utils.GetCacheDirName("bd-v1test", *bundleSrc)
-	fmt.Println("cachedDirName", cachedDirName)
-
-	if ok, err := afero.DirExists(base, "cache"); err != nil {
-		return "", fmt.Errorf("error finding cache dir %v", err)
-	} else if !ok {
-		fmt.Println("dir doesn't exist", ok)
-		return "", nil
-	}
-
-	exists := false
-	if err := afero.Walk(base, "cache", func(path string, info fs.FileInfo, err error) error {
-		fmt.Println("info.Name", info.Name())
-		if info.Name() == cachedDirName && info.IsDir() {
-			exists = true
-			return nil
-		}
-		return nil
-	}); err != nil {
-		return "", err
-	}
-	fmt.Println("found path", exists)
-	return cachedDirName, nil
-}
-
-func removeExistingContent(base *afero.Fs, path string) error {
-	if _, err := (*base).Stat(path); err == nil {
-		if err := (*base).RemoveAll(path); err != nil {
-			return fmt.Errorf("error removing existing manifests from destination from %q: %v", path, err)
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("error finding path for unpacking %v", err)
-	}
-	return nil
-}
-
-func (r *Git) Validate(bundleSrc *v1alpha2.BundleDeplopymentSource) error {
+func (r *Git) validate(bundleSrc *v1alpha2.BundleDeplopymentSource) error {
 	if bundleSrc.Kind != v1alpha2.SourceTypeGit {
 		return fmt.Errorf("bundle source type %q not supported", bundleSrc.Kind)
 	}
 	if bundleSrc.Git == nil {
 		return fmt.Errorf("bundle source git configuration is unset")
+	}
+	if bundleSrc.Git.Repository == "" {
+		return errors.New("missing git source information: repository must be provided")
 	}
 	return nil
 }

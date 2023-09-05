@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/fs"
 	"net/http"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
@@ -19,9 +18,6 @@ type Unpacker interface {
 
 // Result conveys progress information about unpacking bundle content.
 type Result struct {
-	// Bundle contains the full filesystem of a bundle's root directory.
-	Bundle fs.FS
-
 	// ResolvedSource is a reproducible view of a Bundle's Source.
 	// When possible, source implementations should return a ResolvedSource
 	// that pins the Source such that future fetches of the bundle content can
