@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -13,8 +14,8 @@ const (
 	manifestsDir = "manifests"
 )
 
-func GetBundleObjects(bundleFS fs.FS) ([]client.Object, error) {
-	entries, err := fs.ReadDir(bundleFS, manifestsDir)
+func GetBundleObjects(bundleFS afero.Fs) ([]client.Object, error) {
+	entries, err := afero.ReadDir(bundleFS, manifestsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +35,7 @@ func GetBundleObjects(bundleFS fs.FS) ([]client.Object, error) {
 	return bundleObjects, nil
 }
 
-func getObjects(bundle fs.FS, manifest fs.DirEntry) ([]client.Object, error) {
+func getObjects(bundle afero.Fs, manifest fs.FileInfo) ([]client.Object, error) {
 	manifestPath := filepath.Join(manifestsDir, manifest.Name())
 	manifestReader, err := bundle.Open(manifestPath)
 	if err != nil {

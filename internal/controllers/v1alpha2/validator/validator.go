@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/controllers/util"
@@ -45,14 +44,23 @@ func (r *registryV1Validator) Validate(ctx context.Context, fs afero.Fs, bundleD
 	if err != nil {
 		return fmt.Errorf("error converting registry+v1 bundle to plain+v0 bundle: %v", err)
 	}
+	return validateBundleObjects(plainFS)
+}
 
-	if err := r.validateBundle(plainFS); err != nil {
-		return err
-	}
+type plainValidator struct{}
+
+func (p *plainValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
+	return validateBundleObjects(fs)
+}
+
+type helmValidator struct{}
+
+func (h *helmValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
+	// validate whether a single directory exists in its root and contains chart.yaml.
 	return nil
 }
 
-func (r *registryV1Validator) validateBundle(fs fs.FS) error {
+func validateBundleObjects(fs afero.Fs) error {
 	objects, err := util.GetBundleObjects(fs)
 	if err != nil {
 		return fmt.Errorf("error fetching objects from bundle manifests: %v", err)
@@ -60,19 +68,5 @@ func (r *registryV1Validator) validateBundle(fs fs.FS) error {
 	if len(objects) == 0 {
 		return errors.New("invalid bundle: found zero objects: plain+v0 bundles are required to contain at least one object")
 	}
-	return nil
-}
-
-type plainValidator struct{}
-
-func (p *plainValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
-	// re-write existing validation to use afero.Fs
-	return nil
-}
-
-type helmValidator struct{}
-
-func (h *helmValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
-	// validate whether a single directory exists in its root and contains chart.yaml.
 	return nil
 }

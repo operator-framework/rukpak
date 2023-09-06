@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing/fstest"
-	"time"
 
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/spf13/afero"
@@ -44,7 +43,7 @@ type Plain struct {
 	Objects []client.Object
 }
 
-func RegistryV1ToPlain(rv1 afero.Fs) (fs.FS, error) {
+func RegistryV1ToPlain(rv1 afero.Fs) (afero.Fs, error) {
 	reg := RegistryV1{}
 	fileData, err := afero.ReadFile(rv1, filepath.Join("metadata", "annotations.yaml"))
 	if err != nil {
@@ -122,27 +121,21 @@ func RegistryV1ToPlain(rv1 afero.Fs) (fs.FS, error) {
 		}
 	}
 
-	now := time.Now()
-	// TODO: Use afero.NewMemMapFs() instead for uniformity
-	plainFS := fstest.MapFS{
-		".": &fstest.MapFile{
-			Data:    nil,
-			Mode:    fs.ModeDir | 0755,
-			ModTime: now,
-		},
-		"manifests": &fstest.MapFile{
-			Data:    nil,
-			Mode:    fs.ModeDir | 0755,
-			ModTime: now,
-		},
-		"manifests/manifest.yaml": &fstest.MapFile{
-			Data:    manifest.Bytes(),
-			Mode:    0644,
-			ModTime: now,
-		},
+	plainFS := afero.NewMemMapFs()
+	if err := afero.WriteFile(plainFS, ".", nil, fs.ModeDir|0755); err != nil {
+		return nil, err
 	}
-
+	if err := afero.WriteFile(plainFS, "manifests", nil, fs.ModeDir|0755); err != nil {
+		return nil, err
+	}
+	if err := afero.WriteFile(plainFS, "manifests/manifests.yaml", manifest.Bytes(), 0644); err != nil {
+		return nil, err
+	}
 	return plainFS, nil
+}
+
+type MapFSAdaptoer struct {
+	fs *fstest.MapFS
 }
 
 func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNamespace string, targetNamespaces []string) error {

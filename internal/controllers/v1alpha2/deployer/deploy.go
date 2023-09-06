@@ -223,9 +223,9 @@ func (bd *helmDeployer) fetchChart(fs afero.Fs, bundleDeployment *v1alpha2.Bundl
 	case v1alpha2.FormatHelm:
 		return getChartFromHelmBundle(fs, bundleDeployment)
 	case v1alpha2.FormatRegistryV1:
-		return getChartFromRegistryBundle(fs, *bundleDeployment)
+		return getChartFromRegistryBundle(fs, bundleDeployment)
 	case v1alpha2.FormatPlain:
-		return getChartFromPlainBundle()
+		return getChartFromPlainBundle(fs, bundleDeployment)
 	default:
 		return nil, nil, errors.New("unknown format to convert into chart")
 	}
@@ -281,13 +281,17 @@ func loadValues(bd *v1alpha2.BundleDeployment) (chartutil.Values, error) {
 	return values, nil
 }
 
-func getChartFromRegistryBundle(chartfs afero.Fs, bd v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+func getChartFromRegistryBundle(chartfs afero.Fs, bd *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	plainFS, err := convert.RegistryV1ToPlain(chartfs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error converting registry+v1 bundle to plain+v0 bundle: %v", err)
 	}
 
-	objects, err := v1alpha2util.GetBundleObjects(plainFS)
+	return getChartFromPlainBundle(plainFS, bd)
+}
+
+func getChartFromPlainBundle(chartfs afero.Fs, bd *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+	objects, err := v1alpha2util.GetBundleObjects(chartfs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error fetching objects from bundle manifests: %v", err)
 	}
@@ -312,10 +316,6 @@ func getChartFromRegistryBundle(chartfs afero.Fs, bd v1alpha2.BundleDeployment) 
 		})
 	}
 	return chrt, nil, nil
-}
-
-func getChartFromPlainBundle() (*chart.Chart, chartutil.Values, error) {
-	return nil, nil, nil
 }
 
 type postrenderer struct {
