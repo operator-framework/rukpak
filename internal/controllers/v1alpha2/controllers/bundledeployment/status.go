@@ -71,3 +71,13 @@ func setValidateSuccess(conditions *[]metav1.Condition, message string, generati
 		ObservedGeneration: generation,
 	})
 }
+
+func setDynamicWatchFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonCreateDynamicWatchFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}

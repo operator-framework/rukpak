@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/postrender"
@@ -18,8 +17,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -38,13 +37,12 @@ import (
 )
 
 type Deployer interface {
-	Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error
+	// Deploy deploys the contents from fs onto the cluster and returns list of the deployed object.
+	Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) ([]client.Object, error)
 }
 
 type helmDeployer struct {
 	actionClientGetter helmclient.ActionClientGetter
-	dynamicWatchGVKs   map[schema.GroupVersionKind]struct{}
-	dynamicWatchMutex  sync.RWMutex
 	releaseNamespace   string
 }
 
@@ -72,10 +70,10 @@ func NewDefaultHelmDeployerWithOpts(opts ...DeployerOption) Deployer {
 	return dep
 }
 
-func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
+func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) ([]client.Object, error) {
 	chrt, values, err := hd.fetchChart(fs, bundleDeployment)
 	if err != nil {
-		return fmt.Errorf("error creating chart from bundle contents: %v", err)
+		return nil, fmt.Errorf("error creating chart from bundle contents: %v", err)
 	}
 
 	if hd.releaseNamespace != "" {
@@ -85,7 +83,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 	cl, err := hd.actionClientGetter.ActionClientFor(bundleDeployment)
 	bundleDeployment.SetNamespace("")
 	if err != nil {
-		return fmt.Errorf("error fetching client for bundle deployment %v", err)
+		return nil, fmt.Errorf("error fetching client for bundle deployment %v", err)
 	}
 
 	post := &postrenderer{
@@ -97,7 +95,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 
 	rel, state, err := hd.getReleaseState(cl, bundleDeployment, chrt, values, post)
 	if err != nil {
-		return fmt.Errorf("error fetching release state: %v", err)
+		return nil, fmt.Errorf("error fetching release state: %v", err)
 	}
 
 	switch state {
@@ -122,7 +120,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 				Reason:  v1alpha2.ReasonInstallFailed,
 				Message: err.Error(),
 			})
-			return err
+			return nil, err
 		}
 	case stateNeedsUpgrade:
 		rel, err = cl.Upgrade(bundleDeployment.Name, hd.releaseNamespace, chrt, values,
@@ -142,7 +140,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 				Reason:  v1alpha2.ReasonUpgradeFailed,
 				Message: err.Error(),
 			})
-			return err
+			return nil, err
 		}
 	case stateUnchanged:
 		if err := cl.Reconcile(rel); err != nil {
@@ -155,10 +153,21 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 				Reason:  v1alpha2.ReasonReconcileFailed,
 				Message: err.Error(),
 			})
-			return err
+			return nil, err
 		}
 	default:
-		return fmt.Errorf("unexpected release state %q", state)
+		return nil, fmt.Errorf("unexpected release state %q", state)
+	}
+
+	relObjects, err := util.ManifestObjects(strings.NewReader(rel.Manifest), fmt.Sprintf("%s-release-manifest", rel.Name))
+	if err != nil {
+		meta.SetStatusCondition(&bundleDeployment.Status.Conditions, metav1.Condition{
+			Type:    v1alpha2.TypeInstalled,
+			Status:  metav1.ConditionFalse,
+			Reason:  v1alpha2.ReasonCreateDynamicWatchFailed,
+			Message: err.Error(),
+		})
+		return nil, err
 	}
 
 	meta.SetStatusCondition(&bundleDeployment.Status.Conditions, metav1.Condition{
@@ -167,7 +176,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 		Reason:  v1alpha2.ReasonInstallationSucceeded,
 		Message: fmt.Sprintf("Instantiated bundle deployment %s successfully", bundleDeployment.GetName()),
 	})
-	return nil
+	return relObjects, nil
 }
 
 type releaseState string

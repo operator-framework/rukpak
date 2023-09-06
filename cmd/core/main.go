@@ -32,7 +32,9 @@ import (
 	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -108,6 +110,13 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("starting up the core controllers and servers", "git commit", version.String(), "unpacker image", unpackImage)
 
+	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{v1alpha2.BundleDeploymentKind})
+	if err != nil {
+		setupLog.Error(err, "unable to create dependent label selector for cache")
+		os.Exit(1)
+	}
+	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
+
 	cfg := ctrl.GetConfigOrDie()
 	if systemNamespace == "" {
 		systemNamespace = util.PodNamespace()
@@ -131,6 +140,9 @@ func main() {
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&v1alpha2.BundleDeployment{}: {},
+			},
+			DefaultSelector: cache.ObjectSelector{
+				Label: dependentSelector,
 			},
 		}),
 	})

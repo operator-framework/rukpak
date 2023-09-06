@@ -18,35 +18,48 @@ package bundledeployment
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
 
 	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
 	v1alpha2validators "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/validator"
+	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // BundleDeploymentReconciler reconciles a BundleDeployment object
 type bundleDeploymentReconciler struct {
+	client.Client
+
 	unpacker   v1alpha2source.Unpacker
 	validators []v1alpha2validators.Validator
 	deployer   v1alpha2deployer.Deployer
-	client.Client
-	Scheme     *runtime.Scheme
-	Recorder   record.EventRecorder
-	controller crcontroller.Controller
+
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
+
+	controller        crcontroller.Controller
+	dynamicWatchMutex sync.RWMutex
+	dynamicWatchGVKs  map[schema.GroupVersionKind]struct{}
 }
 
 type Option func(bd *bundleDeploymentReconciler)
@@ -125,9 +138,40 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 		return ctrl.Result{}, fmt.Errorf("error validating contents for bundle %s with format %s: %v", bd.Name, bd.Spec.Format, err)
 	}
 
-	if err := b.deployContents(ctx, bd, bundleDepFS); err != nil {
+	var deployedObjects []client.Object
+	if deployedObjects, err = b.deployContents(ctx, bd, bundleDepFS); err != nil {
 		return ctrl.Result{}, fmt.Errorf("error deploying contents: %v", err)
 	}
+
+	for _, obj := range deployedObjects {
+		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		if err != nil {
+			setDynamicWatchFailed(&bd.Status.Conditions, err.Error(), bd.Generation)
+			return ctrl.Result{}, err
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: uMap}
+		if err := func() error {
+			b.dynamicWatchMutex.Lock()
+			defer b.dynamicWatchMutex.Unlock()
+
+			_, isWatched := b.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()]
+			if !isWatched {
+				if err := b.controller.Watch(
+					&source.Kind{Type: unstructuredObj},
+					&handler.EnqueueRequestForOwner{OwnerType: bd, IsController: true},
+					helmpredicate.DependentPredicateFuncs()); err != nil {
+					return err
+				}
+				b.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()] = struct{}{}
+			}
+			return nil
+		}(); err != nil {
+			setDynamicWatchFailed(&bd.Status.Conditions, err.Error(), bd.Generation)
+			return ctrl.Result{}, err
+		}
+	}
+
 	fmt.Println("deployed contents successfully")
 
 	return ctrl.Result{}, nil
@@ -176,27 +220,49 @@ func (b *bundleDeploymentReconciler) validateContents(ctx context.Context, bd *v
 	return apimacherrors.NewAggregate(errs)
 }
 
-func (b *bundleDeploymentReconciler) deployContents(ctx context.Context, bd *v1alpha2.BundleDeployment, fs *afero.Fs) error {
-	err := b.deployer.Deploy(ctx, *fs, bd)
+func (b *bundleDeploymentReconciler) deployContents(ctx context.Context, bd *v1alpha2.BundleDeployment, fs *afero.Fs) ([]client.Object, error) {
+	deployedObjects, err := b.deployer.Deploy(ctx, *fs, bd)
 	if err != nil {
-		return fmt.Errorf("error deploying contents: %v", err)
+		return nil, fmt.Errorf("error deploying contents: %v", err)
 	}
-	return nil
+	return deployedObjects, nil
+}
+
+func (b *bundleDeploymentReconciler) validateConfig() error {
+	errs := []error{}
+	if b.unpacker == nil {
+		errs = append(errs, errors.New("unpacker is unset"))
+	}
+	if b.validators == nil || len(b.validators) == 0 {
+		errs = append(errs, errors.New("validators not provided"))
+	}
+	if b.deployer == nil {
+		errs = append(errs, errors.New("deployer is unset"))
+	}
+	return utilerrors.NewAggregate(errs)
 }
 
 func SetupWithManager(mgr manager.Manager, opts ...Option) error {
 	bd := &bundleDeploymentReconciler{
-		Client: mgr.GetClient(),
+		Client:           mgr.GetClient(),
+		dynamicWatchGVKs: map[schema.GroupVersionKind]struct{}{},
 	}
 	for _, o := range opts {
 		o(bd)
 	}
 
-	controller, err := ctrl.NewControllerManagedBy(mgr).For(&v1alpha2.BundleDeployment{}).Owns(&v1alpha2.BundleDeployment{}).Build(bd)
+	if err := bd.validateConfig(); err != nil {
+		return fmt.Errorf("invalid configuration: %v", err)
+	}
+
+	controllerName := fmt.Sprintf("controller-bundledeployment.%s", v1alpha2.BundleDeploymentGVK.Version)
+	controller, err := ctrl.NewControllerManagedBy(mgr).
+		Named(controllerName).
+		For(&v1alpha2.BundleDeployment{}).
+		Build(bd)
 	if err != nil {
 		return err
 	}
-
 	bd.controller = controller
 	return nil
 }
