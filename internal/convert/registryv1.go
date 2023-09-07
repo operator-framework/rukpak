@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
-	"testing/fstest"
 
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/spf13/afero"
@@ -132,10 +131,6 @@ func RegistryV1ToPlain(rv1 afero.Fs) (afero.Fs, error) {
 		return nil, err
 	}
 	return plainFS, nil
-}
-
-type MapFSAdaptoer struct {
-	fs *fstest.MapFS
 }
 
 func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNamespace string, targetNamespaces []string) error {

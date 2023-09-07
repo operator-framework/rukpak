@@ -12,14 +12,14 @@ import (
 )
 
 type Validator interface {
-	Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error
+	Validate(ctx context.Context, fs afero.Fs, bundleDeployment v1alpha2.BundleDeployment) error
 }
 
 type validator struct {
 	formats map[v1alpha2.FormatType]Validator
 }
 
-func (v *validator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
+func (v *validator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment v1alpha2.BundleDeployment) error {
 	format, ok := v.formats[bundleDeployment.Spec.Format]
 	if !ok {
 		return fmt.Errorf("format type not supported %q", bundleDeployment.Spec.Format)
@@ -39,7 +39,8 @@ func NewDefaultValidator() Validator {
 
 type registryV1Validator struct{}
 
-func (r *registryV1Validator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
+func (r *registryV1Validator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment v1alpha2.BundleDeployment) error {
+	fmt.Println("converting registry V1 to plain")
 	plainFS, err := convert.RegistryV1ToPlain(fs)
 	if err != nil {
 		return fmt.Errorf("error converting registry+v1 bundle to plain+v0 bundle: %v", err)
@@ -49,13 +50,13 @@ func (r *registryV1Validator) Validate(ctx context.Context, fs afero.Fs, bundleD
 
 type plainValidator struct{}
 
-func (p *plainValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
+func (p *plainValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment v1alpha2.BundleDeployment) error {
 	return validateBundleObjects(fs)
 }
 
 type helmValidator struct{}
 
-func (h *helmValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) error {
+func (h *helmValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment v1alpha2.BundleDeployment) error {
 	// validate whether a single directory exists in its root and contains chart.yaml.
 	return nil
 }

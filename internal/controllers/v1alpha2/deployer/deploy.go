@@ -38,8 +38,40 @@ import (
 
 type Deployer interface {
 	// Deploy deploys the contents from fs onto the cluster and returns list of the deployed object.
-	Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) ([]client.Object, error)
+	Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error)
 }
+
+// Result conveys the progress information about deploying content.
+// TODO: Refactor to use the same result struct for unpacking and deployment.
+type Result struct {
+	// State is the current state of deploying content on cluster.
+	State State
+	// AppliedObjects returns the list objects applied on cluster.
+	AppliedObjects []client.Object
+}
+
+type State string
+
+const (
+	// StateInstallFailed indicates if the installation failed.
+	StateIntallFailed State = "Install failed"
+
+	// StateUnpgradeFailed indicates if the upgrade failed.
+	StateUnpgradeFailed State = "Upgrade failed"
+
+	// StateReconcileFailed indicates if the reconcile failed
+	// in case the applied objects on the cluster need to be
+	// patched.
+	StateReconcileFailed State = "Reconcile failed"
+
+	// StateObjectFetchFailed indicates if there was an error
+	// while fetching the list of objects applied on cluster.
+	StateObjectFetchFailed State = "Fetching list of applied objects failed"
+
+	// StateDeploySuccessful indicates that the bundle
+	// contents have been successfully applied on the cluster.
+	StateDeploySuccessful State = "Deploy failed"
+)
 
 type helmDeployer struct {
 	actionClientGetter helmclient.ActionClientGetter
@@ -70,7 +102,7 @@ func NewDefaultHelmDeployerWithOpts(opts ...DeployerOption) Deployer {
 	return dep
 }
 
-func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) ([]client.Object, error) {
+func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error) {
 	chrt, values, err := hd.fetchChart(fs, bundleDeployment)
 	if err != nil {
 		return nil, fmt.Errorf("error creating chart from bundle contents: %v", err)
@@ -83,7 +115,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 	cl, err := hd.actionClientGetter.ActionClientFor(bundleDeployment)
 	bundleDeployment.SetNamespace("")
 	if err != nil {
-		return nil, fmt.Errorf("error fetching client for bundle deployment %v", err)
+		return &Result{StateIntallFailed, nil}, fmt.Errorf("error fetching client for bundle deployment %v", err)
 	}
 
 	post := &postrenderer{
@@ -95,7 +127,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 
 	rel, state, err := hd.getReleaseState(cl, bundleDeployment, chrt, values, post)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching release state: %v", err)
+		return &Result{StateIntallFailed, nil}, fmt.Errorf("error fetching release state: %v", err)
 	}
 
 	switch state {
@@ -114,13 +146,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			meta.SetStatusCondition(&bundleDeployment.Status.Conditions, metav1.Condition{
-				Type:    v1alpha2.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  v1alpha2.ReasonInstallFailed,
-				Message: err.Error(),
-			})
-			return nil, err
+			return &Result{State: StateIntallFailed}, err
 		}
 	case stateNeedsUpgrade:
 		rel, err = cl.Upgrade(bundleDeployment.Name, hd.releaseNamespace, chrt, values,
@@ -134,26 +160,14 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			meta.SetStatusCondition(&bundleDeployment.Status.Conditions, metav1.Condition{
-				Type:    v1alpha2.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  v1alpha2.ReasonUpgradeFailed,
-				Message: err.Error(),
-			})
-			return nil, err
+			return &Result{State: StateUnpgradeFailed}, err
 		}
 	case stateUnchanged:
 		if err := cl.Reconcile(rel); err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
 			}
-			meta.SetStatusCondition(&bundleDeployment.Status.Conditions, metav1.Condition{
-				Type:    v1alpha2.TypeInstalled,
-				Status:  metav1.ConditionFalse,
-				Reason:  v1alpha2.ReasonReconcileFailed,
-				Message: err.Error(),
-			})
-			return nil, err
+			return &Result{State: StateReconcileFailed}, err
 		}
 	default:
 		return nil, fmt.Errorf("unexpected release state %q", state)
@@ -161,22 +175,9 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 
 	relObjects, err := util.ManifestObjects(strings.NewReader(rel.Manifest), fmt.Sprintf("%s-release-manifest", rel.Name))
 	if err != nil {
-		meta.SetStatusCondition(&bundleDeployment.Status.Conditions, metav1.Condition{
-			Type:    v1alpha2.TypeInstalled,
-			Status:  metav1.ConditionFalse,
-			Reason:  v1alpha2.ReasonCreateDynamicWatchFailed,
-			Message: err.Error(),
-		})
-		return nil, err
+		return &Result{State: StateObjectFetchFailed}, err
 	}
-
-	meta.SetStatusCondition(&bundleDeployment.Status.Conditions, metav1.Condition{
-		Type:    v1alpha2.TypeInstalled,
-		Status:  metav1.ConditionTrue,
-		Reason:  v1alpha2.ReasonInstallationSucceeded,
-		Message: fmt.Sprintf("Instantiated bundle deployment %s successfully", bundleDeployment.GetName()),
-	})
-	return relObjects, nil
+	return &Result{State: StateDeploySuccessful, AppliedObjects: relObjects}, nil
 }
 
 type releaseState string

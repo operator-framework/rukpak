@@ -13,7 +13,7 @@ import (
 )
 
 type Unpacker interface {
-	Unpack(ctx context.Context, bundleDeploymentName string, bundleDeploymentSource *v1alpha2.BundleDeplopymentSource, fs afero.Fs) (*Result, error)
+	Unpack(ctx context.Context, bundleDeploymentName string, bundleDeploymentSource v1alpha2.BundleDeplopymentSource, fs afero.Fs) (*Result, error)
 }
 
 // Result conveys progress information about unpacking bundle content.
@@ -42,7 +42,7 @@ type State string
 const (
 	// StatePending conveys that a request for unpacking a bundle has been
 	// acknowledged, but not yet started.
-	StatePending State = "Pending"
+	StateUnpackPending State = "Pending"
 
 	// StateUnpacking conveys that the source is currently unpacking a bundle.
 	// This state should be used when the bundle contents are being downloaded
@@ -51,6 +51,9 @@ const (
 
 	// StateUnpacked conveys that the bundle has been successfully unpacked.
 	StateUnpacked State = "Unpacked"
+
+	// StateUnpackFailed conveys that the unpacking of the bundle has failed.
+	StateUnpackFailed State = "Unpack failed"
 
 	// CacheDir is where the unpacked bundle contents are cached locally.
 	CacheDir string = "cache"
@@ -98,7 +101,7 @@ func NewUnpacker(sources map[v1alpha2.SourceType]Unpacker) Unpacker {
 
 // Unpack itrates over the sources specified in bundleDeployment object. Unpacking is done
 // for each specified source, the bundle contents are stored in the specified destination.
-func (s *unpacker) Unpack(ctx context.Context, bdDepName string, bd *v1alpha2.BundleDeplopymentSource, fs afero.Fs) (*Result, error) {
+func (s *unpacker) Unpack(ctx context.Context, bdDepName string, bd v1alpha2.BundleDeplopymentSource, fs afero.Fs) (*Result, error) {
 	source, ok := s.sources[bd.Kind]
 	if !ok {
 		return nil, fmt.Errorf("source type %q not supported", bd.Kind)

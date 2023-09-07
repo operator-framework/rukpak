@@ -6,8 +6,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// setUnpackStatusPending sets the resolved status condition to success.
-func setUnpackStatusPending(conditions *[]metav1.Condition, message string, generation int64) {
+// setUnpackStatusPending sets the unpack status condition to unpacking.
+func setUnpackStausPacking(conditions *[]metav1.Condition, message string, generation int64) {
 	apimeta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               v1alpha2.TypeUnpacked,
 		Status:             metav1.ConditionFalse,
@@ -17,7 +17,18 @@ func setUnpackStatusPending(conditions *[]metav1.Condition, message string, gene
 	})
 }
 
-// setUnpackStatusFailing sets the resolved status condition to success.
+// setUnpackStatusPending sets the unpack status condition to pending.
+func setUnpackStatusPending(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeUnpacked,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonUnpackPending,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setUnpackStatusFailing sets the unpack status condition to failing.
 func setUnpackStatusFailing(conditions *[]metav1.Condition, message string, generation int64) {
 	apimeta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               v1alpha2.TypeUnpacked,
@@ -28,7 +39,7 @@ func setUnpackStatusFailing(conditions *[]metav1.Condition, message string, gene
 	})
 }
 
-// setUnpackStatusSuccess sets the resolved status condition to success.
+// setUnpackStatusSuccess sets the unpack status condition to success.
 func setUnpackStatusSuccess(conditions *[]metav1.Condition, message string, generation int64) {
 	apimeta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               v1alpha2.TypeUnpacked,
@@ -39,7 +50,7 @@ func setUnpackStatusSuccess(conditions *[]metav1.Condition, message string, gene
 	})
 }
 
-// setValidatePending sets the resolved status condition to success.
+// setValidatePending sets the unpack status condition to pending.
 func setValidatePending(conditions *[]metav1.Condition, message string, generation int64) {
 	apimeta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               v1alpha2.TypeValidated,
@@ -50,7 +61,7 @@ func setValidatePending(conditions *[]metav1.Condition, message string, generati
 	})
 }
 
-// setValidateFailing sets the resolved status condition to success.
+// setValidateFailing sets the unpack status condition to failing.
 func setValidateFailing(conditions *[]metav1.Condition, message string, generation int64) {
 	apimeta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               v1alpha2.TypeValidated,
@@ -61,7 +72,7 @@ func setValidateFailing(conditions *[]metav1.Condition, message string, generati
 	})
 }
 
-// setValidateSuccess sets the resolved status condition to success.
+// setValidateSuccess sets the unpack status condition to success.
 func setValidateSuccess(conditions *[]metav1.Condition, message string, generation int64) {
 	apimeta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               v1alpha2.TypeValidated,
@@ -72,11 +83,60 @@ func setValidateSuccess(conditions *[]metav1.Condition, message string, generati
 	})
 }
 
+// setDynamicWatchFailed sets the installed status to failing with the appropriate reason.
+// This status appears when there is an error while fetching the applied objects from cluster
+// after the deployer has returned so as to set watches on them.
 func setDynamicWatchFailed(conditions *[]metav1.Condition, message string, generation int64) {
 	apimeta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               v1alpha2.TypeInstalled,
 		Status:             metav1.ConditionFalse,
 		Reason:             v1alpha2.ReasonCreateDynamicWatchFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setInstallFailed sets the installed success to failing.
+func setInstallStatusFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonInstallFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setUnpgradeFailed sets the installed success to failing as there is an error while patching
+// objects on cluster.
+func setUnpgradeStatusFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonUpgradeFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setReconcileStatusFailed sets the installed success to failing as there is an error while reconciling
+// existing objects on cluster.
+func setReconcileStatusFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonReconcileFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setInstallStatusSuccess sets the installed success to success.
+func setInstallStatusSuccess(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionTrue,
+		Reason:             v1alpha2.ReasonInstallationSucceeded,
 		Message:            message,
 		ObservedGeneration: generation,
 	})

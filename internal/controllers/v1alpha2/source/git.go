@@ -33,7 +33,7 @@ type Git struct {
 	Log             logr.Logger
 }
 
-func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
+func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
 	// Validate inputs
 	if err := r.validate(bundleSrc); err != nil {
 		return nil, fmt.Errorf("unpacking unsuccessful %v", err)
@@ -106,7 +106,7 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc *v1alph
 	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked, Message: "Successfully unpacked git bundle"}, nil
 }
 
-func (r *Git) validate(bundleSrc *v1alpha2.BundleDeplopymentSource) error {
+func (r *Git) validate(bundleSrc v1alpha2.BundleDeplopymentSource) error {
 	if bundleSrc.Kind != v1alpha2.SourceTypeGit {
 		return fmt.Errorf("bundle source type %q not supported", bundleSrc.Kind)
 	}
@@ -129,7 +129,7 @@ func createFile(path string) error {
 	return nil
 }
 
-func (r *Git) configAuth(ctx context.Context, bundleSrc *v1alpha2.BundleDeplopymentSource) (transport.AuthMethod, error) {
+func (r *Git) configAuth(ctx context.Context, bundleSrc v1alpha2.BundleDeplopymentSource) (transport.AuthMethod, error) {
 	var auth transport.AuthMethod
 	if strings.HasPrefix(bundleSrc.Git.Repository, "http") {
 		userName, password, err := r.getCredentials(ctx, bundleSrc.Git.Auth.Secret.Name)

@@ -65,7 +65,6 @@ func (i *Image) Unpack(ctx context.Context, bdName string, bdSrc *v1alpha2.Bundl
 			return nil, fmt.Errorf("error fetching cached content %v", err)
 		}
 	}
-
 	return i.unpack(ctx, bdName, bdSrc, base)
 }
 
@@ -75,7 +74,7 @@ func (i *Image) unpack(ctx context.Context, bdName string, bdSrc *v1alpha2.Bundl
 	if err != nil {
 		return nil, err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
-		return &Result{State: StatePending}, nil
+		return &Result{State: StateUnpackPending}, nil
 	}
 
 	switch phase := pod.Status.Phase; phase {
@@ -294,7 +293,7 @@ func pendingImagePodResult(pod *corev1.Pod) *Result {
 			}
 		}
 	}
-	return &Result{State: StatePending, Message: strings.Join(messages, "; ")}
+	return &Result{State: StateUnpackPending, Message: strings.Join(messages, "; ")}
 }
 
 // getCachedContentPath returns the name of the cached directory if exists.
