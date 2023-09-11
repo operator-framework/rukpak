@@ -218,7 +218,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	defaultUnpacker, err := v1alpha2source.NewDefaultUnpackerWithOpts(systemNsCluster, systemNamespace)
+	// TODO(Varsha): Revert unpack image to default val. This was just for checking
+	defaultUnpacker, err := v1alpha2source.NewDefaultUnpackerWithOpts(systemNsCluster, systemNamespace, v1alpha2source.WithUnpackImage("quay.io/operator-framework/rukpak:main"))
 	// unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, baseUploadManagerURL, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")

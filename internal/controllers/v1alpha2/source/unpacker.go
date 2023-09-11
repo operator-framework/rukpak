@@ -9,11 +9,22 @@ import (
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/spf13/afero"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 )
 
+// UnpackOptions stores bundle deployment specific options
+// that are passed to the unpacker.
+// This is currently used to pass the bundle deployment UID
+// for the use in image unpacker. But can further be expanded
+// to pass other bundle specific options.
+type UnpackOption struct {
+	BundleDeploymentUID types.UID
+}
+
 type Unpacker interface {
-	Unpack(ctx context.Context, bundleDeploymentName string, bundleDeploymentSource v1alpha2.BundleDeplopymentSource, fs afero.Fs) (*Result, error)
+	Unpack(ctx context.Context, bundleDeploymentName string, bundleDeploymentSource v1alpha2.BundleDeplopymentSource, fs afero.Fs, opts UnpackOption) (*Result, error)
 }
 
 // Result conveys progress information about unpacking bundle content.
@@ -54,9 +65,6 @@ const (
 
 	// StateUnpackFailed conveys that the unpacking of the bundle has failed.
 	StateUnpackFailed State = "Unpack failed"
-
-	// CacheDir is where the unpacked bundle contents are cached locally.
-	CacheDir string = "cache"
 )
 
 type defaultUnpacker struct {
@@ -101,12 +109,12 @@ func NewUnpacker(sources map[v1alpha2.SourceType]Unpacker) Unpacker {
 
 // Unpack itrates over the sources specified in bundleDeployment object. Unpacking is done
 // for each specified source, the bundle contents are stored in the specified destination.
-func (s *unpacker) Unpack(ctx context.Context, bdDepName string, bd v1alpha2.BundleDeplopymentSource, fs afero.Fs) (*Result, error) {
+func (s *unpacker) Unpack(ctx context.Context, bdDepName string, bd v1alpha2.BundleDeplopymentSource, fs afero.Fs, opts UnpackOption) (*Result, error) {
 	source, ok := s.sources[bd.Kind]
 	if !ok {
 		return nil, fmt.Errorf("source type %q not supported", bd.Kind)
 	}
-	return source.Unpack(ctx, bdDepName, bd, fs)
+	return source.Unpack(ctx, bdDepName, bd, fs, opts)
 }
 
 func NewDefaultUnpackerWithOpts(systemNsCluster cluster.Cluster, namespace string, opts ...UnpackerOption) (Unpacker, error) {
@@ -126,6 +134,12 @@ func (u *defaultUnpacker) initialize() (Unpacker, error) {
 		return nil, fmt.Errorf("systemNsCluster cannot be empty, cannot initialize")
 	}
 
+	cfg := u.systemNsCluster.GetConfig()
+	kubeclient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	if httpTransport.TLSClientConfig == nil {
 		httpTransport.TLSClientConfig = &tls.Config{
@@ -138,6 +152,12 @@ func (u *defaultUnpacker) initialize() (Unpacker, error) {
 		v1alpha2.SourceTypeGit: &Git{
 			Reader:          u.systemNsCluster.GetClient(),
 			SecretNamespace: u.namespace,
+		},
+		v1alpha2.SourceTypeImage: &Image{
+			Client:       u.systemNsCluster.GetClient(),
+			KubeClient:   kubeclient,
+			PodNamespace: u.namespace,
+			UnpackImage:  u.unpackImage,
 		},
 	}), nil
 }

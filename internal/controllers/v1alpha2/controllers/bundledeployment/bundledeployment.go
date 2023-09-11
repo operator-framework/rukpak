@@ -21,8 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
 
 	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
@@ -123,7 +123,6 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// The controller is not updating spec, we only update the status. Hence sending
 	// a status update should be enough.
 	if !equality.Semantic.DeepEqual(existingBD.Status, reconciledBD.Status) {
-		fmt.Println("before update", cmp.Diff(existingBD, reconciledBD))
 		if updateErr := b.Status().Update(ctx, reconciledBD); updateErr != nil {
 			return res, apimacherrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
@@ -134,21 +133,24 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2.BundleDeployment) (ctrl.Result, error) {
 	// Unpack contents from the bundle deployment for each of the specified source and update
 	// the status of the object.
-	bundleDepFS, state, err := b.unpackContents(ctx, bd)
-	switch state {
+	// TODO: In case of unpack pending and request is being requeued again indefinitely.
+	bundleDepFS, res, err := b.unpackContents(ctx, bd)
+	switch res.State {
 	case v1alpha2source.StateUnpackPending:
-		setUnpackStatusPending(&bd.Status.Conditions, err.Error(), bd.Generation)
-		return ctrl.Result{}, nil
+		setUnpackStatusPending(&bd.Status.Conditions, fmt.Sprintf("pending unpack pod"), bd.Generation)
+		// Requeing after 5 sec for now since the average time to unpack an registry bundle locally
+		// was around ~4sec.
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	case v1alpha2source.StateUnpacking:
-		setUnpackStatusPending(&bd.Status.Conditions, err.Error(), bd.Generation)
-		return ctrl.Result{}, nil
+		setUnpackStatusPending(&bd.Status.Conditions, fmt.Sprintf("unpacking pod"), bd.Generation)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	case v1alpha2source.StateUnpackFailed:
 		setUnpackStatusFailing(&bd.Status.Conditions, err.Error(), bd.Generation)
 		return ctrl.Result{}, err
 	case v1alpha2source.StateUnpacked:
 		setUnpackStatusSuccess(&bd.Status.Conditions, fmt.Sprintf("unpacked %s", bd.GetName()), bd.Generation)
 	default:
-		return ctrl.Result{}, fmt.Errorf("unkown unpack state %q for bundle deployment %s: %v", state, bd.GetName(), bd.Generation)
+		return ctrl.Result{}, fmt.Errorf("unkown unpack state %q for bundle deployment %s: %v", res.State, bd.GetName(), bd.Generation)
 	}
 
 	// Unpacked contents from each source would now be availabe in the fs. Validate
@@ -180,7 +182,7 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 	case v1alpha2deployer.StateDeploySuccessful:
 		setInstallStatusSuccess(&bd.Status.Conditions, fmt.Sprintf("installed %s", bd.GetName()), bd.Generation)
 	default:
-		return ctrl.Result{}, fmt.Errorf("unkown deploy state %q for bundle deployment %s: %v", state, bd.GetName(), bd.Generation)
+		return ctrl.Result{}, fmt.Errorf("unkown deploy state %q for bundle deployment %s: %v", deployRes.State, bd.GetName(), bd.Generation)
 	}
 
 	fmt.Println("deplpoy done")
@@ -217,36 +219,35 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 
 // unpackContents unpacks contents from all the sources, and stores under a directory referenced by the bundle deployment name.
 // It returns the consolidated state on whether contents from all the sources have been unpacked.
-func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1alpha2.BundleDeployment) (*afero.Fs, v1alpha2source.State, error) {
+func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1alpha2.BundleDeployment) (*afero.Fs, v1alpha2source.Result, error) {
 	// set a base filesystem path and unpack contents under the root filepath defined by
 	// bundledeployment name.
 	bundleDepFs := afero.NewBasePathFs(afero.NewOsFs(), bd.GetName())
 
 	errs := make([]error, 0)
-	unpackResult := make([]v1alpha2source.Result, len(bd.Spec.Sources))
+	unpackResult := make([]v1alpha2source.Result, 0)
 
 	// Unpack each of the sources individually, and consolidate all their results into one.
 	for _, source := range bd.Spec.Sources {
-		res, err := b.unpacker.Unpack(ctx, bd.Name, source, bundleDepFs)
+		res, err := b.unpacker.Unpack(ctx, bd.Name, source, bundleDepFs, v1alpha2source.UnpackOption{
+			BundleDeploymentUID: bd.GetUID(),
+		})
 		if err != nil {
 			errs = append(errs, fmt.Errorf("error unpacking from %s source: %q:  %v", source.Kind, res.Message, err))
 		}
+		unpackResult = append(unpackResult, *res)
 	}
 
 	// Even if one source has not unpacked, update Bundle Deployment status accordingly.
 	for _, res := range unpackResult {
-		if res.State == v1alpha2source.StateUnpackPending {
-			return &bundleDepFs, v1alpha2source.StateUnpackPending, nil
-		} else if res.State == v1alpha2source.StateUnpacking {
-			return &bundleDepFs, v1alpha2source.StateUnpacking, nil
+		if res.State == v1alpha2source.StateUnpackFailed {
+			return &bundleDepFs, res, apimacherrors.NewAggregate(errs)
+		}
+		if res.State != v1alpha2source.StateUnpacked {
+			return &bundleDepFs, res, nil
 		}
 	}
-
-	if len(errs) != 0 {
-		return &bundleDepFs, v1alpha2source.StateUnpackFailed, apimacherrors.NewAggregate(errs)
-	}
-
-	return &bundleDepFs, v1alpha2source.StateUnpacked, nil
+	return &bundleDepFs, v1alpha2source.Result{State: v1alpha2source.StateUnpacked, Message: "Successfully unpacked"}, nil
 }
 
 // validateContents validates if the unpacked bundle contents are of the right format.

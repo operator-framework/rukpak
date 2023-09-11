@@ -33,7 +33,7 @@ type Git struct {
 	Log             logr.Logger
 }
 
-func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
+func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
 	// Validate inputs
 	if err := r.validate(bundleSrc); err != nil {
 		return nil, fmt.Errorf("unpacking unsuccessful %v", err)

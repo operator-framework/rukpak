@@ -1,25 +1,23 @@
 package source
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 
-	"github.com/nlepage/go-tarfs"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/otiai10/copy"
 	"github.com/spf13/afero"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,44 +37,25 @@ type Image struct {
 
 const imageBundleUnpackContainerName = "bundle"
 
-func (i *Image) Unpack(ctx context.Context, bdName string, bdSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
+func (i *Image) Unpack(ctx context.Context, bdName string, bdSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
 	// Validate inputs
-	if err := i.validate(bdSrc); err != nil {
+	if err := i.validate(&bdSrc, opts); err != nil {
 		return nil, fmt.Errorf("validation unsuccessful during unpacking %v", err)
 	}
 
 	// storage path to store contents in local directory.
 	storagePath := filepath.Join(bdName, filepath.Clean(bdSrc.Destination))
-
-	// If the bdSrc contents are cached, copy those in the specified dir
-	// and return.
-	cacheDir, err := getCachedContentPath(bdName, bdSrc, base)
-	if err != nil {
-		return nil, fmt.Errorf("error verifying cache %v", err)
-	}
-
-	// if cache exists, copy the contents and return result
-	if cacheDir != "" {
-		// copy the contents into the destination speified in the source.
-		if err := base.RemoveAll(filepath.Clean(bdSrc.Destination)); err != nil {
-			return nil, fmt.Errorf("error removing dir %v", err)
-		}
-		if err := copy.Copy(filepath.Join("bd-v1test", "cache", cacheDir), storagePath); err != nil {
-			return nil, fmt.Errorf("error fetching cached content %v", err)
-		}
-	}
-	return i.unpack(ctx, bdName, bdSrc, base)
+	return i.unpack(ctx, bdName, storagePath, bdSrc, base, opts)
 }
 
-func (i *Image) unpack(ctx context.Context, bdName string, bdSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
+func (i *Image) unpack(ctx context.Context, bdName, storagePath string, bdSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
 	pod := &corev1.Pod{}
-	op, err := i.ensureUnpackPod(ctx, bdName, bdSrc, pod)
+	op, err := i.ensureUnpackPod(ctx, bdName, bdSrc, pod, opts)
 	if err != nil {
 		return nil, err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
 		return &Result{State: StateUnpackPending}, nil
 	}
-
 	switch phase := pod.Status.Phase; phase {
 	case corev1.PodPending:
 		return pendingImagePodResult(pod), nil
@@ -85,29 +64,32 @@ func (i *Image) unpack(ctx context.Context, bdName string, bdSrc *v1alpha2.Bundl
 	case corev1.PodFailed:
 		return nil, i.failedPodResult(ctx, pod)
 	case corev1.PodSucceeded:
-		return i.succeededPodResult(ctx, pod)
+		return i.succeededPodResult(ctx, pod, storagePath, bdSrc, base)
 	default:
 		return nil, i.handleUnexpectedPod(ctx, pod)
 	}
 }
 
-func (i *Image) validate(bdSrc *v1alpha2.BundleDeplopymentSource) error {
+func (i *Image) validate(bdSrc *v1alpha2.BundleDeplopymentSource, opts UnpackOption) error {
 	if bdSrc.Kind != v1alpha2.SourceTypeImage {
 		return fmt.Errorf("bundle source type %q not supported", bdSrc.Kind)
 	}
 	if bdSrc.Image == nil {
-		return fmt.Errorf("bundle source image configuration is unset")
+		return errors.New("bundle source image configuration is unset")
+	}
+	if opts.BundleDeploymentUID == "" {
+		return errors.New("bundle deployment UID required")
 	}
 	return nil
 }
 
-func (i *Image) ensureUnpackPod(ctx context.Context, bdName string, bundleSrc *v1alpha2.BundleDeplopymentSource, pod *corev1.Pod) (controllerutil.OperationResult, error) {
+func (i *Image) ensureUnpackPod(ctx context.Context, bdName string, bundleSrc v1alpha2.BundleDeplopymentSource, pod *corev1.Pod, opts UnpackOption) (controllerutil.OperationResult, error) {
 	existingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: i.PodNamespace, Name: bdName}}
 	if err := i.Client.Get(ctx, client.ObjectKeyFromObject(existingPod), existingPod); client.IgnoreNotFound(err) != nil {
 		return controllerutil.OperationResultNone, err
 	}
 
-	podApplyConfig := i.getDesiredPodApplyConfig(bdName, bundleSrc)
+	podApplyConfig := i.getDesiredPodApplyConfig(bdName, &bundleSrc, opts)
 	updatedPod, err := i.KubeClient.CoreV1().Pods(i.PodNamespace).Apply(ctx, podApplyConfig, metav1.ApplyOptions{Force: true, FieldManager: "rukpak-core"})
 	if err != nil {
 		if !apierrors.IsInvalid(err) {
@@ -153,17 +135,35 @@ func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 	return fmt.Errorf("unpack failed: %v", string(logs))
 }
 
-func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Result, error) {
-	// bundleFS, err := i.getBundleContents(ctx, pod)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("get bundle contents: %v", err)
-	// }
+func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod, storagePath string, bdSrc v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
+	err := i.getBundleContents(ctx, pod, storagePath, &bdSrc, base)
+	if err != nil {
+		return nil, fmt.Errorf("get bundle contents: %v", err)
+	}
 
-	// figure out how to store content in the same format instead of bytes.
-	return nil, nil
+	digest, err := i.getBundleImageDigest(pod)
+	if err != nil {
+		return nil, fmt.Errorf("get bundle image digest: %v", err)
+	}
+
+	resolvedSource := &v1alpha2.BundleDeplopymentSource{
+		Kind:  v1alpha2.SourceTypeImage,
+		Image: &v1alpha2.ImageSource{ImageRef: digest},
+	}
+
+	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked}, nil
 }
 
-func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.BundleDeplopymentSource) *applyconfigurationcorev1.PodApplyConfiguration {
+func (i *Image) getBundleImageDigest(pod *corev1.Pod) (string, error) {
+	for _, ps := range pod.Status.ContainerStatuses {
+		if ps.Name == imageBundleUnpackContainerName && ps.ImageID != "" {
+			return ps.ImageID, nil
+		}
+	}
+	return "", fmt.Errorf("bundle image digest not found")
+}
+
+func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.BundleDeplopymentSource, opts UnpackOption) *applyconfigurationcorev1.PodApplyConfiguration {
 	// TODO (tyslaton): Address unpacker pod allowing root users for image sources
 	//
 	// In our current implementation, we are creating a pod that uses the image
@@ -191,6 +191,7 @@ func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.Bund
 			WithName(bdName).
 			WithKind(v1alpha2.BundleDeploymentKind).
 			WithAPIVersion(v1alpha2.BundleDeploymentGVK.Version).
+			WithUID(opts.BundleDeploymentUID).
 			WithController(true).
 			WithBlockOwnerDeletion(true),
 		).
@@ -238,32 +239,66 @@ func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.Bund
 	return podApply
 }
 
-func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod, storagePath string, bundleSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) (fs.FS, error) {
+func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod, storagePath string, bundleSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) error {
 	bundleData, err := i.getPodLogs(ctx, pod)
 	if err != nil {
-		return nil, fmt.Errorf("get bundle contents: %v", err)
+		return fmt.Errorf("error getting bundle contents: %v", err)
 	}
 	bd := struct {
 		Content []byte `json:"content"`
 	}{}
 
 	if err := json.Unmarshal(bundleData, &bd); err != nil {
-		return nil, fmt.Errorf("parse bundle data: %v", err)
+		return fmt.Errorf("error parsing bundle data: %v", err)
 	}
 
-	if err := base.RemoveAll(filepath.Clean(bundleSrc.Destination)); err != nil {
-		return nil, fmt.Errorf("error removing dir %v", err)
+	if err := (base).RemoveAll(filepath.Clean(bundleSrc.Destination)); err != nil {
+		return fmt.Errorf("error removing dir %v", err)
 	}
 
-	if err := os.MkdirAll(storagePath, 0755); err != nil {
-		return nil, fmt.Errorf("error creating storagepath %q", err)
+	if err := base.MkdirAll(bundleSrc.Destination, 0755); err != nil {
+		return fmt.Errorf("error creating storagepath %q", err)
 	}
 
 	gzr, err := gzip.NewReader(bytes.NewReader(bd.Content))
 	if err != nil {
-		return nil, fmt.Errorf("read bundle content gzip: %v", err)
+		return fmt.Errorf("error reading bundle content gzip: %v", err)
 	}
-	return tarfs.New(gzr)
+
+	// create a tar reader to parse the decompressed data.
+	tr := tar.NewReader(gzr)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return fmt.Errorf("error storing content locally: %v", err)
+		}
+
+		// create file or directory in the file system.
+		if header.Typeflag == tar.TypeDir {
+			if err := base.MkdirAll(filepath.Join(header.Name), 0755); err != nil {
+				return fmt.Errorf("error creating directory for storing bundle contents: %v", err)
+			}
+		} else if header.Typeflag == tar.TypeReg {
+			// If its a regular file, create one and copy data.
+			file, err := base.Create(filepath.Join(header.Name))
+			if err != nil {
+				return fmt.Errorf("error creating file for storing bundle contents: %v", err)
+			}
+
+			if _, err := io.Copy(file, tr); err != nil {
+				return fmt.Errorf("error copying contents: %v", err)
+			}
+			file.Close()
+		} else {
+			return fmt.Errorf("unsupported tar entry type for %s: %v while unpacking", header.Name, header.Typeflag)
+		}
+	}
+	return nil
 }
 
 func (i *Image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
@@ -294,18 +329,6 @@ func pendingImagePodResult(pod *corev1.Pod) *Result {
 		}
 	}
 	return &Result{State: StateUnpackPending, Message: strings.Join(messages, "; ")}
-}
-
-// getCachedContentPath returns the name of the cached directory if exists.
-func getCachedContentPath(bdaName string, bundleSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) (string, error) {
-	cachedDirName := getCacheDirName(bdaName, *bundleSrc)
-
-	if ok, err := afero.DirExists(base, filepath.Join(CacheDir, cachedDirName)); err != nil {
-		return "", fmt.Errorf("error finding cache dir %v", err)
-	} else if !ok {
-		return "", nil
-	}
-	return cachedDirName, nil
 }
 
 // Perform a base64 encoding to get the directoryName to store caches

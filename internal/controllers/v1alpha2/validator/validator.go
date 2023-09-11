@@ -40,7 +40,6 @@ func NewDefaultValidator() Validator {
 type registryV1Validator struct{}
 
 func (r *registryV1Validator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment v1alpha2.BundleDeployment) error {
-	fmt.Println("converting registry V1 to plain")
 	plainFS, err := convert.RegistryV1ToPlain(fs)
 	if err != nil {
 		return fmt.Errorf("error converting registry+v1 bundle to plain+v0 bundle: %v", err)
