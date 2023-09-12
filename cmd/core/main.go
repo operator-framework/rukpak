@@ -28,6 +28,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
+	"github.com/spf13/pflag"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,6 +53,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
+	"github.com/operator-framework/rukpak/pkg/features"
 )
 
 var (
@@ -99,7 +101,10 @@ func main() {
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	features.RukpakFeatureGate.AddFlag(pflag.CommandLine)
+	pflag.Parse()
 
 	if rukpakVersion {
 		fmt.Println(version.String())
