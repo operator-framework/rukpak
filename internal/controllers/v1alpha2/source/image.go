@@ -84,6 +84,8 @@ func (i *Image) validate(bdSrc *v1alpha2.BundleDeplopymentSource, opts UnpackOpt
 }
 
 func (i *Image) ensureUnpackPod(ctx context.Context, bdName string, bundleSrc v1alpha2.BundleDeplopymentSource, pod *corev1.Pod, opts UnpackOption) (controllerutil.OperationResult, error) {
+	// TODO: leaving the name of the unpack pod to be the bundle deployment name can be an issue if we have two sources
+	// in the same bundle deployment points to different images. We would end up patching the same pod to have the new image unpacked.
 	existingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: i.PodNamespace, Name: bdName}}
 	if err := i.Client.Get(ctx, client.ObjectKeyFromObject(existingPod), existingPod); client.IgnoreNotFound(err) != nil {
 		return controllerutil.OperationResultNone, err
@@ -190,7 +192,7 @@ func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.Bund
 		WithOwnerReferences(v1.OwnerReference().
 			WithName(bdName).
 			WithKind(v1alpha2.BundleDeploymentKind).
-			WithAPIVersion(v1alpha2.BundleDeploymentGVK.Version).
+			WithAPIVersion(v1alpha2.BundleDeploymentGVK.GroupVersion().String()).
 			WithUID(opts.BundleDeploymentUID).
 			WithController(true).
 			WithBlockOwnerDeletion(true),

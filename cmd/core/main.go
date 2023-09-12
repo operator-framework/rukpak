@@ -118,6 +118,7 @@ func main() {
 	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
 
 	cfg := ctrl.GetConfigOrDie()
+	fmt.Println("systemNs:!!!!", systemNamespace)
 	if systemNamespace == "" {
 		systemNamespace = util.PodNamespace()
 	}
@@ -126,6 +127,7 @@ func main() {
 		opts.Scheme = scheme
 		opts.Namespace = systemNamespace
 	})
+	fmt.Println("systemNsCluster!!!!!!!", systemNsCluster)
 	if err != nil {
 		setupLog.Error(err, "unable to create system namespace cluster")
 		os.Exit(1)
@@ -260,6 +262,7 @@ func main() {
 	// }
 
 	if err := v1alpha2bd.SetupWithManager(mgr,
+		systemNsCluster.GetCache(),
 		v1alpha2bd.WithUnpacker(defaultUnpacker),
 		v1alpha2bd.WithValidators(v1alpha2validators.NewDefaultValidator()),
 		v1alpha2bd.WithDeployer(deployer)); err != nil {

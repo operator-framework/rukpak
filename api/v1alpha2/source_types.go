@@ -20,12 +20,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type SourceType string
+type SourceKind string
 
 const (
-	SourceTypeImage SourceType = "image"
-	SourceTypeGit   SourceType = "git"
-	SourceTypeHTTP  SourceType = "http"
+	// SourceKind refers to the kind of source being
+	// used to unpack contents.
+	SourceKindImage SourceKind = "image"
+	SourceKindGit   SourceKind = "git"
+	SourceKindHTTP  SourceKind = "http"
 
 	TypeUnpacked  = "Unpacked"
 	TypeValidated = "Validated"
@@ -66,21 +68,11 @@ type BundleDeplopymentSource struct {
 	Destination string `json:"destination,omitempty"`
 }
 
-// SourceKind refers to the kind of source being
-// used to unpack contents.
-type SourceKind string
-
-const (
-	SourceTypeImage SourceKind = "image"
-	SourceTypeGit   SourceKind = "git"
-	SourceTypeHTTP  SourceKind = "http"
-)
-
 type ImageSource struct {
 	// Ref contains the reference to a container image containing Bundle contents.
 	Ref string `json:"ref"`
 	// Auth configures the authentication method if necessary.
-	Auth *Authentication `json:"auth,omitempty"`
+	Auth *Authorization `json:"auth,omitempty"`
 }
 
 type GitSource struct {

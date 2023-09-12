@@ -359,7 +359,14 @@ spec:
         type: object
     served: true
     storage: false
-  - name: v1alpha2
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(.type=="Installed")].reason
+      name: Install State
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha2
     schema:
       openAPIV3Schema:
         description: BundleDeployment is the Schema for the bundledeployments API
@@ -379,8 +386,17 @@ spec:
           spec:
             description: BundleDeploymentSpec defines the desired state of BundleDeployment
             properties:
+<<<<<<< HEAD
               defaultnamespace:
                 type: string
+=======
+              config:
+                description: 'Config is provisioner specific configurations TODO:
+                  This should be become deployer specific. Should move to helm deployer
+                  configuration.'
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+>>>>>>> a87b1ab ([fix] Fix issue with cascading deletion of image unpack pods)
               format:
                 description: FormatType refers to the allowed bundle formats that
                   are being accepted in the APIs.

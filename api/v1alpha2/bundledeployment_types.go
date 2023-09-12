@@ -41,21 +41,14 @@ const (
 	ReasonInstallationSucceeded    = "InstallationSucceeded"
 )
 
-type FormatType string
-
-const (
-	FormatPlain      = "plain"
-	FormatRegistryV1 = "registry"
-	FormatHelm       = "helm"
-)
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}
-//+kubebuilder:storageversion
+// +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
+// +kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 
 // BundleDeployment is the Schema for the bundledeployments API
-// +kubebuilder:storageversion
 type BundleDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

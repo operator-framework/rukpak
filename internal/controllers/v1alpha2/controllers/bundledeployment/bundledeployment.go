@@ -23,7 +23,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
@@ -35,6 +40,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
@@ -45,6 +51,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // BundleDeploymentReconciler reconciles a BundleDeployment object
@@ -280,7 +287,7 @@ func (b *bundleDeploymentReconciler) validateConfig() error {
 	return utilerrors.NewAggregate(errs)
 }
 
-func SetupWithManager(mgr manager.Manager, opts ...Option) error {
+func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, opts ...Option) error {
 	bd := &bundleDeploymentReconciler{
 		Client:           mgr.GetClient(),
 		dynamicWatchGVKs: map[schema.GroupVersionKind]struct{}{},
@@ -294,13 +301,52 @@ func SetupWithManager(mgr manager.Manager, opts ...Option) error {
 	}
 
 	controllerName := fmt.Sprintf("controller-bundledeployment.%s", v1alpha2.BundleDeploymentGVK.Version)
+	l := mgr.GetLogger().WithName(controllerName)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&v1alpha2.BundleDeployment{}).
+		Watches(crsource.NewKindWithCache(&corev1.Pod{}, systemNsCache), MapOwnerToBundleDeploymentHandler(context.Background(), mgr.GetClient(), l, &v1alpha2.BundleDeployment{})).
 		Build(bd)
 	if err != nil {
 		return err
 	}
 	bd.controller = controller
 	return nil
+}
+
+// MapOwnerToBundleDeploymentHandler is a handler implementation that finds an owner reference in the event object that
+// references the provided owner. If a reference for the provided owner is found this handler enqueues a request for that owner to be reconciled.
+func MapOwnerToBundleDeploymentHandler(ctx context.Context, cl client.Client, log logr.Logger, owner client.Object) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+		ownerGVK, err := apiutil.GVKForObject(owner, cl.Scheme())
+		if err != nil {
+			log.Error(err, "map ownee to owner: lookup GVK for owner")
+			return nil
+		}
+		type ownerInfo struct {
+			key types.NamespacedName
+			gvk schema.GroupVersionKind
+		}
+		var oi *ownerInfo
+
+		for _, ref := range obj.GetOwnerReferences() {
+			gv, err := schema.ParseGroupVersion(ref.APIVersion)
+			if err != nil {
+				log.Error(err, fmt.Sprintf("map ownee to owner: parse ownee's owner reference group version %q", ref.APIVersion))
+				return nil
+			}
+			refGVK := gv.WithKind(ref.Kind)
+			if refGVK == ownerGVK && ref.Controller != nil && *ref.Controller {
+				oi = &ownerInfo{
+					key: types.NamespacedName{Name: ref.Name},
+					gvk: ownerGVK,
+				}
+				break
+			}
+		}
+		if oi == nil {
+			return nil
+		}
+		return []reconcile.Request{{NamespacedName: oi.key}}
+	})
 }

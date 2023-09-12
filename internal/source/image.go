@@ -129,7 +129,7 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyco
 			WithAPIVersion(bundle.APIVersion).
 			WithUID(bundle.UID).
 			WithController(true).
-			WithBlockOwnerDeletion(true),
+			WithBlockOwnerDeletion(false),
 		).
 		WithSpec(applyconfigurationcorev1.PodSpec().
 			WithAutomountServiceAccountToken(false).
