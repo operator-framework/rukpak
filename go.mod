@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/go-git/go-billy/v5 v5.4.1
+	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.8.1
 	github.com/go-logr/logr v1.2.4
 	github.com/gorilla/handlers v1.5.1
@@ -172,7 +172,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/oauth2 v0.1.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/term v0.12.0 // indirect
