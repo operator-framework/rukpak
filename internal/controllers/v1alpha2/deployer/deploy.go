@@ -123,6 +123,7 @@ func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeploymen
 			util.CoreOwnerKindKey: v1alpha2.BundleDeploymentKind,
 			util.CoreOwnerNameKey: bundleDeployment.GetName(),
 		},
+		defaultNamespace: bundleDeployment.Spec.DefaultNamespace,
 	}
 
 	rel, state, err := hd.getReleaseState(cl, bundleDeployment, chrt, values, post)
@@ -320,8 +321,9 @@ func getChartFromPlainBundle(chartfs afero.Fs, bd *v1alpha2.BundleDeployment) (*
 }
 
 type postrenderer struct {
-	labels  map[string]string
-	cascade postrender.PostRenderer
+	labels           map[string]string
+	defaultNamespace string
+	cascade          postrender.PostRenderer
 }
 
 func (p *postrenderer) Run(renderedManifests *bytes.Buffer) (*bytes.Buffer, error) {
@@ -337,6 +339,11 @@ func (p *postrenderer) Run(renderedManifests *bytes.Buffer) (*bytes.Buffer, erro
 			return nil, err
 		}
 		obj.SetLabels(util.MergeMaps(obj.GetLabels(), p.labels))
+		// If the default namespace is not already created in the cluster, there
+		// would be an error since we do not create a ns if it doesn't exist.
+		if obj.GetNamespace() == "" && p.defaultNamespace != "" {
+			obj.SetNamespace(p.defaultNamespace)
+		}
 		b, err := obj.MarshalJSON()
 		if err != nil {
 			return nil, err

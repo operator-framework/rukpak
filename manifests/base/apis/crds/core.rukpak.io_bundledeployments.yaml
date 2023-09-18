@@ -396,7 +396,8 @@ spec:
                   configuration.'
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
->>>>>>> a87b1ab ([fix] Fix issue with cascading deletion of image unpack pods)
+              defaultnamespace:
+                type: string
               format:
                 description: FormatType refers to the allowed bundle formats that
                   are being accepted in the APIs.

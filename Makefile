@@ -84,11 +84,6 @@ generate: $(CONTROLLER_GEN) ## Generate code and manifests
 		paths=./internal/uploadmgr/... \
 			output:stdout > ./manifests/base/core/resources/cluster_role.yaml
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=webhooks-admin paths=./internal/webhook/... output:stdout > ./manifests/base/apis/webhooks/resources/cluster_role.yaml
-	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin \
-		paths=./internal/controllers/bundle/... \
-		paths=./internal/controllers/bundledeployment/... \
-		paths=./internal/provisioner/helm/... \
-		    output:stdout > ./manifests/base/provisioners/helm/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint
 	git diff --exit-code
@@ -144,7 +139,6 @@ install-manifests:
 wait:
 	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/core --timeout=60s
 	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/rukpak-webhooks --timeout=60s
-	$(KUBECTL) wait --for=condition=Available --namespace=$(RUKPAK_NAMESPACE) deployment/helm-provisioner --timeout=60s
 	$(KUBECTL) wait --for=condition=Available --namespace=crdvalidator-system deployment/crd-validation-webhook --timeout=60s
 
 run: build-container kind-cluster kind-load install ## Build image, stop/start a local kind cluster, and run operator in that cluster
@@ -171,7 +165,7 @@ uninstall: ## Remove all rukpak resources from the cluster
 
 ##@ build/load:
 
-BINARIES=core helm unpack webhooks crdvalidator rukpakctl
+BINARIES=core unpack webhooks crdvalidator rukpakctl
 LINUX_BINARIES=$(join $(addprefix linux/,$(BINARIES)), )
 
 .PHONY: build $(BINARIES) $(LINUX_BINARIES) build-container kind-load kind-load-bundles kind-cluster registry-load-bundles

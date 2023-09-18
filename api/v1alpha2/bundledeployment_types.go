@@ -18,7 +18,7 @@ package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
@@ -82,6 +82,8 @@ type BundleDeploymentSpec struct {
 	// Should move to helm deployer configuration.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Config runtime.RawExtension `json:"config,omitempty"`
+	// +optional
+	DefaultNamespace string `json:"defaultnamespace,omitempty"`
 }
 
 // FormatType refers to the allowed bundle formats that
