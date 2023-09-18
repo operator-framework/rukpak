@@ -15,6 +15,7 @@ require (
 	github.com/operator-framework/api v0.17.4-0.20230223191600-0131a6301e42
 	github.com/operator-framework/helm-operator-plugins v0.0.11
 	github.com/operator-framework/operator-registry v1.28.0
+	github.com/otiai10/copy v1.11.0
 	github.com/spf13/afero v1.6.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
@@ -134,7 +135,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/operator-framework/operator-lib v0.11.0 // indirect
-	github.com/otiai10/copy v1.2.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

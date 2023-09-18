@@ -22,10 +22,10 @@ patches:
     kind: Deployment
     name: core
   path: patches/core_deployment_certs.yaml
-- target:
-    kind: Deployment
-    name: helm-provisioner
-  path: patches/helm_provisioner_deployment_certs.yaml
+# - target:
+#     kind: Deployment
+#     name: helm-provisioner
+#   path: patches/helm_provisioner_deployment_certs.yaml
 
 replacements:
 - source: # replaces CERTIFICATE_NAMESPACE with namespace of the certificate CR

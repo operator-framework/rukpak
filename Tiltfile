@@ -9,7 +9,6 @@ repo = {
     'binaries': {
         'core': 'core',
         'crdvalidator': 'crd-validation-webhook',
-        'helm': 'helm-provisioner',
         'webhooks': 'rukpak-webhooks',
     },
     'starting_debug_port': 10000,

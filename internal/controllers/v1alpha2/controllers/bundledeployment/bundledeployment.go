@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
@@ -50,7 +51,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -100,7 +100,6 @@ func WithDeployer(u v1alpha2deployer.Deployer) Option {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	fmt.Println("reconciling")
 	log := log.FromContext(ctx)
 
 	existingBD := &v1alpha2.BundleDeployment{}
@@ -116,6 +115,7 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Skip reconciling if `spec.paused` is set.
 	if existingBD.Spec.Paused {
+		log.Info("bundledeployment has been paused for reconciliation", "bundle deployment name", existingBD.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -192,7 +192,6 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 		return ctrl.Result{}, fmt.Errorf("unkown deploy state %q for bundle deployment %s: %v", deployRes.State, bd.GetName(), bd.Generation)
 	}
 
-	fmt.Println("deplpoy done")
 	for _, obj := range deployRes.AppliedObjects {
 		uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {

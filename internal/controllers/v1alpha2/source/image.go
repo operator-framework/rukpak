@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,7 +41,6 @@ func (i *Image) Unpack(ctx context.Context, bdName string, bdSrc v1alpha2.Bundle
 	if err := i.validate(&bdSrc, opts); err != nil {
 		return nil, fmt.Errorf("validation unsuccessful during unpacking %v", err)
 	}
-
 	// storage path to store contents in local directory.
 	storagePath := filepath.Join(bdName, filepath.Clean(bdSrc.Destination))
 	return i.unpack(ctx, bdName, storagePath, bdSrc, base, opts)
@@ -331,22 +329,4 @@ func pendingImagePodResult(pod *corev1.Pod) *Result {
 		}
 	}
 	return &Result{State: StateUnpackPending, Message: strings.Join(messages, "; ")}
-}
-
-// Perform a base64 encoding to get the directoryName to store caches
-func getCacheDirName(bdName string, bd v1alpha2.BundleDeplopymentSource) string {
-	switch bd.Kind {
-	case v1alpha2.SourceTypeImage:
-		return encode(bdName, string(bd.Kind), bd.Image.ImageRef)
-	case v1alpha2.SourceTypeGit:
-		return encode(bdName, string(bd.Kind), bd.Git.Repository)
-	case v1alpha2.SourceTypeHTTP:
-		return encode(bdName, string(bd.Kind), bd.HTTP.URL)
-	default:
-		return ""
-	}
-}
-
-func encode(str1, str2, str3 string) string {
-	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s-%s-%s", str1, str2, str3)))
 }

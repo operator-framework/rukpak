@@ -21,6 +21,7 @@ import (
 	sshgit "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/spf13/afero"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +33,10 @@ type Git struct {
 	SecretNamespace string
 	Log             logr.Logger
 }
+
+const (
+	gitCachePath = "var/cache/git/"
+)
 
 func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
 	// Validate inputs
@@ -72,20 +77,40 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 	// create a destination path to clone the repository to.
 	// destination would be <bd-name>/bd.spec.sources.destination.
 	// verify if path already exists if so, clean up.
-	if err := base.RemoveAll(bundleSrc.Destination); err != nil {
-		return nil, fmt.Errorf("error removing contents from local destination %v", err)
+	if bundleSrc.Destination != "" {
+		if err := base.RemoveAll(bundleSrc.Destination); err != nil {
+			return nil, fmt.Errorf("error removing contents from local destination %v", err)
+		}
+		if err := base.MkdirAll(bundleSrc.Destination, 0755); err != nil {
+			return nil, fmt.Errorf("error creating storagepath %q", err)
+		}
 	}
-	if err := base.MkdirAll(bundleSrc.Destination, 0755); err != nil {
-		return nil, fmt.Errorf("error creating storagepath %q", err)
+
+	if err := util.CreateDirPath(base, gitCachePath); err != nil {
+		return nil, err
+	}
+	defer deleteCacheDir(base)
+
+	// clone to local but in a cache dir.
+	repo, err := git.PlainCloneContext(ctx, filepath.Join(bundeDepName, gitCachePath), false, &cloneOpts)
+	if err != nil {
+		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
 	}
 
 	// refers to the full local path where contents need to be stored.
 	storagePath := filepath.Join(bundeDepName, filepath.Clean(bundleSrc.Destination))
 
-	// clone to local.
-	repo, err := git.PlainCloneContext(ctx, storagePath, false, &cloneOpts)
-	if err != nil {
-		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
+	cacheSrcPath := filepath.Join(bundeDepName, gitCachePath)
+	if gitsource.Directory != "" {
+		directory := filepath.Clean(gitsource.Directory)
+		if directory[:3] == "../" || directory[0] == '/' {
+			return nil, fmt.Errorf("get subdirectory %q for repository %q: %s", gitsource.Directory, gitsource.Repository, "directory can not start with '../' or '/'")
+		}
+		cacheSrcPath = filepath.Join(cacheSrcPath, directory)
+	}
+
+	if err := util.CopyDir(base, cacheSrcPath, storagePath); err != nil {
+		return nil, fmt.Errorf("copying contents from cache to local dir: %v", err)
 	}
 
 	commitHash, err := repo.ResolveRevision("HEAD")
@@ -102,8 +127,16 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 		Kind: v1alpha2.SourceTypeGit,
 		Git:  resolvedGit,
 	}
-
 	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked, Message: "Successfully unpacked git bundle"}, nil
+}
+
+func deleteCacheDir(fs afero.Fs) error {
+	paths := strings.Split(gitCachePath, string(os.PathSeparator))
+	if len(paths) <= 0 {
+		// shouldn't happen
+		return fmt.Errorf("unable to find cache directory: %s", gitCachePath)
+	}
+	return fs.RemoveAll(paths[0])
 }
 
 func (r *Git) validate(bundleSrc v1alpha2.BundleDeplopymentSource) error {

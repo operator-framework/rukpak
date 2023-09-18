@@ -118,7 +118,6 @@ func main() {
 	dependentSelector := labels.NewSelector().Add(*dependentRequirement)
 
 	cfg := ctrl.GetConfigOrDie()
-	fmt.Println("systemNs:!!!!", systemNamespace)
 	if systemNamespace == "" {
 		systemNamespace = util.PodNamespace()
 	}
@@ -127,7 +126,7 @@ func main() {
 		opts.Scheme = scheme
 		opts.Namespace = systemNamespace
 	})
-	fmt.Println("systemNsCluster!!!!!!!", systemNsCluster)
+
 	if err != nil {
 		setupLog.Error(err, "unable to create system namespace cluster")
 		os.Exit(1)
@@ -228,38 +227,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// commonBundleProvisionerOptions := []bundle.Option{
-	// 	bundle.WithUnpacker(unpacker),
-	// 	bundle.WithFinalizers(bundleFinalizers),
-	// 	bundle.WithStorage(bundleStorage),
-	// }
-
 	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
 	acg := helmclient.NewActionClientGetter(cfgGetter)
 	deployer := v1alpha2deployer.NewDefaultHelmDeployerWithOpts(v1alpha2deployer.WithActionClientGetter(acg), v1alpha2deployer.WithReleaseNamespace(systemNamespace))
-	// commonBDProvisionerOptions := []bundledeployment.Option{
-	// 	bundledeployment.WithReleaseNamespace(systemNamespace),
-	// 	bundledeployment.WithActionClientGetter(acg),
-	// 	bundledeployment.WithStorage(bundleStorage),
-	// }
-
-	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-	// 	commonBundleProvisionerOptions,
-	// 	bundle.WithProvisionerID(plain.ProvisionerID),
-	// 	bundle.WithHandler(bundle.HandlerFunc(plain.HandleBundle)),
-	// )...); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", plain.ProvisionerID)
-	// 	os.Exit(1)
-	// }
-
-	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-	// 	commonBundleProvisionerOptions,
-	// 	bundle.WithProvisionerID(registry.ProvisionerID),
-	// 	bundle.WithHandler(bundle.HandlerFunc(registry.HandleBundle)),
-	// )...); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", registry.ProvisionerID)
-	// 	os.Exit(1)
-	// }
 
 	if err := v1alpha2bd.SetupWithManager(mgr,
 		systemNsCluster.GetCache(),
@@ -270,14 +240,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// if err := bundledeployment.SetupWithManager(mgr, append(
-	// 	commonBDProvisionerOptions,
-	// 	bundledeployment.WithProvisionerID(plain.ProvisionerID),
-	// 	bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
-	// )...); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
-	// 	os.Exit(1)
-	// }
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
