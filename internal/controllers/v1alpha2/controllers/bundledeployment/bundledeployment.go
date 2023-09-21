@@ -144,15 +144,16 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 	bundleDepFS, res, err := b.unpackContents(ctx, bd)
 	switch res.State {
 	case v1alpha2source.StateUnpackPending:
-		setUnpackStatusPending(&bd.Status.Conditions, fmt.Sprintf("pending unpack pod"), bd.Generation)
+		// Explicitely state that error is nil during phases when unpacking is preogressing.
+		setUnpackStatusPending(&bd.Status.Conditions, fmt.Sprintf("pending unpack pod: err %v", err), bd.Generation)
 		// Requeing after 5 sec for now since the average time to unpack an registry bundle locally
-		// was around ~4sec.
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		// was around ~4sec. Also requeing the err, in case it exists.
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, err
 	case v1alpha2source.StateUnpacking:
-		setUnpackStatusPending(&bd.Status.Conditions, fmt.Sprintf("unpacking pod"), bd.Generation)
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		setUnpackStatusPending(&bd.Status.Conditions, fmt.Sprintf("unpacking pod: err %v", err), bd.Generation)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, err
 	case v1alpha2source.StateUnpackFailed:
-		setUnpackStatusFailing(&bd.Status.Conditions, err.Error(), bd.Generation)
+		setUnpackStatusFailing(&bd.Status.Conditions, fmt.Sprintf("unpacking failed: err %v", err), bd.Generation)
 		return ctrl.Result{}, err
 	case v1alpha2source.StateUnpacked:
 		setUnpackStatusSuccess(&bd.Status.Conditions, fmt.Sprintf("unpacked %s", bd.GetName()), bd.Generation)
@@ -245,14 +246,15 @@ func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1a
 	}
 
 	// Even if one source has not unpacked, update Bundle Deployment status accordingly.
+	// In this case the status will contain the result from the first source
+	// which is still waiting to be unpacked.
 	for _, res := range unpackResult {
-		if res.State == v1alpha2source.StateUnpackFailed {
+		if res.State != v1alpha2source.StateUnpacked {
 			return &bundleDepFs, res, apimacherrors.NewAggregate(errs)
 		}
-		if res.State != v1alpha2source.StateUnpacked {
-			return &bundleDepFs, res, nil
-		}
 	}
+
+	// TODO: capture the list of resolved sources for all the successful entry points.
 	return &bundleDepFs, v1alpha2source.Result{State: v1alpha2source.StateUnpacked, Message: "Successfully unpacked"}, nil
 }
 

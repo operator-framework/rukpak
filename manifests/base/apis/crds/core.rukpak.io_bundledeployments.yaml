@@ -386,10 +386,6 @@ spec:
           spec:
             description: BundleDeploymentSpec defines the desired state of BundleDeployment
             properties:
-<<<<<<< HEAD
-              defaultnamespace:
-                type: string
-=======
               config:
                 description: 'Config is provisioner specific configurations TODO:
                   This should be become deployer specific. Should move to helm deployer
@@ -408,11 +404,8 @@ spec:
                 type: string
               paused:
                 default: false
-                description: Paused is used to configure whether we want the bundle
-                  deployment to reconcile, or remmain in the last observed state.
                 type: boolean
               sources:
-                description: Source configures how to pull the bundle content.
                 items:
                   properties:
                     destination:
@@ -457,7 +450,8 @@ spec:
                               x-kubernetes-map-type: atomic
                           type: object
                         directory:
-                          default: manifests
+                          description: Directory refers to the location of the bundle
+                            within the git repository.
                           type: string
                         ref:
                           description: Ref configures the git source to clone a specific
@@ -539,20 +533,48 @@ spec:
                       description: Image is the bundle image that backs the content
                         of this bundle.
                       properties:
-                        imageref:
+                        auth:
+                          description: Auth configures the authentication method if
+                            necessary.
+                          properties:
+                            insecureSkipVerify:
+                              description: InsecureSkipVerify controls whether a client
+                                verifies the server's certificate chain and host name.
+                                If InsecureSkipVerify is true, the clone operation
+                                will accept any certificate presented by the server
+                                and any host name in that certificate. In this mode,
+                                TLS is susceptible to machine-in-the-middle attacks
+                                unless custom verification is used. This should be
+                                used only for testing.
+                              type: boolean
+                            secret:
+                              description: Secret contains reference to the secret
+                                that has authorization information and is in the namespace
+                                that the provisioner is deployed. The secret is expected
+                                to contain `data.username` and `data.password` for
+                                the username and password, respectively for http(s)
+                                scheme. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                                For the ssh authorization of the GitSource, the secret
+                                is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                                for the ssh privatekey and the host entry in the known_hosts
+                                file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                              properties:
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind,
+                                    uid?'
+                                  type: string
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        ref:
                           description: Ref contains the reference to a container image
                             containing Bundle contents.
                           type: string
-                        pullSecret:
-                          description: ImagePullSecretName contains the name of the
-                            image pull secret in the namespace that the provisioner
-                            is deployed.
-                          type: string
                       required:
-                      - imageref
+                      - ref
                       type: object
                     kind:
-                      description: Kind of source being passed
                       type: string
                   required:
                   - kind

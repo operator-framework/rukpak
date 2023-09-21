@@ -73,7 +73,7 @@ type defaultUnpacker struct {
 	unpackImage          string
 	baseUploadManagerURL string
 	rootCAs              *x509.CertPool
-	sources              map[v1alpha2.SourceType]Unpacker
+	sources              map[v1alpha2.SourceKind]Unpacker
 }
 
 type UnpackerOption func(*defaultUnpacker)
@@ -97,13 +97,13 @@ func WithRootCAs(rootCAs *x509.CertPool) UnpackerOption {
 }
 
 type unpacker struct {
-	sources map[v1alpha2.SourceType]Unpacker
+	sources map[v1alpha2.SourceKind]Unpacker
 	bd      *v1alpha2.BundleDeplopymentSource
 }
 
 // NewUnpacker returns a new composite Source that unpacks bundles using the source
 // mapping provided by the configured sources.
-func NewUnpacker(sources map[v1alpha2.SourceType]Unpacker) Unpacker {
+func NewUnpacker(sources map[v1alpha2.SourceKind]Unpacker) Unpacker {
 	return &unpacker{sources: sources}
 }
 
@@ -148,12 +148,12 @@ func (u *defaultUnpacker) initialize() (Unpacker, error) {
 	}
 
 	httpTransport.TLSClientConfig.RootCAs = u.rootCAs
-	return NewUnpacker(map[v1alpha2.SourceType]Unpacker{
-		v1alpha2.SourceTypeGit: &Git{
+	return NewUnpacker(map[v1alpha2.SourceKind]Unpacker{
+		v1alpha2.SourceKindGit: &Git{
 			Reader:          u.systemNsCluster.GetClient(),
 			SecretNamespace: u.namespace,
 		},
-		v1alpha2.SourceTypeImage: &Image{
+		v1alpha2.SourceKindImage: &Image{
 			Client:       u.systemNsCluster.GetClient(),
 			KubeClient:   kubeclient,
 			PodNamespace: u.namespace,

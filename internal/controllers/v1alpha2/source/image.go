@@ -69,7 +69,7 @@ func (i *Image) unpack(ctx context.Context, bdName, storagePath string, bdSrc v1
 }
 
 func (i *Image) validate(bdSrc *v1alpha2.BundleDeplopymentSource, opts UnpackOption) error {
-	if bdSrc.Kind != v1alpha2.SourceTypeImage {
+	if bdSrc.Kind != v1alpha2.SourceKindImage {
 		return fmt.Errorf("bundle source type %q not supported", bdSrc.Kind)
 	}
 	if bdSrc.Image == nil {
@@ -147,8 +147,8 @@ func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod, storage
 	}
 
 	resolvedSource := &v1alpha2.BundleDeplopymentSource{
-		Kind:  v1alpha2.SourceTypeImage,
-		Image: &v1alpha2.ImageSource{ImageRef: digest},
+		Kind:  v1alpha2.SourceKindImage,
+		Image: &v1alpha2.ImageSource{Ref: digest},
 	}
 
 	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked}, nil
@@ -211,7 +211,7 @@ func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.Bund
 			).
 			WithContainers(applyconfigurationcorev1.Container().
 				WithName(imageBundleUnpackContainerName).
-				WithImage(bundleSrc.Image.ImageRef).
+				WithImage(bundleSrc.Image.Ref).
 				WithCommand("/bin/unpack", "--bundle-dir", "/").
 				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
 					WithName("util").
@@ -231,9 +231,9 @@ func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.Bund
 			),
 		)
 
-	if bundleSrc.Image.ImagePullSecretName != "" {
+	if bundleSrc.Image.Auth != nil && bundleSrc.Image.Auth.Secret.Name != "" {
 		podApply.Spec = podApply.Spec.WithImagePullSecrets(
-			applyconfigurationcorev1.LocalObjectReference().WithName(bundleSrc.Image.ImagePullSecretName),
+			applyconfigurationcorev1.LocalObjectReference().WithName(bundleSrc.Image.Auth.Secret.Name),
 		)
 	}
 	return podApply

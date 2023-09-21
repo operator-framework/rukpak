@@ -124,7 +124,7 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 	}
 
 	resolvedSource := &v1alpha2.BundleDeplopymentSource{
-		Kind: v1alpha2.SourceTypeGit,
+		Kind: v1alpha2.SourceKindGit,
 		Git:  resolvedGit,
 	}
 	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked, Message: "Successfully unpacked git bundle"}, nil
@@ -140,7 +140,7 @@ func deleteCacheDir(fs afero.Fs) error {
 }
 
 func (r *Git) validate(bundleSrc v1alpha2.BundleDeplopymentSource) error {
-	if bundleSrc.Kind != v1alpha2.SourceTypeGit {
+	if bundleSrc.Kind != v1alpha2.SourceKindGit {
 		return fmt.Errorf("bundle source type %q not supported", bundleSrc.Kind)
 	}
 	if bundleSrc.Git == nil {

@@ -100,8 +100,6 @@ type GitSource struct {
 	Auth Authorization `json:"auth,omitempty"`
 }
 
-// +kubebuilder:storageversion
-
 type ConfigMapSource struct {
 	// ConfigMap is a reference to a configmap in the rukpak system namespace
 	ConfigMap corev1.LocalObjectReference `json:"configMap"`
@@ -164,7 +162,6 @@ type BundleStatus struct {
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 //+kubebuilder:printcolumn:name=Provisioner,type=string,JSONPath=`.spec.provisionerClassName`,priority=1
 //+kubebuilder:printcolumn:name=Resolved Source,type=string,JSONPath=`.status.resolvedSource`,priority=1
-// +kubebuilder:storageversion
 
 // Bundle is the Schema for the bundles API
 type Bundle struct {
