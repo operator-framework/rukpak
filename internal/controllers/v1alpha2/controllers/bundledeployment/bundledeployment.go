@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
 	v1alpha2validators "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/validator"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,6 +54,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
+)
+
+const (
+	unpackpath = "/var/cache"
 )
 
 // BundleDeploymentReconciler reconciles a BundleDeployment object
@@ -229,8 +235,11 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1alpha2.BundleDeployment) (*afero.Fs, v1alpha2source.Result, error) {
 	// set a base filesystem path and unpack contents under the root filepath defined by
 	// bundledeployment name.
-	bundleDepFs := afero.NewBasePathFs(afero.NewOsFs(), bd.GetName())
+	if err := util.CreateDirPath(afero.NewOsFs(), filepath.Join(unpackpath, bd.GetName())); err != nil {
+		return nil, v1alpha2source.Result{State: v1alpha2source.StateUnpackFailed}, err
+	}
 
+	bundleDepFs := afero.NewBasePathFs(afero.NewOsFs(), filepath.Join(unpackpath, bd.GetName()))
 	errs := make([]error, 0)
 	unpackResult := make([]v1alpha2source.Result, 0)
 

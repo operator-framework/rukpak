@@ -35,7 +35,7 @@ type Git struct {
 }
 
 const (
-	gitCachePath = "var/cache/git/"
+	unpackCachePath = "var/cache"
 )
 
 func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
@@ -86,21 +86,28 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 		}
 	}
 
-	if err := util.CreateDirPath(base, gitCachePath); err != nil {
-		return nil, err
+	// TODO: A temp dir is created to clone the git contents, and then copy them
+	// into the local dir. This can be reworked to cache contents, so that we need
+	// not download again when there is no change.
+	tempDir, err := afero.TempDir(base, ".", "git")
+	if err != nil {
+		return &Result{State: StateUnpackFailed, Message: "Error creating temp dir"}, err
 	}
-	defer deleteCacheDir(base)
+
+	defer base.RemoveAll(tempDir)
+
+	// refers to the full local path where contents need to be stored.
+	// since we are using "github.com/otiai10/copy", we need to add afero's
+	// basepath, and construct the full base path for copying.
+	storagePath := filepath.Join(unpackCachePath, bundeDepName, filepath.Clean(bundleSrc.Destination))
+	cacheSrcPath := filepath.Join(unpackCachePath, bundeDepName, tempDir)
 
 	// clone to local but in a cache dir.
-	repo, err := git.PlainCloneContext(ctx, filepath.Join(bundeDepName, gitCachePath), false, &cloneOpts)
+	repo, err := git.PlainCloneContext(ctx, cacheSrcPath, false, &cloneOpts)
 	if err != nil {
 		return nil, fmt.Errorf("bundle unpack git clone error: %v - %s", err, progress.String())
 	}
 
-	// refers to the full local path where contents need to be stored.
-	storagePath := filepath.Join(bundeDepName, filepath.Clean(bundleSrc.Destination))
-
-	cacheSrcPath := filepath.Join(bundeDepName, gitCachePath)
 	if gitsource.Directory != "" {
 		directory := filepath.Clean(gitsource.Directory)
 		if directory[:3] == "../" || directory[0] == '/' {
@@ -109,7 +116,7 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 		cacheSrcPath = filepath.Join(cacheSrcPath, directory)
 	}
 
-	if err := util.CopyDir(base, cacheSrcPath, storagePath); err != nil {
+	if err := util.CopyDir(cacheSrcPath, storagePath); err != nil {
 		return nil, fmt.Errorf("copying contents from cache to local dir: %v", err)
 	}
 
@@ -128,15 +135,6 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 		Git:  resolvedGit,
 	}
 	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked, Message: "Successfully unpacked git bundle"}, nil
-}
-
-func deleteCacheDir(fs afero.Fs) error {
-	paths := strings.Split(gitCachePath, string(os.PathSeparator))
-	if len(paths) <= 0 {
-		// shouldn't happen
-		return fmt.Errorf("unable to find cache directory: %s", gitCachePath)
-	}
-	return fs.RemoveAll(paths[0])
 }
 
 func (r *Git) validate(bundleSrc v1alpha2.BundleDeplopymentSource) error {

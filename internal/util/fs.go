@@ -93,7 +93,7 @@ func (f baseDirFS) Open(name string) (fs.File, error) {
 }
 
 // CopyDir copies contents from one directory to another in afero.Fs
-func CopyDir(fs afero.Fs, srcPath, destPath string) error {
+func CopyDir(srcPath, destPath string) error {
 	return cp.Copy(srcPath, destPath, cp.Options{
 		OnDirExists: func(src, dest string) cp.DirExistsAction {
 			return cp.Merge
