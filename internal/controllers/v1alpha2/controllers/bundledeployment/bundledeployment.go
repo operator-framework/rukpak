@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -35,7 +36,6 @@ import (
 	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
 	v1alpha2validators "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/validator"
-	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -148,6 +148,10 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 	// the status of the object.
 	// TODO: In case of unpack pending and request is being requeued again indefinitely.
 	bundleDepFS, res, err := b.unpackContents(ctx, bd)
+	if res == nil && err != nil {
+		return ctrl.Result{}, err
+	}
+
 	switch res.State {
 	case v1alpha2source.StateUnpackPending:
 		// Explicitely state that error is nil during phases when unpacking is preogressing.
@@ -232,15 +236,14 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 
 // unpackContents unpacks contents from all the sources, and stores under a directory referenced by the bundle deployment name.
 // It returns the consolidated state on whether contents from all the sources have been unpacked.
-func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1alpha2.BundleDeployment) (*afero.Fs, v1alpha2source.Result, error) {
+func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1alpha2.BundleDeployment) (*afero.Fs, *v1alpha2source.Result, error) {
 	// set a base filesystem path and unpack contents under the root filepath defined by
 	// bundledeployment name.
 	if err := util.CreateDirPath(afero.NewOsFs(), filepath.Join(unpackpath, bd.GetName())); err != nil {
-		return nil, v1alpha2source.Result{State: v1alpha2source.StateUnpackFailed}, err
+		return nil, &v1alpha2source.Result{State: v1alpha2source.StateUnpackFailed}, err
 	}
 
 	bundleDepFs := afero.NewBasePathFs(afero.NewOsFs(), filepath.Join(unpackpath, bd.GetName()))
-	errs := make([]error, 0)
 	unpackResult := make([]v1alpha2source.Result, 0)
 
 	// Unpack each of the sources individually, and consolidate all their results into one.
@@ -249,7 +252,7 @@ func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1a
 			BundleDeploymentUID: bd.GetUID(),
 		})
 		if err != nil {
-			errs = append(errs, fmt.Errorf("error unpacking from %s source: %q:  %v", source.Kind, res.Message, err))
+			return nil, nil, err
 		}
 		unpackResult = append(unpackResult, *res)
 	}
@@ -259,12 +262,12 @@ func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1a
 	// which is still waiting to be unpacked.
 	for _, res := range unpackResult {
 		if res.State != v1alpha2source.StateUnpacked {
-			return &bundleDepFs, res, apimacherrors.NewAggregate(errs)
+			return &bundleDepFs, &res, nil
 		}
 	}
 
 	// TODO: capture the list of resolved sources for all the successful entry points.
-	return &bundleDepFs, v1alpha2source.Result{State: v1alpha2source.StateUnpacked, Message: "Successfully unpacked"}, nil
+	return &bundleDepFs, &v1alpha2source.Result{State: v1alpha2source.StateUnpacked, Message: "Successfully unpacked"}, nil
 }
 
 // validateContents validates if the unpacked bundle contents are of the right format.

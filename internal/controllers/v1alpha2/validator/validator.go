@@ -56,7 +56,26 @@ func (p *plainValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeploy
 type helmValidator struct{}
 
 func (h *helmValidator) Validate(ctx context.Context, fs afero.Fs, bundleDeployment v1alpha2.BundleDeployment) error {
-	// validate whether a single directory exists in its root and contains chart.yaml.
+	rootFSEntries, err := afero.ReadDir(fs, ".")
+	if err != nil {
+		return err
+	}
+
+	if len(rootFSEntries) == 1 && rootFSEntries[0].IsDir() {
+		return nil
+	}
+
+	// In certain cases, `chart.yaml` can also end up being in the current directory instead of
+	// <chart-Dir>/chart.yaml. This can happen in scenarios where `rukpak run` is called from the
+	// parent dir, and the uploaded contents contain the helm manifests in root dir.
+	exists, err := afero.Exists(fs, "Chart.yaml")
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fmt.Errorf("could not find Chart.yaml %v", err)
+	}
 	return nil
 }
 

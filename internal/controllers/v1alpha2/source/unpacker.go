@@ -159,5 +159,9 @@ func (u *defaultUnpacker) initialize() (Unpacker, error) {
 			PodNamespace: u.namespace,
 			UnpackImage:  u.unpackImage,
 		},
+		v1alpha2.SourceKindHTTP: &HTTP{
+			Reader:          u.systemNsCluster.GetClient(),
+			SecretNamespace: u.namespace,
+		},
 	}), nil
 }
