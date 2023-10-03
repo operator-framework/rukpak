@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/spf13/afero"
+	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/store"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
@@ -24,7 +25,7 @@ type UnpackOption struct {
 }
 
 type Unpacker interface {
-	Unpack(ctx context.Context, bundleDeploymentName string, bundleDeploymentSource v1alpha2.BundleDeplopymentSource, fs afero.Fs, opts UnpackOption) (*Result, error)
+	Unpack(ctx context.Context, bundleDeploymentSource v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error)
 }
 
 // Result conveys progress information about unpacking bundle content.
@@ -39,6 +40,9 @@ type Result struct {
 	// digest rather than an image tag, and git sources should reference a
 	// commit hash rather than a branch or tag.
 	ResolvedSource *v1alpha2.BundleDeplopymentSource
+
+	// Bundle contains the full filesystem of a bundle's root directory.
+	Bundle io.Reader
 
 	// State is the current state of unpacking the bundle content.
 	State State
@@ -109,12 +113,12 @@ func NewUnpacker(sources map[v1alpha2.SourceKind]Unpacker) Unpacker {
 
 // Unpack itrates over the sources specified in bundleDeployment object. Unpacking is done
 // for each specified source, the bundle contents are stored in the specified destination.
-func (s *unpacker) Unpack(ctx context.Context, bdDepName string, bd v1alpha2.BundleDeplopymentSource, fs afero.Fs, opts UnpackOption) (*Result, error) {
+func (s *unpacker) Unpack(ctx context.Context, bd v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	source, ok := s.sources[bd.Kind]
 	if !ok {
 		return nil, fmt.Errorf("source type %q not supported", bd.Kind)
 	}
-	return source.Unpack(ctx, bdDepName, bd, fs, opts)
+	return source.Unpack(ctx, bd, store, opts)
 }
 
 func NewDefaultUnpackerWithOpts(systemNsCluster cluster.Cluster, namespace string, opts ...UnpackerOption) (Unpacker, error) {

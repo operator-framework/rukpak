@@ -20,14 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+	storage "github.com/operator-framework/rukpak/pkg/storage/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -35,9 +35,9 @@ import (
 
 	v1alpha2deployer "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/deployer"
 	v1alpha2source "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/source"
+	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/store"
 	v1alpha2validators "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/validator"
-	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/spf13/afero"
+	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -67,6 +67,7 @@ type bundleDeploymentReconciler struct {
 	unpacker   v1alpha2source.Unpacker
 	validators []v1alpha2validators.Validator
 	deployer   v1alpha2deployer.Deployer
+	storage    storage.Storage
 
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
@@ -93,6 +94,12 @@ func WithValidators(u ...v1alpha2validators.Validator) Option {
 func WithDeployer(u v1alpha2deployer.Deployer) Option {
 	return func(bd *bundleDeploymentReconciler) {
 		bd.deployer = u
+	}
+}
+
+func WithStorage(u storage.Storage) Option {
+	return func(bd *bundleDeploymentReconciler) {
+		bd.storage = u
 	}
 }
 
@@ -126,7 +133,7 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	reconciledBD := existingBD.DeepCopy()
-	res, reconcileErr := b.reconcile(ctx, reconciledBD)
+	res, reconcileErr := b.reconcile(ctx, reconciledBD, log)
 	// Update the status subresource before updating the main object. This is
 	// necessary because, in many cases, the main object update will remove the
 	// finalizer, which will cause the core Kubernetes deletion logic to
@@ -143,11 +150,27 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return res, reconcileErr
 }
 
-func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2.BundleDeployment) (ctrl.Result, error) {
+func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2.BundleDeployment, log logr.Logger) (ctrl.Result, error) {
+	// Check if the default namespace exists if not create one.
+	// Do this before unpacking, so that if there is an error, we need not
+	// spend effort to unpack or validate bundle contents.
+	if bd.Spec.DefaultNamespace != "" {
+		if err := b.ensureDefaultNamespaceExists(ctx, bd.Spec.DefaultNamespace); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Unpack contents from the bundle deployment for each of the specified source and update
 	// the status of the object.
 	// TODO: In case of unpack pending and request is being requeued again indefinitely.
-	bundleDepFS, res, err := b.unpackContents(ctx, bd)
+	// set a base filesystem path and unpack contents under the root filepath defined by
+	// bundledeployment name.
+	bundleDeploymentStore, err := store.NewBundleDeploymentStore(unpackpath, bd.GetName())
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	res, err := b.unpackContents(ctx, bd, bundleDeploymentStore)
 	if res == nil && err != nil {
 		return ctrl.Result{}, err
 	}
@@ -173,7 +196,7 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 
 	// Unpacked contents from each source would now be availabe in the fs. Validate
 	// if the contents together conform to the specified format.
-	if err = b.validateContents(ctx, bd, bundleDepFS); err != nil {
+	if err = b.validateContents(ctx, bd.Spec.Format, bundleDeploymentStore); err != nil {
 		validateErr := fmt.Errorf("error validating contents for bundle %s with format %s: %v", bd.Name, bd.Spec.Format, err)
 		setValidateFailing(&bd.Status.Conditions, validateErr.Error(), bd.Generation)
 		return ctrl.Result{}, validateErr
@@ -183,7 +206,7 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 	// Deploy the validated contents onto the cluster.
 	// The deployer should return the list of objects which have been deployed, so that
 	// controller can be configured to set up watches for them.
-	deployRes, err := b.deployContents(ctx, bd, bundleDepFS)
+	deployRes, err := b.deployContents(ctx, bundleDeploymentStore, bd)
 	switch deployRes.State {
 	case v1alpha2deployer.StateIntallFailed:
 		setInstallStatusFailed(&bd.Status.Conditions, err.Error(), bd.Generation)
@@ -234,25 +257,46 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bd *v1alpha2
 	return ctrl.Result{}, nil
 }
 
+func (b *bundleDeploymentReconciler) ensureDefaultNamespaceExists(ctx context.Context, name string) error {
+	podList := &corev1.PodList{}
+
+	err := b.List(ctx, podList)
+	if err != nil {
+		fmt.Println("error listing %v", err)
+	}
+	fmt.Println(podList.Items, "*************************")
+
+	ns := &corev1.Namespace{}
+	err = b.Get(ctx, types.NamespacedName{Name: name}, ns)
+	fmt.Println("not able to find combo", err)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			fmt.Println("trying to create combo", err)
+			return b.Create(ctx, &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+				},
+			})
+		}
+		return err
+	}
+	fmt.Println("combo exists!!!!! ", err)
+	return nil
+}
+
 // unpackContents unpacks contents from all the sources, and stores under a directory referenced by the bundle deployment name.
 // It returns the consolidated state on whether contents from all the sources have been unpacked.
-func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1alpha2.BundleDeployment) (*afero.Fs, *v1alpha2source.Result, error) {
-	// set a base filesystem path and unpack contents under the root filepath defined by
-	// bundledeployment name.
-	if err := util.CreateDirPath(afero.NewOsFs(), filepath.Join(unpackpath, bd.GetName())); err != nil {
-		return nil, &v1alpha2source.Result{State: v1alpha2source.StateUnpackFailed}, err
-	}
+func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1alpha2.BundleDeployment, bundleDeploymentStore store.Store) (*v1alpha2source.Result, error) {
 
-	bundleDepFs := afero.NewBasePathFs(afero.NewOsFs(), filepath.Join(unpackpath, bd.GetName()))
 	unpackResult := make([]v1alpha2source.Result, 0)
 
 	// Unpack each of the sources individually, and consolidate all their results into one.
 	for _, source := range bd.Spec.Sources {
-		res, err := b.unpacker.Unpack(ctx, bd.Name, source, bundleDepFs, v1alpha2source.UnpackOption{
+		res, err := b.unpacker.Unpack(ctx, source, bundleDeploymentStore, v1alpha2source.UnpackOption{
 			BundleDeploymentUID: bd.GetUID(),
 		})
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		unpackResult = append(unpackResult, *res)
 	}
@@ -262,19 +306,19 @@ func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bd *v1a
 	// which is still waiting to be unpacked.
 	for _, res := range unpackResult {
 		if res.State != v1alpha2source.StateUnpacked {
-			return &bundleDepFs, &res, nil
+			return &res, nil
 		}
 	}
 
 	// TODO: capture the list of resolved sources for all the successful entry points.
-	return &bundleDepFs, &v1alpha2source.Result{State: v1alpha2source.StateUnpacked, Message: "Successfully unpacked"}, nil
+	return &v1alpha2source.Result{State: v1alpha2source.StateUnpacked, Message: "Successfully unpacked"}, nil
 }
 
 // validateContents validates if the unpacked bundle contents are of the right format.
-func (b *bundleDeploymentReconciler) validateContents(ctx context.Context, bd *v1alpha2.BundleDeployment, fs *afero.Fs) error {
+func (b *bundleDeploymentReconciler) validateContents(ctx context.Context, format v1alpha2.FormatType, store store.Store) error {
 	errs := make([]error, 0)
 	for _, validator := range b.validators {
-		if err := validator.Validate(ctx, *fs, *bd); err != nil {
+		if err := validator.Validate(ctx, format, store); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -282,8 +326,8 @@ func (b *bundleDeploymentReconciler) validateContents(ctx context.Context, bd *v
 }
 
 // deployContents calls the registered deployer to apply the bundle contents onto the cluster.
-func (b *bundleDeploymentReconciler) deployContents(ctx context.Context, bd *v1alpha2.BundleDeployment, fs *afero.Fs) (*v1alpha2deployer.Result, error) {
-	return b.deployer.Deploy(ctx, *fs, bd)
+func (b *bundleDeploymentReconciler) deployContents(ctx context.Context, store store.Store, bd *v1alpha2.BundleDeployment) (*v1alpha2deployer.Result, error) {
+	return b.deployer.Deploy(ctx, store, bd)
 }
 
 func (b *bundleDeploymentReconciler) validateConfig() error {

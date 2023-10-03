@@ -16,8 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/store"
 	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/spf13/afero"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	applyconfigurationcorev1 "k8s.io/client-go/applyconfigurations/core/v1"
@@ -36,19 +36,19 @@ type Image struct {
 
 const imageBundleUnpackContainerName = "bundle"
 
-func (i *Image) Unpack(ctx context.Context, bdName string, bdSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
+func (i *Image) Unpack(ctx context.Context, bdSrc v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	// Validate inputs
 	if err := i.validate(&bdSrc, opts); err != nil {
 		return nil, fmt.Errorf("validation unsuccessful during unpacking %v", err)
 	}
 	// storage path to store contents in local directory.
-	storagePath := filepath.Join(bdName, filepath.Clean(bdSrc.Destination))
-	return i.unpack(ctx, bdName, storagePath, bdSrc, base, opts)
+	storagePath := filepath.Join(store.GetBundleDeploymentName(), filepath.Clean(bdSrc.Destination))
+	return i.unpack(ctx, storagePath, bdSrc, store, opts)
 }
 
-func (i *Image) unpack(ctx context.Context, bdName, storagePath string, bdSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
+func (i *Image) unpack(ctx context.Context, storagePath string, bdSrc v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	pod := &corev1.Pod{}
-	op, err := i.ensureUnpackPod(ctx, bdName, bdSrc, pod, opts)
+	op, err := i.ensureUnpackPod(ctx, store.GetBundleDeploymentName(), bdSrc, pod, opts)
 	if err != nil {
 		return nil, err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
@@ -62,7 +62,7 @@ func (i *Image) unpack(ctx context.Context, bdName, storagePath string, bdSrc v1
 	case corev1.PodFailed:
 		return nil, i.failedPodResult(ctx, pod)
 	case corev1.PodSucceeded:
-		return i.succeededPodResult(ctx, pod, storagePath, bdSrc, base)
+		return i.succeededPodResult(ctx, pod, storagePath, bdSrc, store)
 	default:
 		return nil, i.handleUnexpectedPod(ctx, pod)
 	}
@@ -135,8 +135,8 @@ func (i *Image) failedPodResult(ctx context.Context, pod *corev1.Pod) error {
 	return fmt.Errorf("unpack failed: %v", string(logs))
 }
 
-func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod, storagePath string, bdSrc v1alpha2.BundleDeplopymentSource, base afero.Fs) (*Result, error) {
-	err := i.getBundleContents(ctx, pod, storagePath, &bdSrc, base)
+func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod, storagePath string, bdSrc v1alpha2.BundleDeplopymentSource, store store.Store) (*Result, error) {
+	err := i.getBundleContents(ctx, pod, storagePath, &bdSrc, store)
 	if err != nil {
 		return nil, fmt.Errorf("get bundle contents: %v", err)
 	}
@@ -239,7 +239,7 @@ func (i *Image) getDesiredPodApplyConfig(bdName string, bundleSrc *v1alpha2.Bund
 	return podApply
 }
 
-func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod, storagePath string, bundleSrc *v1alpha2.BundleDeplopymentSource, base afero.Fs) error {
+func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod, storagePath string, bundleSrc *v1alpha2.BundleDeplopymentSource, store store.Store) error {
 	bundleData, err := i.getPodLogs(ctx, pod)
 	if err != nil {
 		return fmt.Errorf("error getting bundle contents: %v", err)
@@ -252,11 +252,11 @@ func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod, storageP
 		return fmt.Errorf("error parsing bundle data: %v", err)
 	}
 
-	if err := (base).RemoveAll(filepath.Clean(bundleSrc.Destination)); err != nil {
+	if err := store.RemoveAll(filepath.Clean(bundleSrc.Destination)); err != nil {
 		return fmt.Errorf("error removing dir %v", err)
 	}
 
-	if err := base.MkdirAll(bundleSrc.Destination, 0755); err != nil {
+	if err := store.MkdirAll(bundleSrc.Destination, 0755); err != nil {
 		return fmt.Errorf("error creating storagepath %q", err)
 	}
 
@@ -268,37 +268,7 @@ func (i *Image) getBundleContents(ctx context.Context, pod *corev1.Pod, storageP
 	// create a tar reader to parse the decompressed data.
 	tr := tar.NewReader(gzr)
 
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return fmt.Errorf("error storing content locally: %v", err)
-		}
-
-		// create file or directory in the file system.
-		if header.Typeflag == tar.TypeDir {
-			if err := base.MkdirAll(filepath.Join(header.Name), 0755); err != nil {
-				return fmt.Errorf("error creating directory for storing bundle contents: %v", err)
-			}
-		} else if header.Typeflag == tar.TypeReg {
-			// If its a regular file, create one and copy data.
-			file, err := base.Create(filepath.Join(header.Name))
-			if err != nil {
-				return fmt.Errorf("error creating file for storing bundle contents: %v", err)
-			}
-
-			if _, err := io.Copy(file, tr); err != nil {
-				return fmt.Errorf("error copying contents: %v", err)
-			}
-			file.Close()
-		} else {
-			return fmt.Errorf("unsupported tar entry type for %s: %v while unpacking", header.Name, header.Typeflag)
-		}
-	}
-	return nil
+	return store.CopyTarArchive(tr, bundleSrc.Destination)
 }
 
 func (i *Image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {

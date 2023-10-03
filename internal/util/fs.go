@@ -7,9 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing/fstest"
-
-	cp "github.com/otiai10/copy"
-	"github.com/spf13/afero"
 )
 
 // FilesOnlyFilesystem is an fs.FS implementation that treats non-regular files
@@ -90,24 +87,4 @@ func (f baseDirFS) Open(name string) (fs.File, error) {
 		return f.fsys.Open(subName)
 	}
 	return nil, fs.ErrNotExist
-}
-
-// CopyDir copies contents from one directory to another in afero.Fs
-func CopyDir(srcPath, destPath string) error {
-	return cp.Copy(srcPath, destPath, cp.Options{
-		OnDirExists: func(src, dest string) cp.DirExistsAction {
-			return cp.Merge
-		},
-	})
-}
-
-func CreateDirPath(fs afero.Fs, path string) error {
-	if err := fs.RemoveAll(path); err != nil {
-		return fmt.Errorf("error removing existing contents from local path: %s: %v", path, err)
-	}
-
-	if err := fs.MkdirAll(path, 0755); err != nil {
-		return fmt.Errorf("error creating path %s: %v", path, err)
-	}
-	return nil
 }

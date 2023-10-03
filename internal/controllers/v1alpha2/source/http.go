@@ -7,12 +7,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"time"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/store"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,7 +25,7 @@ type HTTP struct {
 }
 
 // Unpack unpacks a bundle by requesting the bundle contents from the specified URL
-func (h *HTTP) Unpack(ctx context.Context, bdName string, bdSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
+func (h *HTTP) Unpack(ctx context.Context, bdSrc v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	// Validate inputs
 	if err := h.validate(bdSrc); err != nil {
 		return nil, fmt.Errorf("validating inputs for bundle deployment source %v", err)
@@ -65,11 +65,11 @@ func (h *HTTP) Unpack(ctx context.Context, bdName string, bdSrc v1alpha2.BundleD
 		return nil, fmt.Errorf("%s: unexpected status %q", action, resp.Status)
 	}
 
-	if err := (base).RemoveAll(filepath.Clean(bdSrc.Destination)); err != nil {
+	if err := store.RemoveAll(filepath.Clean(bdSrc.Destination)); err != nil {
 		return nil, fmt.Errorf("removing dir %v", err)
 	}
 
-	if err := base.MkdirAll(bdSrc.Destination, 0755); err != nil {
+	if err := store.MkdirAll(bdSrc.Destination, 0755); err != nil {
 		return nil, fmt.Errorf("creating storagepath %q", err)
 	}
 
@@ -81,46 +81,50 @@ func (h *HTTP) Unpack(ctx context.Context, bdName string, bdSrc v1alpha2.BundleD
 	// create a tar reader to read the compressed data
 	tr := tar.NewReader(gzr)
 
-	// TODO: if chart.yaml exists in cwd, append a parent.
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("storing content locally: %v", err)
-		}
-
-		// create file or directory in the file system
-		if header.Typeflag == tar.TypeDir {
-			if err := base.MkdirAll(filepath.Join(header.Name), 0755); err != nil {
-				return nil, fmt.Errorf("creating directory for storing bundle contents: %v", err)
-			}
-		} else if header.Typeflag == tar.TypeReg {
-			// If it is a regular file, create the path and copy data.
-			// The header stream is not sorted to go over the directories and then
-			// the files. In case, a file is encountered which does not have a parent
-			// when we try to copy contents from the reader, we would error. So, verify if the
-			// parent exists and then copy contents.
-
-			if err := ensureParentDirExists(base, header.Name); err != nil {
-				return nil, fmt.Errorf("creating parent directory: %v", err)
-			}
-
-			file, err := base.Create(filepath.Join(header.Name))
-			if err != nil {
-				return nil, fmt.Errorf("creating file for storing bundle contents: %v", err)
-			}
-
-			if _, err := io.Copy(file, tr); err != nil {
-				return nil, fmt.Errorf("copying contents: %v", err)
-			}
-			file.Close()
-		} else {
-			return nil, fmt.Errorf("unsupported tar entry type for %s: %v while unpacking", header.Name, header.Typeflag)
-		}
+	if err := store.CopyTarArchive(tr, bdSrc.Destination); err != nil {
+		return nil, err
 	}
+
+	// TODO: if chart.yaml exists in cwd, append a parent.
+	// for {
+	// 	header, err := tr.Next()
+	// 	if err == io.EOF {
+	// 		break
+	// 	}
+
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("storing content locally: %v", err)
+	// 	}
+
+	// 	// create file or directory in the file system
+	// 	if header.Typeflag == tar.TypeDir {
+	// 		if err := base.MkdirAll(filepath.Join(header.Name), 0755); err != nil {
+	// 			return nil, fmt.Errorf("creating directory for storing bundle contents: %v", err)
+	// 		}
+	// 	} else if header.Typeflag == tar.TypeReg {
+	// 		// If it is a regular file, create the path and copy data.
+	// 		// The header stream is not sorted to go over the directories and then
+	// 		// the files. In case, a file is encountered which does not have a parent
+	// 		// when we try to copy contents from the reader, we would error. So, verify if the
+	// 		// parent exists and then copy contents.
+
+	// 		if err := ensureParentDirExists(base, header.Name); err != nil {
+	// 			return nil, fmt.Errorf("creating parent directory: %v", err)
+	// 		}
+
+	// 		file, err := base.Create(filepath.Join(header.Name))
+	// 		if err != nil {
+	// 			return nil, fmt.Errorf("creating file for storing bundle contents: %v", err)
+	// 		}
+
+	// 		if _, err := io.Copy(file, tr); err != nil {
+	// 			return nil, fmt.Errorf("copying contents: %v", err)
+	// 		}
+	// 		file.Close()
+	// 	} else {
+	// 		return nil, fmt.Errorf("unsupported tar entry type for %s: %v while unpacking", header.Name, header.Typeflag)
+	// 	}
+	// }
 	return &Result{ResolvedSource: bdSrc.DeepCopy(), State: StateUnpacked, Message: "Successfully unpacked the http Bundle"}, nil
 }
 

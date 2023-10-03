@@ -21,7 +21,7 @@ import (
 	sshgit "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/store"
 	"github.com/spf13/afero"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
@@ -38,7 +38,7 @@ const (
 	unpackCachePath = "var/cache"
 )
 
-func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha2.BundleDeplopymentSource, base afero.Fs, opts UnpackOption) (*Result, error) {
+func (r *Git) Unpack(ctx context.Context, bundleSrc v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	// Validate inputs
 	if err := r.validate(bundleSrc); err != nil {
 		return nil, fmt.Errorf("unpacking unsuccessful %v", err)
@@ -78,10 +78,10 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 	// destination would be <bd-name>/bd.spec.sources.destination.
 	// verify if path already exists if so, clean up.
 	if bundleSrc.Destination != "" {
-		if err := base.RemoveAll(bundleSrc.Destination); err != nil {
+		if err := store.RemoveAll(bundleSrc.Destination); err != nil {
 			return nil, fmt.Errorf("error removing contents from local destination %v", err)
 		}
-		if err := base.MkdirAll(bundleSrc.Destination, 0755); err != nil {
+		if err := store.MkdirAll(bundleSrc.Destination, 0755); err != nil {
 			return nil, fmt.Errorf("error creating storagepath %q", err)
 		}
 	}
@@ -89,18 +89,18 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 	// TODO: A temp dir is created to clone the git contents, and then copy them
 	// into the local dir. This can be reworked to cache contents, so that we need
 	// not download again when there is no change.
-	tempDir, err := afero.TempDir(base, ".", "git")
+	tempDir, err := afero.TempDir(store, ".", "git")
 	if err != nil {
 		return &Result{State: StateUnpackFailed, Message: "Error creating temp dir"}, err
 	}
 
-	defer base.RemoveAll(tempDir)
+	defer store.RemoveAll(tempDir)
 
 	// refers to the full local path where contents need to be stored.
 	// since we are using "github.com/otiai10/copy", we need to add afero's
 	// basepath, and construct the full base path for copying.
-	storagePath := filepath.Join(unpackCachePath, bundeDepName, filepath.Clean(bundleSrc.Destination))
-	cacheSrcPath := filepath.Join(unpackCachePath, bundeDepName, tempDir)
+	storagePath := filepath.Join(unpackCachePath, store.GetBundleDeploymentName(), filepath.Clean(bundleSrc.Destination))
+	cacheSrcPath := filepath.Join(unpackCachePath, store.GetBundleDeploymentName(), tempDir)
 
 	// clone to local but in a cache dir.
 	repo, err := git.PlainCloneContext(ctx, cacheSrcPath, false, &cloneOpts)
@@ -116,7 +116,7 @@ func (r *Git) Unpack(ctx context.Context, bundeDepName string, bundleSrc v1alpha
 		cacheSrcPath = filepath.Join(cacheSrcPath, directory)
 	}
 
-	if err := util.CopyDir(cacheSrcPath, storagePath); err != nil {
+	if err := store.CopyDir(cacheSrcPath, storagePath); err != nil {
 		return nil, fmt.Errorf("copying contents from cache to local dir: %v", err)
 	}
 

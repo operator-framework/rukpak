@@ -24,21 +24,21 @@ import (
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
 	v1alpha2util "github.com/operator-framework/rukpak/internal/controllers/v1alpha2/controllers/util"
+	"github.com/operator-framework/rukpak/internal/controllers/v1alpha2/store"
 	"github.com/operator-framework/rukpak/internal/convert"
 	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/spf13/afero"
 	"golang.org/x/sync/errgroup"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-
-	"github.com/spf13/afero"
 )
 
 type Deployer interface {
 	// Deploy deploys the contents from fs onto the cluster and returns list of the deployed object.
-	Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error)
+	Deploy(ctx context.Context, store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error)
 }
 
 // Result conveys the progress information about deploying content.
@@ -102,8 +102,8 @@ func NewDefaultHelmDeployerWithOpts(opts ...DeployerOption) Deployer {
 	return dep
 }
 
-func (hd *helmDeployer) Deploy(ctx context.Context, fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error) {
-	chrt, values, err := hd.fetchChart(fs, bundleDeployment)
+func (hd *helmDeployer) Deploy(ctx context.Context, store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error) {
+	chrt, values, err := hd.fetchChart(store, bundleDeployment)
 	if err != nil {
 		return nil, fmt.Errorf("error creating chart from bundle contents: %v", err)
 	}
@@ -219,21 +219,21 @@ func (hd *helmDeployer) getReleaseState(cl helmclient.ActionInterface, obj metav
 	return currentRelease, stateUnchanged, nil
 }
 
-func (bd *helmDeployer) fetchChart(fs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+func (bd *helmDeployer) fetchChart(store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	format := bundleDeployment.Spec.Format
 	switch format {
 	case v1alpha2.FormatHelm:
-		return getChartFromHelmBundle(fs, bundleDeployment)
+		return getChartFromHelmBundle(store, bundleDeployment)
 	case v1alpha2.FormatRegistryV1:
-		return getChartFromRegistryBundle(fs, bundleDeployment)
+		return getChartFromRegistryBundle(store, bundleDeployment)
 	case v1alpha2.FormatPlain:
-		return getChartFromPlainBundle(fs, bundleDeployment)
+		return getChartFromPlainBundle(store, bundleDeployment)
 	default:
 		return nil, nil, errors.New("unknown format to convert into chart")
 	}
 }
 
-func getChartFromHelmBundle(chartfs afero.Fs, bundleDeployment *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+func getChartFromHelmBundle(store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	values, err := loadValues(bundleDeployment)
 	if err != nil {
 		return nil, nil, err
@@ -242,7 +242,7 @@ func getChartFromHelmBundle(chartfs afero.Fs, bundleDeployment *v1alpha2.BundleD
 	pr, pw := io.Pipe()
 	var eg errgroup.Group
 	eg.Go(func() error {
-		return pw.CloseWithError(util.AferoFSToTarGZ(pw, chartfs))
+		return pw.CloseWithError(util.AferoFSToTarGZ(pw, store))
 	})
 
 	var chrt *chart.Chart
@@ -283,8 +283,8 @@ func loadValues(bd *v1alpha2.BundleDeployment) (chartutil.Values, error) {
 	return values, nil
 }
 
-func getChartFromRegistryBundle(chartfs afero.Fs, bd *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
-	plainFS, err := convert.RegistryV1ToPlain(chartfs)
+func getChartFromRegistryBundle(store store.Store, bd *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+	plainFS, err := convert.RegistryV1ToPlain(store)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error converting registry+v1 bundle to plain+v0 bundle: %v", err)
 	}

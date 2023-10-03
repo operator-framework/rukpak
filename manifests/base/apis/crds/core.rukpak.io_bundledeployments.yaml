@@ -588,10 +588,6 @@ spec:
           status:
             description: BundleDeploymentStatus defines the observed state of BundleDeployment
             properties:
-              cachedbundles:
-                items:
-                  type: string
-                type: array
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
