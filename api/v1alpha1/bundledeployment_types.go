@@ -86,7 +86,9 @@ type BundleDeploymentStatus struct {
 //+kubebuilder:printcolumn:name=Provisioner,type=string,JSONPath=`.spec.provisionerClassName`,priority=1
 
 // BundleDeployment is the Schema for the bundledeployments API
-// +kubebuilder:storageversion
+// TODO(varsha): Marking this as unserved version for now. Remove this definition during cleanup, when the all the
+// work on alpha2 is done.
+// +kubebuilder:unservedversion
 type BundleDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

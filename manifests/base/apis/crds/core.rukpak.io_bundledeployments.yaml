@@ -34,7 +34,9 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: BundleDeployment is the Schema for the bundledeployments API
+        description: 'BundleDeployment is the Schema for the bundledeployments API
+          TODO(varsha): Marking this as unserved version for now. Remove this definition
+          during cleanup, when the all the work on alpha2 is done.'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -372,8 +374,8 @@ spec:
         required:
         - spec
         type: object
-    served: true
-    storage: true
+    served: false
+    storage: false
     subresources:
       status: {}
   - additionalPrinterColumns:
@@ -683,6 +685,6 @@ spec:
         - spec
         type: object
     served: true
-    storage: false
+    storage: true
     subresources:
       status: {}
