@@ -106,5 +106,6 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bundleDeploy
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	return ctrl.Result{}, nil
 }

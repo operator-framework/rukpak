@@ -38,16 +38,6 @@ type BundleDeplopymentSource struct {
 	Destination string `json:"destination,omitempty"`
 }
 
-// SourceKind refers to the kind of source being
-// used to unpack contents.
-type SourceKind string
-
-const (
-	SourceTypeImage SourceKind = "image"
-	SourceTypeGit   SourceKind = "git"
-	SourceTypeHTTP  SourceKind = "http"
-)
-
 type ImageSource struct {
 	// Ref contains the reference to a container image containing Bundle contents.
 	Ref string `json:"ref"`

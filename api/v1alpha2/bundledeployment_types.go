@@ -20,6 +20,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var (
+	BundleDeploymentGVK  = SchemeBuilder.GroupVersion.WithKind("BundleDeployment")
+	BundleDeploymentKind = BundleDeploymentGVK.Kind
+)
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}

@@ -71,6 +71,12 @@ var _ = Describe("Store suite", func() {
 			dirExists, _ := afero.DirExists(testFs, filepath.Join(baseUnpackPath, bdName))
 			Expect(dirExists).To(BeTrue())
 		})
+
+		It("should error when a file system is not defined", func() {
+			store, err := NewBundleDeploymentStore(baseUnpackPath, bdName, nil)
+			Expect(err).To(HaveOccurred())
+			Expect(store).To(BeNil())
+		})
 	})
 
 	Describe("CopyTarArchive", func() {

@@ -18,6 +18,7 @@ package store
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -46,6 +47,10 @@ type bundledeploymentStore struct {
 // NewBundleDeploymentStore returns a local file system abstraction rooted at the provided <base_unpack_path/bundledeployment_name>.
 // It removes any pre-existing data at that path.
 func NewBundleDeploymentStore(baseUnpackPath, bundledeploymentName string, fs afero.Fs) (*bundledeploymentStore, error) {
+	if fs == nil {
+		return nil, errors.New("filesystem not defined")
+	}
+
 	if err := fs.RemoveAll(filepath.Join(baseUnpackPath, bundledeploymentName)); err != nil {
 		return nil, err
 	}
@@ -78,7 +83,7 @@ func (b *bundledeploymentStore) CopyTarArchive(reader *tar.Reader, destination s
 		}
 
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %v", ErrCopyContents, err)
 		}
 
 		if header.Typeflag == tar.TypeDir {
