@@ -57,6 +57,9 @@ type BundleDeploymentSpec struct {
 	// Config is provisioner specific configurations
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Config runtime.RawExtension `json:"config,omitempty"`
+	// Availability Probes check objects that are part of the bundle deployment
+	// +optional
+	AvailabilityProbes []BundleDeploymentProbe `json:"availabilityProbes,omitempty"`
 }
 
 // BundleTemplate defines the desired state of a Bundle resource
@@ -101,6 +104,84 @@ type BundleDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []BundleDeployment `json:"items"`
+}
+
+// BundleDeploymentProbe define how BundleDeployments check their children for their status.
+type BundleDeploymentProbe struct {
+	// Probe configuration parameters.
+	Probes []Probe `json:"probes"`
+	// Selector specifies which objects this probe should target.
+	Selector ProbeSelector `json:"selector"`
+}
+
+type ConditionMapping struct {
+	// Source condition type.
+	SourceType string `json:"sourceType"`
+	// Destination condition type to report into Package Operator APIs.
+	// +kubebuilder:validation:Pattern=`[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*\/([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]`
+	DestinationType string `json:"destinationType"`
+}
+
+// Selects a subset of objects to apply probes to.
+// e.g. ensures that probes defined for apps/Deployments are not checked against ConfigMaps.
+type ProbeSelector struct {
+	// Kind and API Group of the object to probe.
+	Kind *BundleDeploymentProbeKindSpec `json:"kind"`
+	// Further sub-selects objects based on a Label Selector.
+	// +example={matchLabels: {app.kubernetes.io/name: example-operator}}
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
+}
+
+// Kind package probe parameters.
+// selects objects based on Kind and API Group.
+type BundleDeploymentProbeKindSpec struct {
+	// Object Group to apply a probe to.
+	// +example=apps
+	Group string `json:"group"`
+	// Object Kind to apply a probe to.
+	// +example=Deployment
+	Kind string `json:"kind"`
+}
+
+// Defines probe parameters. Only one can be filled.
+type Probe struct {
+	Condition   *ProbeConditionSpec   `json:"condition,omitempty"`
+	FieldsEqual *ProbeFieldsEqualSpec `json:"fieldsEqual,omitempty"`
+	CEL         *ProbeCELSpec         `json:"cel,omitempty"`
+}
+
+// Checks whether or not the object reports a condition with given type and status.
+type ProbeConditionSpec struct {
+	// Condition type to probe for.
+	// +example=Available
+	Type string `json:"type"`
+	// Condition status to probe for.
+	// +kubebuilder:default="True"
+	Status string `json:"status"`
+}
+
+// Compares two fields specified by JSON Paths.
+type ProbeFieldsEqualSpec struct {
+	// First field for comparison.
+	// +example=.spec.fieldA
+	FieldA string `json:"fieldA"`
+	// Second field for comparison.
+	// +example=.status.fieldB
+	FieldB string `json:"fieldB"`
+}
+
+// Uses Common Expression Language (CEL) to probe an object.
+// CEL rules have to evaluate to a boolean to be valid.
+// See:
+// https://kubernetes.io/docs/reference/using-api/cel
+// https://github.com/google/cel-go
+type ProbeCELSpec struct {
+	// CEL rule to evaluate.
+	// +example=self.metadata.name == "Hans"
+	Rule string `json:"rule"`
+	// Error message to output if rule evaluates to false.
+	// +example=Object must be named Hans
+	Message string `json:"message"`
 }
 
 func init() {

@@ -51,6 +51,137 @@ spec:
           spec:
             description: BundleDeploymentSpec defines the desired state of BundleDeployment
             properties:
+              availabilityProbes:
+                description: Availability Probes check objects that are part of the
+                  bundle deployment
+                items:
+                  description: BundleDeploymentProbe define how BundleDeployments
+                    check their children for their status.
+                  properties:
+                    probes:
+                      description: Probe configuration parameters.
+                      items:
+                        description: Defines probe parameters. Only one can be filled.
+                        properties:
+                          cel:
+                            description: 'Uses Common Expression Language (CEL) to
+                              probe an object. CEL rules have to evaluate to a boolean
+                              to be valid. See: https://kubernetes.io/docs/reference/using-api/cel
+                              https://github.com/google/cel-go'
+                            properties:
+                              message:
+                                description: Error message to output if rule evaluates
+                                  to false.
+                                type: string
+                              rule:
+                                description: CEL rule to evaluate.
+                                type: string
+                            required:
+                            - message
+                            - rule
+                            type: object
+                          condition:
+                            description: Checks whether or not the object reports
+                              a condition with given type and status.
+                            properties:
+                              status:
+                                default: "True"
+                                description: Condition status to probe for.
+                                type: string
+                              type:
+                                description: Condition type to probe for.
+                                type: string
+                            required:
+                            - status
+                            - type
+                            type: object
+                          fieldsEqual:
+                            description: Compares two fields specified by JSON Paths.
+                            properties:
+                              fieldA:
+                                description: First field for comparison.
+                                type: string
+                              fieldB:
+                                description: Second field for comparison.
+                                type: string
+                            required:
+                            - fieldA
+                            - fieldB
+                            type: object
+                        type: object
+                      type: array
+                    selector:
+                      description: Selector specifies which objects this probe should
+                        target.
+                      properties:
+                        kind:
+                          description: Kind and API Group of the object to probe.
+                          properties:
+                            group:
+                              description: Object Group to apply a probe to.
+                              type: string
+                            kind:
+                              description: Object Kind to apply a probe to.
+                              type: string
+                          required:
+                          - group
+                          - kind
+                          type: object
+                        selector:
+                          description: Further sub-selects objects based on a Label
+                            Selector.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: A label selector requirement is a selector
+                                  that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: operator represents a key's relationship
+                                      to a set of values. Valid operators are In,
+                                      NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: values is an array of string values.
+                                      If the operator is In or NotIn, the values array
+                                      must be non-empty. If the operator is Exists
+                                      or DoesNotExist, the values array must be empty.
+                                      This array is replaced during a strategic merge
+                                      patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: matchLabels is a map of {key,value} pairs.
+                                A single {key,value} in the matchLabels map is equivalent
+                                to an element of matchExpressions, whose key field
+                                is "key", the operator is "In", and the values array
+                                contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                          x-kubernetes-map-type: atomic
+                      required:
+                      - kind
+                      type: object
+                  required:
+                  - probes
+                  - selector
+                  type: object
+                type: array
               config:
                 description: Config is provisioner specific configurations
                 type: object
