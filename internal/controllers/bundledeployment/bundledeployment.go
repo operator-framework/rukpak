@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/operator-framework/rukpak/internal/probing"
 	"io"
 	"strings"
 	"sync"
@@ -371,7 +372,33 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 	bd.Status.ActiveBundle = bundle.GetName()
 
 	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentHealth) {
-		if err = healthchecks.AreObjectsHealthy(ctx, c.cl, relObjects); err != nil {
+		doit := func() error {
+			probe, err := probing.Parse(ctx, bd.Spec.AvailabilityProbes)
+			if err != nil {
+				log.FromContext(ctx).V(1).Info("failed to parse probes - using default health-check", "error", err)
+				return healthchecks.AreObjectsHealthy(ctx, c.cl, relObjects)
+			}
+
+			var probeSuccess = true
+			var messages []string
+			for _, obj := range relObjects {
+				unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+				if err != nil {
+					return err
+				}
+				success, message := probe.Probe(&unstructured.Unstructured{Object: unstructuredObj})
+				probeSuccess = probeSuccess && success
+				if !success {
+					messages = append(messages, message)
+				}
+			}
+			if !probeSuccess {
+				return errors.New(strings.Join(messages, ", "))
+			}
+			return nil
+		}
+
+		if err = doit(); err != nil {
 			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 				Type:    rukpakv1alpha1.TypeHealthy,
 				Status:  metav1.ConditionFalse,

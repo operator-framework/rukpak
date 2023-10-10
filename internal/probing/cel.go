@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/google/cel-go/cel"
-	"github.com/google/cel-go/ext"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apiserver/pkg/cel/library"
 )
@@ -25,7 +24,8 @@ func newCELProbe(rule, message string) (*celProbe, error) {
 		cel.EagerlyValidateDeclarations(true),
 		cel.DefaultUTCTimeZone(true),
 
-		ext.Strings(ext.StringsVersion(0)),
+		// TODO: this doesn't exist in the working version of the cel library
+		// ext.Strings(ext.StringsVersion(0)),
 		library.URLs(),
 		library.Regex(),
 		library.Lists(),
