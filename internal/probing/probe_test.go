@@ -14,9 +14,7 @@ type proberMock struct {
 	mock.Mock
 }
 
-func (m *proberMock) Probe(obj *unstructured.Unstructured) (
-	success bool, message string,
-) {
+func (m *proberMock) Probe(obj *unstructured.Unstructured) (bool, string) {
 	args := m.Called(obj)
 	return args.Bool(0), args.String(1)
 }

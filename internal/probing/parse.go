@@ -3,6 +3,7 @@ package probing
 import (
 	"context"
 	"fmt"
+
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

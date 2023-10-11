@@ -12,7 +12,7 @@ type kindSelector struct {
 	schema.GroupKind
 }
 
-func (kp *kindSelector) Probe(obj *unstructured.Unstructured) (success bool, message string) {
+func (kp *kindSelector) Probe(obj *unstructured.Unstructured) (bool, string) {
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	if kp.Kind == gvk.Kind &&
 		kp.Group == gvk.Group {
@@ -29,7 +29,7 @@ type selectorSelector struct {
 	labels.Selector
 }
 
-func (ss *selectorSelector) Probe(obj *unstructured.Unstructured) (success bool, message string) {
+func (ss *selectorSelector) Probe(obj *unstructured.Unstructured) (bool, string) {
 	if !ss.Selector.Matches(labels.Set(obj.GetLabels())) {
 		// We want to _skip_ objects, that don't match.
 		// So this probe succeeds by default.

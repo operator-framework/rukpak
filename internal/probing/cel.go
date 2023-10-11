@@ -53,7 +53,7 @@ func newCELProbe(rule, message string) (*celProbe, error) {
 	}, nil
 }
 
-func (p *celProbe) Probe(obj *unstructured.Unstructured) (success bool, message string) {
+func (p *celProbe) Probe(obj *unstructured.Unstructured) (bool, string) {
 	val, _, err := p.Program.Eval(map[string]any{
 		"self": obj.Object,
 	})

@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/operator-framework/rukpak/internal/probing"
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/operator-framework/rukpak/internal/probing"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"helm.sh/helm/v3/pkg/action"
@@ -372,33 +373,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 	bd.Status.ActiveBundle = bundle.GetName()
 
 	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentHealth) {
-		doit := func() error {
-			probe, err := probing.Parse(ctx, bd.Spec.AvailabilityProbes)
-			if err != nil {
-				log.FromContext(ctx).V(1).Info("failed to parse probes - using default health-check", "error", err)
-				return healthchecks.AreObjectsHealthy(ctx, c.cl, relObjects)
-			}
-
-			var probeSuccess = true
-			var messages []string
-			for _, obj := range relObjects {
-				unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-				if err != nil {
-					return err
-				}
-				success, message := probe.Probe(&unstructured.Unstructured{Object: unstructuredObj})
-				probeSuccess = probeSuccess && success
-				if !success {
-					messages = append(messages, message)
-				}
-			}
-			if !probeSuccess {
-				return errors.New(strings.Join(messages, ", "))
-			}
-			return nil
-		}
-
-		if err = doit(); err != nil {
+		if err = healthchecks.AreObjectsHealthy(ctx, c.cl, relObjects); err != nil {
 			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 				Type:    rukpakv1alpha1.TypeHealthy,
 				Status:  metav1.ConditionFalse,
@@ -414,11 +389,80 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			Message: "BundleDeployment is healthy",
 		})
 	}
+
+	// todo: unknown condition if there are no probes? or just no condition?
+	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentCustomAvailabilityProbes) && len(bd.Spec.AvailabilityProbes) > 0 {
+		probe, err := probing.Parse(ctx, bd.Spec.AvailabilityProbes)
+		if err != nil {
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeAvailable,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonInvalidProbeSyntax,
+				Message: err.Error(),
+			})
+
+			// probes won't get any more parsable without a spec change not point in retrying - returning nil
+			return ctrl.Result{}, nil
+		}
+
+		if err := c.probeForAvailability(ctx, probe, relObjects); err != nil {
+			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha1.TypeAvailable,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha1.ReasonAvailabilityProbeFailed,
+				Message: err.Error(),
+			})
+			return ctrl.Result{}, err
+		}
+
+		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha1.TypeAvailable,
+			Status:  metav1.ConditionTrue,
+			Reason:  rukpakv1alpha1.ReasonAvailabilityProbeSucceeded,
+			Message: "BundleDeployment is available",
+		})
+	}
+
 	if err := c.reconcileOldBundles(ctx, bundle, allBundles); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to delete old bundles: %v", err)
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (c *controller) probeForAvailability(ctx context.Context, probe probing.Prober, relObjects []client.Object) error {
+	var probeSuccess = true
+	var messages []string
+
+	// todo: fail fast or continue on error?
+	for _, obj := range relObjects {
+		// get status for release object
+		if err := c.cl.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+			probeSuccess = false
+			messages = append(messages, err.Error())
+			continue
+		}
+
+		// transform obj into unstructured
+		unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		if err != nil {
+			probeSuccess = false
+			messages = append(messages, err.Error())
+			continue
+		}
+
+		// probe object's availability
+		success, message := probe.Probe(&unstructured.Unstructured{Object: unstructuredObj})
+		probeSuccess = probeSuccess && success
+		if !success {
+			messages = append(messages, message)
+		}
+	}
+	if !probeSuccess {
+		return fmt.Errorf("availability probe failed: %s", strings.Join(messages, ", "))
+	}
+
+	return nil
 }
 
 // setInstalledAndHealthyFalse sets the Installed and if the feature gate is enabled, the Healthy conditions to False,
