@@ -25,6 +25,15 @@ var (
 	BundleDeploymentKind = BundleDeploymentGVK.Kind
 )
 
+const (
+	TypeUnpacked = "Unpacked"
+
+	ReasonUnpackFailed     = "UnpackFailed"
+	ReasonUnpackPending    = "UnpackPending"
+	ReasonUnpacking        = "Unpacking"
+	ReasonUnpackSuccessful = "UnpackSuccessful"
+)
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}
@@ -110,4 +119,8 @@ type BundleDeploymentList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 
 	Items []BundleDeployment `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&BundleDeployment{}, &BundleDeploymentList{})
 }

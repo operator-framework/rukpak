@@ -204,11 +204,11 @@ var _ = Describe("Image Suite", func() {
 
 		BeforeEach(func() {
 			bdName = "test"
-			mockTestStore = &mockStore{
+			mockTestStore = &MockStore{
 				copyTarArchiveFunc: func(tr *tar.Reader, destination string) error {
 					return nil
 				},
-				fs:               afero.NewMemMapFs(),
+				Fs:               afero.NewMemMapFs(),
 				bundleDeployment: bdName,
 			}
 		})

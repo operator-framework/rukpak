@@ -25,82 +25,82 @@ import (
 	"github.com/spf13/afero"
 )
 
-// mockStore is intended to be used for testing purposes. It implements store.Store.
-type mockStore struct {
+// MockStore is intended to be used for testing purposes. It implements store.Store.
+type MockStore struct {
 	copyTarArchiveFunc func(tr *tar.Reader, destination string) error
 	copyDirFSFunc      func(source, destination string) error
 	bundleDirectory    string
 	bundleDeployment   string
-	fs                 afero.Fs
+	Fs                 afero.Fs
 }
 
-var _ store.Store = &mockStore{}
+var _ store.Store = &MockStore{}
 
 // Copies contents from a tar reader to the destination on the filesystem
-func (m *mockStore) CopyTarArchive(reader *tar.Reader, destination string) error {
+func (m *MockStore) CopyTarArchive(reader *tar.Reader, destination string) error {
 	return m.copyTarArchiveFunc(reader, destination)
 }
 
-func (m *mockStore) CopyDirFS(source, destination string, _ afero.Fs) error {
+func (m *MockStore) CopyDirFS(source, destination string, _ afero.Fs) error {
 	return m.copyDirFSFunc(source, destination)
 }
 
-func (m *mockStore) GetBundleDeploymentName() string {
+func (m *MockStore) GetBundleDeploymentName() string {
 	return m.bundleDeployment
 }
 
-func (m *mockStore) GetBundleDirectory() string {
+func (m *MockStore) GetBundleDirectory() string {
 	return m.bundleDirectory
 }
 
-func (m *mockStore) Create(name string) (afero.File, error) {
-	return m.fs.Create(name)
+func (m *MockStore) Create(name string) (afero.File, error) {
+	return m.Fs.Create(name)
 }
 
-func (m *mockStore) Mkdir(name string, perm os.FileMode) error {
-	return m.fs.Mkdir(name, perm)
+func (m *MockStore) Mkdir(name string, perm os.FileMode) error {
+	return m.Fs.Mkdir(name, perm)
 }
 
-func (m *mockStore) MkdirAll(path string, perm os.FileMode) error {
-	return m.fs.MkdirAll(path, perm)
+func (m *MockStore) MkdirAll(path string, perm os.FileMode) error {
+	return m.Fs.MkdirAll(path, perm)
 }
 
-func (m *mockStore) Open(name string) (afero.File, error) {
-	return m.fs.Open(name)
+func (m *MockStore) Open(name string) (afero.File, error) {
+	return m.Fs.Open(name)
 }
 
-func (m *mockStore) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
-	return m.fs.OpenFile(name, flag, perm)
+func (m *MockStore) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	return m.Fs.OpenFile(name, flag, perm)
 }
 
-func (m *mockStore) Remove(name string) error {
-	return m.fs.Remove(name)
+func (m *MockStore) Remove(name string) error {
+	return m.Fs.Remove(name)
 }
 
-func (m *mockStore) RemoveAll(path string) error {
-	return m.fs.RemoveAll(path)
+func (m *MockStore) RemoveAll(path string) error {
+	return m.Fs.RemoveAll(path)
 }
 
-func (m *mockStore) Rename(oldname, newname string) error {
-	return m.fs.Rename(oldname, newname)
+func (m *MockStore) Rename(oldname, newname string) error {
+	return m.Fs.Rename(oldname, newname)
 }
 
-func (m *mockStore) Stat(name string) (os.FileInfo, error) {
-	return m.fs.Stat(name)
+func (m *MockStore) Stat(name string) (os.FileInfo, error) {
+	return m.Fs.Stat(name)
 }
 
-func (m *mockStore) Name() string {
-	return m.fs.Name()
+func (m *MockStore) Name() string {
+	return m.Fs.Name()
 }
 
-func (m *mockStore) Chmod(name string, mode os.FileMode) error {
-	return m.fs.Chmod(name, mode)
+func (m *MockStore) Chmod(name string, mode os.FileMode) error {
+	return m.Fs.Chmod(name, mode)
 }
 
-func (m *mockStore) Chown(name string, uid, gid int) error {
-	return m.fs.Chown(name, uid, gid)
+func (m *MockStore) Chown(name string, uid, gid int) error {
+	return m.Fs.Chown(name, uid, gid)
 }
 
-func (m *mockStore) Chtimes(name string, atime time.Time, mtime time.Time) error {
-	return m.fs.Chtimes(name, atime, mtime)
+func (m *MockStore) Chtimes(name string, atime time.Time, mtime time.Time) error {
+	return m.Fs.Chtimes(name, atime, mtime)
 }
