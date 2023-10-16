@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,6 +41,10 @@ func TestAreObjectsHealthy(t *testing.T) {
 								Status: "True",
 							},
 						},
+						Replicas:          1,
+						UpdatedReplicas:   1,
+						AvailableReplicas: 1,
+						ReadyReplicas:     1,
 					},
 				},
 				&appsv1.StatefulSet{
@@ -51,8 +56,9 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyStatefulSet",
 					},
 					Status: appsv1.StatefulSetStatus{
-						ReadyReplicas: 1,
-						Replicas:      1,
+						ReadyReplicas:   1,
+						Replicas:        1,
+						CurrentReplicas: 1,
 					},
 				},
 				&appsv1.DaemonSet{
@@ -61,11 +67,16 @@ func TestAreObjectsHealthy(t *testing.T) {
 						APIVersion: "apps/v1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "MyDaemonSet",
+						Name:       "MyDaemonSet",
+						Generation: 1,
 					},
 					Status: appsv1.DaemonSetStatus{
 						NumberAvailable:        1,
 						DesiredNumberScheduled: 1,
+						ObservedGeneration:     1,
+						CurrentNumberScheduled: 1,
+						UpdatedNumberScheduled: 1,
+						NumberReady:            1,
 					},
 				},
 				&appsv1.ReplicaSet{
@@ -77,8 +88,10 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyReplicatSet",
 					},
 					Status: appsv1.ReplicaSetStatus{
-						AvailableReplicas: 1,
-						Replicas:          1,
+						AvailableReplicas:    1,
+						Replicas:             1,
+						FullyLabeledReplicas: 1,
+						ReadyReplicas:        1,
 					},
 				},
 				&corev1.Pod{
@@ -155,6 +168,10 @@ func TestAreObjectsHealthy(t *testing.T) {
 								Status: "True",
 							},
 						},
+						Replicas:          1,
+						UpdatedReplicas:   1,
+						AvailableReplicas: 1,
+						ReadyReplicas:     1,
 					},
 				},
 				&appsv1.StatefulSet{
@@ -166,8 +183,9 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyStatefulSet",
 					},
 					Status: appsv1.StatefulSetStatus{
-						ReadyReplicas: 1,
-						Replicas:      1,
+						ReadyReplicas:   1,
+						Replicas:        1,
+						CurrentReplicas: 1,
 					},
 				},
 				&appsv1.DaemonSet{
@@ -176,11 +194,15 @@ func TestAreObjectsHealthy(t *testing.T) {
 						APIVersion: "apps/v1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "MyDaemonSet",
+						Name:       "MyDaemonSet",
+						Generation: 1,
 					},
 					Status: appsv1.DaemonSetStatus{
 						NumberAvailable:        0,
 						DesiredNumberScheduled: 1,
+						ObservedGeneration:     1,
+						CurrentNumberScheduled: 1,
+						UpdatedNumberScheduled: 1,
 					},
 				},
 			},
@@ -205,6 +227,10 @@ func TestAreObjectsHealthy(t *testing.T) {
 								Message: "Something went wrong",
 							},
 						},
+						Replicas:          1,
+						UpdatedReplicas:   1,
+						AvailableReplicas: 1,
+						ReadyReplicas:     1,
 					},
 				},
 				&appsv1.StatefulSet{
@@ -216,8 +242,9 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyStatefulSet",
 					},
 					Status: appsv1.StatefulSetStatus{
-						ReadyReplicas: 0,
-						Replicas:      1,
+						ReadyReplicas:   0,
+						Replicas:        1,
+						CurrentReplicas: 1,
 					},
 				},
 				&appsv1.DaemonSet{
@@ -226,11 +253,15 @@ func TestAreObjectsHealthy(t *testing.T) {
 						APIVersion: "apps/v1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "MyDaemonSet",
+						Name:       "MyDaemonSet",
+						Generation: 1,
 					},
 					Status: appsv1.DaemonSetStatus{
 						NumberAvailable:        0,
 						DesiredNumberScheduled: 1,
+						ObservedGeneration:     1,
+						CurrentNumberScheduled: 1,
+						UpdatedNumberScheduled: 1,
 					},
 				},
 				&appsv1.ReplicaSet{
@@ -242,8 +273,9 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyReplicatSet",
 					},
 					Status: appsv1.ReplicaSetStatus{
-						AvailableReplicas: 0,
-						Replicas:          1,
+						AvailableReplicas:    0,
+						Replicas:             1,
+						FullyLabeledReplicas: 1,
 					},
 				},
 				&corev1.Pod{
@@ -255,6 +287,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyPod",
 					},
 					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
 						Conditions: []corev1.PodCondition{
 							{
 								Type:   corev1.PodReady,
@@ -329,8 +362,13 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyPod",
 					},
 					Status: corev1.PodStatus{
-						Conditions: nil,
-						Phase:      corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
+						Phase: corev1.PodRunning,
 					},
 				},
 			},
@@ -384,7 +422,11 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyDeployment",
 					},
 					Status: appsv1.DeploymentStatus{
-						Conditions: nil,
+						Conditions:        nil,
+						Replicas:          1,
+						UpdatedReplicas:   1,
+						AvailableReplicas: 1,
+						ReadyReplicas:     1,
 					},
 				},
 			},
@@ -406,17 +448,18 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: func() *int32 { i := int32(1); return &i }(),
+						Replicas: pointer.Int32(1),
 					},
 					Status: appsv1.StatefulSetStatus{
 						Conditions:         nil,
 						ObservedGeneration: 1,
 						ReadyReplicas:      1,
 						Replicas:           1,
+						CurrentReplicas:    1,
 					},
 				},
 			},
-			expectedErr: true,
+			expectedErr: false,
 		},
 		{
 			name: "DaemonSet: valid resource with no conditions, doesn't return error",
@@ -427,12 +470,17 @@ func TestAreObjectsHealthy(t *testing.T) {
 						APIVersion: "apps/v1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "MyDaemonSet",
+						Name:       "MyDaemonSet",
+						Generation: 1,
 					},
 					Status: appsv1.DaemonSetStatus{
 						DesiredNumberScheduled: 1,
 						NumberAvailable:        1,
 						Conditions:             nil,
+						ObservedGeneration:     1,
+						CurrentNumberScheduled: 1,
+						UpdatedNumberScheduled: 1,
+						NumberReady:            1,
 					},
 				},
 			},
@@ -450,9 +498,11 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyReplicaSet",
 					},
 					Status: appsv1.ReplicaSetStatus{
-						Replicas:          1,
-						AvailableReplicas: 1,
-						Conditions:        nil,
+						Replicas:             1,
+						AvailableReplicas:    1,
+						Conditions:           nil,
+						FullyLabeledReplicas: 1,
+						ReadyReplicas:        1,
 					},
 				},
 			},
@@ -524,34 +574,10 @@ func TestAreObjectsHealthy(t *testing.T) {
 								Status: "True",
 							},
 						},
-					},
-				},
-			},
-			expectedErr: true,
-		},
-		{
-			name: "StatefulSet: resource with conditions but not the one we are looking for, return error",
-			resources: []client.Object{
-				&appsv1.StatefulSet{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "StatefulSet",
-						APIVersion: "apps/v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:       "MyStatefulSet",
-						Generation: 1,
-					},
-					Spec: appsv1.StatefulSetSpec{
-						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
-							Type: appsv1.RollingUpdateStatefulSetStrategyType,
-						},
-						Replicas: func() *int32 { i := int32(1); return &i }(),
-					},
-					Status: appsv1.StatefulSetStatus{
-						Conditions:         []appsv1.StatefulSetCondition{},
-						ObservedGeneration: 1,
-						ReadyReplicas:      1,
-						Replicas:           1,
+						Replicas:          1,
+						UpdatedReplicas:   1,
+						AvailableReplicas: 1,
+						ReadyReplicas:     1,
 					},
 				},
 			},
@@ -569,6 +595,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						Name: "MyPod",
 					},
 					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
 						Conditions: []corev1.PodCondition{
 							{
 								Type:   corev1.PodInitialized,
@@ -619,7 +646,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: func() *int32 { i := int32(1); return &i }(),
+						Replicas: pointer.Int32(1),
 					},
 					Status: appsv1.StatefulSetStatus{
 						ObservedGeneration: 1,
@@ -646,7 +673,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: func() *int32 { i := int32(1); return &i }(),
+						Replicas: pointer.Int32(1),
 					},
 					Status: appsv1.StatefulSetStatus{
 						ObservedGeneration: 2,
@@ -674,7 +701,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: func() *int32 { i := int32(1); return &i }(),
+						Replicas: pointer.Int32(1),
 					},
 					Status: appsv1.StatefulSetStatus{
 						CurrentRevision:    "revision2",
@@ -683,6 +710,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						ReadyReplicas:      1,
 						UpdatedReplicas:    1,
 						Replicas:           1,
+						CurrentReplicas:    1,
 					},
 				},
 			},
