@@ -123,7 +123,7 @@ var _ = Describe("Test Validator", func() {
 					Fs: fs,
 				}
 				err := testValidator.Validate(ctx, v1alpha2.FormatHelm, &store)
-				Expect(err).NotTo(HaveOccurred())
+				Expect(err).To(HaveOccurred())
 			})
 		})
 

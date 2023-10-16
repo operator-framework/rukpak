@@ -54,3 +54,84 @@ func setUnpackStatusSuccessful(conditions *[]metav1.Condition, message string, g
 		ObservedGeneration: generation,
 	})
 }
+
+// setValidateStatusFailing sets the validate status condition to failing.
+func setValidateStatusFailing(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeValidated,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonValidateFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setValidateStatusSuccess sets the validate status condition to success.
+func setValidateStatusSuccess(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeValidated,
+		Status:             metav1.ConditionTrue,
+		Reason:             v1alpha2.ReasonValidateSuccessful,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setInstallStatusFailed sets the installed success to failing.
+func setInstallStatusFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonInstallFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setUnpgradeStatusFailed sets the installed success to failing as there is an error while patching
+// objects on cluster.
+func setUnpgradeStatusFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonUpgradeFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setReconcileStatusFailed sets the installed success to failing as there is an error while reconciling
+// existing objects on cluster.
+func setReconcileStatusFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonReconcileFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setInstallStatusSuccess sets the installed success to success.
+func setInstallStatusSuccess(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionTrue,
+		Reason:             v1alpha2.ReasonInstallSucceeded,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}
+
+// setDynamicWatchFailed sets the installed status to failing with the appropriate reason.
+// This status appears when there is an error while fetching the applied objects from cluster
+// after the deployer has returned so as to set watches on them.
+func setDynamicWatchFailed(conditions *[]metav1.Condition, message string, generation int64) {
+	apimeta.SetStatusCondition(conditions, metav1.Condition{
+		Type:               v1alpha2.TypeInstalled,
+		Status:             metav1.ConditionFalse,
+		Reason:             v1alpha2.ReasonCreateDynamicWatchFailed,
+		Message:            message,
+		ObservedGeneration: generation,
+	})
+}

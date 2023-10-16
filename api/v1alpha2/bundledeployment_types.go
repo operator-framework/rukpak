@@ -18,6 +18,7 @@ package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
@@ -26,12 +27,21 @@ var (
 )
 
 const (
-	TypeUnpacked = "Unpacked"
+	TypeUnpacked  = "Unpacked"
+	TypeValidated = "Validated"
+	TypeInstalled = "Installed"
 
-	ReasonUnpackFailed     = "UnpackFailed"
-	ReasonUnpackPending    = "UnpackPending"
-	ReasonUnpacking        = "Unpacking"
-	ReasonUnpackSuccessful = "UnpackSuccessful"
+	ReasonUnpackFailed             = "UnpackFailed"
+	ReasonUnpackPending            = "UnpackPending"
+	ReasonUnpacking                = "Unpacking"
+	ReasonUnpackSuccessful         = "UnpackSuccessful"
+	ReasonValidateSuccessful       = "ValidateSuccessful"
+	ReasonValidateFailed           = "ValidateFailed"
+	ReasonInstallFailed            = "InstallFailed"
+	ReasonUpgradeFailed            = "UpgradeFailed"
+	ReasonReconcileFailed          = "ReconcileFailed"
+	ReasonCreateDynamicWatchFailed = "CreateDynamicWatchFailed"
+	ReasonInstallSucceeded         = "InstallationSucceeded"
 )
 
 // +kubebuilder:object:root=true
@@ -80,6 +90,13 @@ type BundleDeploymentSpec struct {
 	// +kubebuilder:default:=false
 	// +optional
 	Paused bool `json:"paused,omitempty"`
+
+	// Config is helm spcific configuration to load
+	// helm values.
+	// TODO: This should be become deployer specific.
+	// Should move to helm deployer configuration (or probably templating?).
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Config runtime.RawExtension `json:"config,omitempty"`
 
 	// DefaultNamespace refers to the namespace where
 	// namespace-scoped objects would be created if not
