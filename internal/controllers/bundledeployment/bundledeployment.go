@@ -390,8 +390,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 		})
 	}
 
-	// todo: unknown condition if there are no probes? or just no condition?
-	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentCustomAvailabilityProbes) && len(bd.Spec.AvailabilityProbes) > 0 {
+	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentCustomAvailabilityProbes) {
 		probe, err := probing.Parse(ctx, bd.Spec.AvailabilityProbes)
 		if err != nil {
 			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
@@ -415,10 +414,15 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 			return ctrl.Result{}, err
 		}
 
+		successReason := rukpakv1alpha1.ReasonAvailabilityProbeSucceeded
+		if len(bd.Spec.AvailabilityProbes) == 0 {
+			successReason = rukpakv1alpha1.ReasonAvailabilityNoProbesConfigured
+		}
+
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 			Type:    rukpakv1alpha1.TypeAvailable,
 			Status:  metav1.ConditionTrue,
-			Reason:  rukpakv1alpha1.ReasonAvailabilityProbeSucceeded,
+			Reason:  successReason,
 			Message: "BundleDeployment is available",
 		})
 	}
