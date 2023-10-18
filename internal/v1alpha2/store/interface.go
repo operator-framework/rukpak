@@ -47,7 +47,7 @@ type Store interface {
 }
 
 var (
-	// Any error occured during copying contents on the bundle deployment
+	// Any error occurred during copying contents on the bundle deployment
 	// store will be wrapped along with this error.
 	ErrCopyContents = errors.New("error copying contents")
 )

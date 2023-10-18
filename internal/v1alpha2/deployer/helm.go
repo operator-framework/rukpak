@@ -26,7 +26,6 @@ import (
 	"io"
 	"strings"
 
-	v1alpha2util "github.com/operator-framework/rukpak/internal/v1alpha2/util"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/postrender"
 	"helm.sh/helm/v3/pkg/release"
@@ -37,11 +36,10 @@ import (
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/yaml"
 
+	v1alpha2util "github.com/operator-framework/rukpak/internal/v1alpha2/util"
+
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/convert"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 	"github.com/spf13/afero"
 	"golang.org/x/sync/errgroup"
 	"helm.sh/helm/v3/pkg/chart"
@@ -49,6 +47,11 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+
+	"github.com/operator-framework/rukpak/internal/util"
+
+	"github.com/operator-framework/rukpak/internal/v1alpha2/convert"
+	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 )
 
 type helmDeployer struct {
@@ -56,15 +59,15 @@ type helmDeployer struct {
 	releaseNamespace   string
 }
 
-type DeployerOption func(*helmDeployer)
+type Option func(*helmDeployer)
 
-func WithActionClientGetter(cl helmclient.ActionClientGetter) DeployerOption {
+func WithActionClientGetter(cl helmclient.ActionClientGetter) Option {
 	return func(hd *helmDeployer) {
 		hd.actionClientGetter = cl
 	}
 }
 
-func WithReleaseNamespace(ns string) DeployerOption {
+func WithReleaseNamespace(ns string) Option {
 	return func(hd *helmDeployer) {
 		hd.releaseNamespace = ns
 	}
@@ -81,7 +84,7 @@ const (
 
 // NewDefaultHelmDeployerWithOpts returns a deployer that knows how to apply
 // bundle contents on cluster using helm charts.
-func NewDefaultHelmDeployerWithOpts(opts ...DeployerOption) Deployer {
+func NewDefaultHelmDeployerWithOpts(opts ...Option) Deployer {
 	dep := &helmDeployer{}
 	for _, opt := range opts {
 		opt(dep)
@@ -89,7 +92,7 @@ func NewDefaultHelmDeployerWithOpts(opts ...DeployerOption) Deployer {
 	return dep
 }
 
-func (hd *helmDeployer) Deploy(ctx context.Context, store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error) {
+func (hd *helmDeployer) Deploy(_ context.Context, store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*Result, error) {
 	chrt, values, err := hd.fetchChart(store, bundleDeployment)
 	if err != nil {
 		return nil, fmt.Errorf("error creating chart from bundle contents: %v", err)
@@ -197,7 +200,7 @@ func (hd *helmDeployer) getReleaseState(cl helmclient.ActionInterface, obj metav
 	return currentRelease, stateUnchanged, nil
 }
 
-func (bd *helmDeployer) fetchChart(store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+func (hd *helmDeployer) fetchChart(store store.Store, bundleDeployment *v1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	format := bundleDeployment.Spec.Format
 	switch format {
 	case v1alpha2.FormatHelm:

@@ -44,6 +44,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/features"
+
 	"github.com/operator-framework/rukpak/internal/controllers/bundle"
 	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/finalizer"
@@ -54,7 +56,6 @@ import (
 	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
-	"github.com/operator-framework/rukpak/pkg/features"
 )
 
 var (

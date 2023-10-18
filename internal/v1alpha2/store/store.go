@@ -21,9 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"time"
 
 	cp "github.com/otiai10/copy"
 	"github.com/spf13/afero"
@@ -41,7 +39,7 @@ type bundledeploymentStore struct {
 	// content for the bundledeployment.
 	baseDirectory string
 
-	fs afero.Fs
+	afero.Fs
 }
 
 // NewBundleDeploymentStore returns a local file system abstraction rooted at the provided <base_unpack_path/bundledeployment_name>.
@@ -58,11 +56,7 @@ func NewBundleDeploymentStore(baseUnpackPath, bundledeploymentName string, fs af
 		return nil, err
 	}
 
-	return &bundledeploymentStore{
-		bundledeploymentName: bundledeploymentName,
-		baseDirectory:        filepath.Join(baseUnpackPath, bundledeploymentName),
-		fs:                   afero.NewBasePathFs(fs, filepath.Join(baseUnpackPath, bundledeploymentName)),
-	}, nil
+	return &bundledeploymentStore{bundledeploymentName, filepath.Join(baseUnpackPath, bundledeploymentName), afero.NewBasePathFs(fs, filepath.Join(baseUnpackPath, bundledeploymentName))}, nil
 }
 
 // Copies contents from a tar reader to the destination on the filesystem
@@ -87,7 +81,7 @@ func (b *bundledeploymentStore) CopyTarArchive(reader *tar.Reader, destination s
 		}
 
 		if header.Typeflag == tar.TypeDir {
-			if err := b.fs.MkdirAll(filepath.Join(dst, header.Name), 0755); err != nil {
+			if err := b.MkdirAll(filepath.Join(dst, filepath.Clean(header.Name)), 0755); err != nil {
 				return fmt.Errorf("%w: %v", ErrCopyContents, err)
 			}
 		} else if header.Typeflag == tar.TypeReg {
@@ -97,11 +91,11 @@ func (b *bundledeploymentStore) CopyTarArchive(reader *tar.Reader, destination s
 			// when we try to copy contents from the reader, we would error. So, verify if the
 			// parent exists and then copy contents.
 
-			if err := ensureParentDirExists(b.fs, filepath.Join(dst, header.Name)); err != nil {
+			if err := ensureParentDirExists(b, filepath.Join(dst, filepath.Clean(header.Name))); err != nil {
 				return fmt.Errorf("%w: %v", ErrCopyContents, err)
 			}
 
-			file, err := b.fs.Create(filepath.Join(dst, header.Name))
+			file, err := b.Create(filepath.Join(dst, filepath.Clean(header.Name)))
 			if err != nil {
 				return fmt.Errorf("%w: %v", ErrCopyContents, err)
 			}
@@ -143,56 +137,4 @@ func (b *bundledeploymentStore) GetBundleDeploymentName() string {
 
 func (b *bundledeploymentStore) GetBundleDirectory() string {
 	return b.baseDirectory
-}
-
-func (b *bundledeploymentStore) Create(name string) (afero.File, error) {
-	return b.fs.Create(name)
-}
-
-func (b *bundledeploymentStore) Mkdir(name string, perm os.FileMode) error {
-	return b.fs.Mkdir(name, perm)
-}
-
-func (b *bundledeploymentStore) MkdirAll(path string, perm os.FileMode) error {
-	return b.fs.MkdirAll(path, perm)
-}
-
-func (b *bundledeploymentStore) Open(name string) (afero.File, error) {
-	return b.fs.Open(name)
-}
-
-func (b *bundledeploymentStore) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
-	return b.fs.OpenFile(name, flag, perm)
-}
-
-func (b *bundledeploymentStore) Remove(name string) error {
-	return b.fs.Remove(name)
-}
-
-func (b *bundledeploymentStore) RemoveAll(path string) error {
-	return b.fs.RemoveAll(path)
-}
-
-func (b *bundledeploymentStore) Rename(oldname, newname string) error {
-	return b.fs.Rename(oldname, newname)
-}
-
-func (b *bundledeploymentStore) Stat(name string) (os.FileInfo, error) {
-	return b.fs.Stat(name)
-}
-
-func (b *bundledeploymentStore) Name() string {
-	return b.fs.Name()
-}
-
-func (b *bundledeploymentStore) Chmod(name string, mode os.FileMode) error {
-	return b.fs.Chmod(name, mode)
-}
-
-func (b *bundledeploymentStore) Chown(name string, uid, gid int) error {
-	return b.fs.Chown(name, uid, gid)
-}
-
-func (b *bundledeploymentStore) Chtimes(name string, atime time.Time, mtime time.Time) error {
-	return b.fs.Chtimes(name, atime, mtime)
 }

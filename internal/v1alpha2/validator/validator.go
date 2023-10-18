@@ -22,10 +22,11 @@ import (
 	"fmt"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	"github.com/spf13/afero"
+
 	"github.com/operator-framework/rukpak/internal/v1alpha2/convert"
 	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 	"github.com/operator-framework/rukpak/internal/v1alpha2/util"
-	"github.com/spf13/afero"
 )
 
 // validator will validate the plain, registry and helm formats.
@@ -55,7 +56,7 @@ func NewDefaultValidator() Validator {
 // registryV1Validator validates bundles of registry v1 format.
 type registryV1Validator struct{}
 
-func (r *registryV1Validator) Validate(_ context.Context, formatType v1alpha2.FormatType, store store.Store) error {
+func (r *registryV1Validator) Validate(_ context.Context, _ v1alpha2.FormatType, store store.Store) error {
 	plainFS, err := convert.RegistryV1ToPlain(store)
 	if err != nil {
 		return fmt.Errorf("error converting registry+v1 bundle to plain+v0 bundle: %v", err)
@@ -66,14 +67,14 @@ func (r *registryV1Validator) Validate(_ context.Context, formatType v1alpha2.Fo
 // registryV1Validator validates bundles of plain format.
 type plainValidator struct{}
 
-func (p *plainValidator) Validate(_ context.Context, formatType v1alpha2.FormatType, store store.Store) error {
+func (p *plainValidator) Validate(_ context.Context, _ v1alpha2.FormatType, store store.Store) error {
 	return validateBundleObjects(store)
 }
 
 // registryV1Validator validates helm bundles.
 type helmValidator struct{}
 
-func (h *helmValidator) Validate(_ context.Context, formatType v1alpha2.FormatType, store store.Store) error {
+func (h *helmValidator) Validate(_ context.Context, _ v1alpha2.FormatType, store store.Store) error {
 	rootFSEntries, err := afero.ReadDir(store, ".")
 	if err != nil {
 		return err

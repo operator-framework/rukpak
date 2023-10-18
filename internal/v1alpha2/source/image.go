@@ -29,8 +29,6 @@ import (
 	"strings"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +38,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/operator-framework/rukpak/internal/util"
+
+	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 )
 
 // Image implements unpack interface.
@@ -54,19 +56,17 @@ const imageUnpackContainerName = "bundle"
 
 type logfn func(ctx context.Context, pod *corev1.Pod) ([]byte, error)
 
-func (i *image) Unpack(ctx context.Context, source *v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
+func (i *image) Unpack(ctx context.Context, source v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	// Validate inputs
-	if err := i.validate(source, opts); err != nil {
+	if err := i.validate(&source, opts); err != nil {
 		return nil, fmt.Errorf("validation unsuccessful during unpacking %v", err)
 	}
-	// storage path to store contents in local directory.
-	storagePath := filepath.Join(store.GetBundleDeploymentName(), filepath.Clean(source.Destination))
-	return i.unpack(ctx, storagePath, source, store, opts)
+	return i.unpack(ctx, source, store, opts)
 }
 
-func (i *image) unpack(ctx context.Context, storagePath string, source *v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
+func (i *image) unpack(ctx context.Context, source v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	pod := &corev1.Pod{}
-	op, err := i.ensureUnpackPod(ctx, store.GetBundleDeploymentName(), *source, pod, opts)
+	op, err := i.ensureUnpackPod(ctx, store.GetBundleDeploymentName(), source, pod, opts)
 	if err != nil {
 		return nil, err
 	} else if op == controllerutil.OperationResultCreated || op == controllerutil.OperationResultUpdated || pod.DeletionTimestamp != nil {
@@ -80,7 +80,7 @@ func (i *image) unpack(ctx context.Context, storagePath string, source *v1alpha2
 	case corev1.PodFailed:
 		return nil, i.failedPodResult(ctx, pod)
 	case corev1.PodSucceeded:
-		return i.succeededPodResult(ctx, pod, storagePath, *source, store)
+		return i.succeededPodResult(ctx, pod, source, store)
 	default:
 		return nil, i.handleUnexpectedPod(ctx, pod)
 	}
@@ -251,8 +251,8 @@ func (i *image) getPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error)
 	return buf.Bytes(), nil
 }
 
-func (i *image) succeededPodResult(ctx context.Context, pod *corev1.Pod, storagePath string, bdSrc v1alpha2.BundleDeplopymentSource, store store.Store) (*Result, error) {
-	err := i.getBundleContents(ctx, pod, storagePath, &bdSrc, store, i.getPodLogs)
+func (i *image) succeededPodResult(ctx context.Context, pod *corev1.Pod, bdSrc v1alpha2.BundleDeplopymentSource, store store.Store) (*Result, error) {
+	err := i.getBundleContents(ctx, pod, &bdSrc, store, i.getPodLogs)
 	if err != nil {
 		return nil, fmt.Errorf("get bundle contents: %v", err)
 	}
@@ -269,7 +269,7 @@ func (i *image) succeededPodResult(ctx context.Context, pod *corev1.Pod, storage
 	return &Result{ResolvedSource: resolvedSource, State: StateUnpacked}, nil
 }
 
-func (i *image) getBundleContents(ctx context.Context, pod *corev1.Pod, storagePath string, bundleSrc *v1alpha2.BundleDeplopymentSource, store store.Store, getLogs logfn) error {
+func (i *image) getBundleContents(ctx context.Context, pod *corev1.Pod, bundleSrc *v1alpha2.BundleDeplopymentSource, store store.Store, getLogs logfn) error {
 	bundleData, err := getLogs(ctx, pod)
 	if err != nil {
 		return fmt.Errorf("error getting bundle contents: %v", err)

@@ -21,8 +21,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 	"github.com/spf13/afero"
+
+	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 )
 
 // MockStore is intended to be used for testing purposes. It implements store.Store.

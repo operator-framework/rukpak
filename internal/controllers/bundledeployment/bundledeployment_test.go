@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+
 	"github.com/operator-framework/rukpak/internal/util"
 )
 

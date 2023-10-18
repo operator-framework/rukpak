@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+
 	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 )
 

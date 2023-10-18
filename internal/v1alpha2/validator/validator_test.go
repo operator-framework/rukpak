@@ -23,9 +23,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
+	"github.com/spf13/afero"
+
 	"github.com/operator-framework/rukpak/internal/v1alpha2/source"
 	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
-	"github.com/spf13/afero"
 )
 
 func TestValidator(t *testing.T) {
@@ -46,7 +47,7 @@ var _ = Describe("Test Validator", func() {
 	})
 
 	When("invalid format is provided", func() {
-		It("expect error to have occured with invalid format", func() {
+		It("expect error to have occurred with invalid format", func() {
 			fs = afero.NewMemMapFs()
 			store, err := store.NewBundleDeploymentStore("test", "testbundedeployment", fs)
 			Expect(err).NotTo(HaveOccurred())
@@ -56,7 +57,7 @@ var _ = Describe("Test Validator", func() {
 	})
 
 	When("valid plain bundle formats are provided", func() {
-		It("expect no error to have occured when valid plain bundle is provided", func() {
+		It("expect no error to have occurred when valid plain bundle is provided", func() {
 			store := source.MockStore{
 				Fs: afero.NewBasePathFs(afero.NewOsFs(), "valid_testdata/plain"),
 			}
@@ -64,7 +65,7 @@ var _ = Describe("Test Validator", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("expect no error to have occured when valid registryV1 bundle is provided", func() {
+		It("expect no error to have occurred when valid registryV1 bundle is provided", func() {
 			store := source.MockStore{
 				Fs: afero.NewBasePathFs(afero.NewOsFs(), "valid_testdata/registryV1"),
 			}
@@ -72,7 +73,7 @@ var _ = Describe("Test Validator", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("expect no error to have occured when valid helm bundle is provided", func() {
+		It("expect no error to have occurred when valid helm bundle is provided", func() {
 			store := source.MockStore{
 				Fs: afero.NewBasePathFs(afero.NewOsFs(), "valid_testdata/helm"),
 			}
@@ -80,7 +81,7 @@ var _ = Describe("Test Validator", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("expect no error to have occured when valid helm bundle with chart.yaml in cwd is provided", func() {
+		It("expect no error to have occurred when valid helm bundle with chart.yaml in cwd is provided", func() {
 			store := source.MockStore{
 				Fs: afero.NewBasePathFs(afero.NewOsFs(), "valid_testdata/helm/test"),
 			}
@@ -92,9 +93,9 @@ var _ = Describe("Test Validator", func() {
 	When("valid bundle formats with invalid bundles are provided", func() {
 		// Tests specific to invalid registryV1 bundles are convered during plain to registry conversion.
 		When("invalid plain bundle is provided", func() {
-			It("expect error to have occured when plain bundle with no objects is provided", func() {
+			It("expect error to have occurred when plain bundle with no objects is provided", func() {
 				fs = afero.NewMemMapFs()
-				fs.MkdirAll("manifests", 0755)
+				Expect(fs.MkdirAll("manifests", 0755)).NotTo(HaveOccurred())
 				store := source.MockStore{
 					Fs: fs,
 				}
@@ -104,7 +105,7 @@ var _ = Describe("Test Validator", func() {
 			})
 			It("expect error when plain bundle has subdirectories", func() {
 				fs = afero.NewMemMapFs()
-				fs.MkdirAll("manifests/testpath", 0755)
+				Expect(fs.MkdirAll("manifests/testpath", 0755)).NotTo(HaveOccurred())
 				store := source.MockStore{
 					Fs: fs,
 				}
@@ -117,8 +118,8 @@ var _ = Describe("Test Validator", func() {
 		When("invalid helm bundle is provided", func() {
 			It("expecy error when helm bundle when empty folder is provided", func() {
 				fs = afero.NewMemMapFs()
-				fs.MkdirAll("templates", 0755)
-				fs.MkdirAll("charts", 0755)
+				Expect(fs.MkdirAll("templates", 0755)).NotTo(HaveOccurred())
+				Expect(fs.MkdirAll("charts", 0755)).NotTo(HaveOccurred())
 				store := source.MockStore{
 					Fs: fs,
 				}

@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
+
 	"github.com/operator-framework/rukpak/internal/crd"
 )
 

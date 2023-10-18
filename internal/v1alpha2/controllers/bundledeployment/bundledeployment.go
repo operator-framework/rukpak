@@ -25,11 +25,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/deployer"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/source"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/validator"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -39,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	apimacherrors "k8s.io/apimachinery/pkg/util/errors"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -51,6 +45,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	crsource "sigs.k8s.io/controller-runtime/pkg/source"
+
+	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+
+	"github.com/operator-framework/rukpak/internal/v1alpha2/deployer"
+	"github.com/operator-framework/rukpak/internal/v1alpha2/source"
+	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
+	"github.com/operator-framework/rukpak/internal/v1alpha2/validator"
 )
 
 const (
@@ -148,7 +149,6 @@ func (b *bundleDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // If the validation is successful, it further deploys the objects on cluster. If there is an error
 // encountered in this process, an appropriate result is returned.
 func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bundleDeployment *v1alpha2.BundleDeployment, bundledeploymentStore store.Store) (ctrl.Result, error) {
-
 	res, err := b.unpackContents(ctx, bundleDeployment, bundledeploymentStore)
 	// result can be nil, when there is an error during unpacking. This indicates
 	// that unpacking was failed. Update the status accordingly.
@@ -159,27 +159,27 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bundleDeploy
 
 	switch res.State {
 	case source.StateUnpackPending:
-		setUnpackStatusPending(&bundleDeployment.Status.Conditions, fmt.Sprintf("pending unpack"), bundleDeployment.Generation)
+		setUnpackStatusPending(&bundleDeployment.Status.Conditions, "pending unpack", bundleDeployment.Generation)
 		// Requeing after 5 sec for now since the average time to unpack an registry bundle locally
 		// was around ~4sec.
-		// Warning: This could end up requeing indefinitely, till an error has occured.
+		// Warning: This could end up requeing indefinitely, till an error has occurred.
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	case source.StateUnpacking:
-		setUnpackStatusPending(&bundleDeployment.Status.Conditions, fmt.Sprintf("unpacking in progress"), bundleDeployment.Generation)
+		setUnpackStatusPending(&bundleDeployment.Status.Conditions, "unpacking in progress", bundleDeployment.Generation)
 	case source.StateUnpacked:
-		setUnpackStatusSuccessful(&bundleDeployment.Status.Conditions, fmt.Sprintf("unpacked successfully"), bundleDeployment.Generation)
+		setUnpackStatusSuccessful(&bundleDeployment.Status.Conditions, "unpacked successfully", bundleDeployment.Generation)
 	default:
-		return ctrl.Result{}, fmt.Errorf("unkown unpack state %q for bundle deployment %s: %v", res.State, bundleDeployment.GetName(), bundleDeployment.Generation)
+		return ctrl.Result{}, fmt.Errorf("unknown unpack state %q for bundle deployment %s: %v", res.State, bundleDeployment.GetName(), bundleDeployment.Generation)
 	}
 
-	// Unpacked contents from each source would now be availabe in the fs. Validate
+	// Unpacked contents from each source would now be available in the fs. Validate
 	// if the contents together conform to the specified format.
 	if err = b.validateContents(ctx, bundleDeployment.Spec.Format, bundledeploymentStore); err != nil {
 		validateErr := fmt.Errorf("validating contents for bundle %s with format %s: %v", bundleDeployment.Name, bundleDeployment.Spec.Format, err)
 		setValidateStatusFailing(&bundleDeployment.Status.Conditions, validateErr.Error(), bundleDeployment.Generation)
 		return ctrl.Result{}, validateErr
 	}
-	setValidateStatusSuccess(&bundleDeployment.Status.Conditions, fmt.Sprintf("unpacked successfully"), bundleDeployment.Generation)
+	setValidateStatusSuccess(&bundleDeployment.Status.Conditions, "unpacked successfully", bundleDeployment.Generation)
 
 	// Deploy the validated contents onto the cluster.
 	// The deployer should return the list of objects which have been deployed, so that
@@ -201,7 +201,7 @@ func (b *bundleDeploymentReconciler) reconcile(ctx context.Context, bundleDeploy
 	case deployer.StateDeploySuccessful:
 		setInstallStatusSuccess(&bundleDeployment.Status.Conditions, fmt.Sprintf("installed %s", bundleDeployment.GetName()), bundleDeployment.Generation)
 	default:
-		return ctrl.Result{}, fmt.Errorf("unkown deploy state %q for bundle deployment %s: %v", deployResult.State, bundleDeployment.GetName(), bundleDeployment.Generation)
+		return ctrl.Result{}, fmt.Errorf("unknown deploy state %q for bundle deployment %s: %v", deployResult.State, bundleDeployment.GetName(), bundleDeployment.Generation)
 	}
 
 	// for the objects returned from the deployer, set watches on them.
@@ -246,7 +246,7 @@ func (b *bundleDeploymentReconciler) unpackContents(ctx context.Context, bundled
 
 	// unpack each of the sources individually, and consolidate all their results into one.
 	for _, src := range bundledeployment.Spec.Sources {
-		res, err := b.unpacker.Unpack(ctx, &src, store, source.UnpackOption{
+		res, err := b.unpacker.Unpack(ctx, src, store, source.UnpackOption{
 			BundleDeploymentUID: bundledeployment.UID,
 		})
 		if err != nil {
@@ -293,7 +293,7 @@ func (b *bundleDeploymentReconciler) validateConfig() error {
 	if b.deployer == nil {
 		errs = append(errs, errors.New("deployer is unset"))
 	}
-	return utilerrors.NewAggregate(errs)
+	return apimacherrors.NewAggregate(errs)
 }
 
 func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, opts ...Option) error {
@@ -325,7 +325,7 @@ func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, opts ...Op
 
 // MapOwnerToBundleDeploymentHandler is a handler implementation that finds an owner reference in the event object that
 // references the provided owner. If a reference for the provided owner is found this handler enqueues a request for that owner to be reconciled.
-func MapOwnerToBundleDeploymentHandler(ctx context.Context, cl client.Client, log logr.Logger, owner client.Object) handler.EventHandler {
+func MapOwnerToBundleDeploymentHandler(_ context.Context, cl client.Client, log logr.Logger, owner client.Object) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
 		ownerGVK, err := apiutil.GVKForObject(owner, cl.Scheme())
 		if err != nil {

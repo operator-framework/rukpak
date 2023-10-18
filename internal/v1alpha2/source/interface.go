@@ -21,10 +21,11 @@ import (
 	"errors"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
+
+	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 )
 
 // UnpackOptions stores bundle deployment specific options
@@ -45,7 +46,7 @@ type UnpackOption struct {
 // file tree and delegate bundle format concerns to bundle parsers.
 type Unpacker interface {
 	// Unpack unpacks the bundle content. Unpack should not mutate the bundle deployment source being passed.
-	Unpack(ctx context.Context, bundledeploymentSource *v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error)
+	Unpack(ctx context.Context, bundledeploymentSource v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error)
 }
 
 // Result conveys progress information about unpacking bundle content.
@@ -122,13 +123,9 @@ func NewUnpacker(sources map[sourceKind]Unpacker) Unpacker {
 
 // Unpack itrates over the sources specified in bundleDeployment object. Unpacking is done
 // for each specified source, the bundle contents are stored in the specified destination.
-func (u *unpacker) Unpack(ctx context.Context, bundledeploymentSource *v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
-	if bundledeploymentSource == nil {
-		return nil, errors.New("bundledeployment source emtpy.")
-	}
-
+func (u *unpacker) Unpack(ctx context.Context, bundledeploymentSource v1alpha2.BundleDeplopymentSource, store store.Store, opts UnpackOption) (*Result, error) {
 	if store == nil {
-		return nil, errors.New("file system to unpack contents empty.")
+		return nil, errors.New("file system to unpack contents empty")
 	}
 
 	// TODO: aggregate the result for multiple resolved resources when other source
@@ -137,7 +134,7 @@ func (u *unpacker) Unpack(ctx context.Context, bundledeploymentSource *v1alpha2.
 		return u.sources[sourceTypeImage].Unpack(ctx, bundledeploymentSource, store, opts)
 	}
 
-	return nil, errors.New("unable to unpack.")
+	return nil, errors.New("unable to unpack")
 }
 
 // NewDefaultUnpackerWithOpts returns the default unpacker, configured to unpack contents from in-built source types.

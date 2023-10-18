@@ -20,8 +20,9 @@ import (
 	"context"
 
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 )
 
 // Deployer knows how apply objects on cluster.

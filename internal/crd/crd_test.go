@@ -9,8 +9,9 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/operator-framework/rukpak/internal/unit"
 	"github.com/operator-framework/rukpak/test/testutil"
+
+	"github.com/operator-framework/rukpak/internal/unit"
 )
 
 func TestValidate(t *testing.T) {

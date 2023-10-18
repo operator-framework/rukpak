@@ -35,11 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/pkg/features"
+
 	"github.com/operator-framework/rukpak/internal/healthchecks"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/operator-framework/rukpak/pkg/features"
 )
 
 /*

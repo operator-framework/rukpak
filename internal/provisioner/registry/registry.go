@@ -6,6 +6,7 @@ import (
 	"io/fs"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+
 	"github.com/operator-framework/rukpak/internal/convert"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 )

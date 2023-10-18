@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+
 	"github.com/operator-framework/rukpak/internal/util"
 )
 

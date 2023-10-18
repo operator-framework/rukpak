@@ -27,8 +27,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/util"
-	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/operator-framework/rukpak/internal/util"
+
+	"github.com/operator-framework/rukpak/internal/v1alpha2/store"
 )
 
 var _ = Describe("Image Suite", func() {
@@ -93,7 +95,7 @@ var _ = Describe("Image Suite", func() {
 					Name: "test",
 				},
 			}
-			Expect(kubeClient.Create(ctx, &ns)).To(BeNil())
+			Expect(kubeClient.Create(ctx, &ns)).To(Succeed())
 
 			res, err := testImage.ensureUnpackPod(ctx, bdName, bundleSrc, &pod, UnpackOption{types.UID("test")})
 			Expect(err).NotTo(HaveOccurred())
@@ -101,8 +103,8 @@ var _ = Describe("Image Suite", func() {
 		})
 
 		AfterEach(func() {
-			Expect(kubeClient.Delete(ctx, &pod)).To(BeNil())
-			Expect(kubeClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test"}})).To(BeNil())
+			Expect(kubeClient.Delete(ctx, &pod)).To(Succeed())
+			Expect(kubeClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "test"}})).To(Succeed())
 		})
 
 		It("should create a new pod with updated pod apply configuration", func() {
@@ -214,7 +216,7 @@ var _ = Describe("Image Suite", func() {
 		})
 
 		It("copies contents successfully", func() {
-			err := testImage.getBundleContents(ctx, &corev1.Pod{}, "", &v1alpha2.BundleDeplopymentSource{
+			err := testImage.getBundleContents(ctx, &corev1.Pod{}, &v1alpha2.BundleDeplopymentSource{
 				Destination: destination,
 			}, mockTestStore, mockGetPodLogs)
 			Expect(err).NotTo(HaveOccurred())
@@ -228,7 +230,7 @@ var _ = Describe("Image Suite", func() {
 		It("errors when logs cannot be fetched", func() {
 			errGetPods := errors.New("error getting logs")
 
-			err := testImage.getBundleContents(ctx, &corev1.Pod{}, "", &v1alpha2.BundleDeplopymentSource{
+			err := testImage.getBundleContents(ctx, &corev1.Pod{}, &v1alpha2.BundleDeplopymentSource{
 				Destination: destination,
 			}, mockTestStore, func(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
 				return nil, errGetPods
@@ -243,7 +245,7 @@ var _ = Describe("Image Suite", func() {
 		})
 
 		It("errors when logs cannot be read", func() {
-			err := testImage.getBundleContents(ctx, &corev1.Pod{}, "", &v1alpha2.BundleDeplopymentSource{
+			err := testImage.getBundleContents(ctx, &corev1.Pod{}, &v1alpha2.BundleDeplopymentSource{
 				Destination: destination,
 			}, mockTestStore, func(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
 				return []byte("errored data"), nil
@@ -272,7 +274,7 @@ func containInitContainerWithName(containers []corev1.Container, name string) *c
 	return nil
 }
 
-func mockGetPodLogs(ctx context.Context, pod *corev1.Pod) ([]byte, error) {
+func mockGetPodLogs(_ context.Context, _ *corev1.Pod) ([]byte, error) {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	defer gz.Close()

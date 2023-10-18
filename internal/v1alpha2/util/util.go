@@ -21,9 +21,10 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 const (

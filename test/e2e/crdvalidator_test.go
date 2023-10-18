@@ -10,8 +10,9 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
-	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/test/testutil"
+
+	"github.com/operator-framework/rukpak/internal/util"
 )
 
 var _ = Describe("crdvalidator", func() {

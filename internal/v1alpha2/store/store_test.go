@@ -38,16 +38,16 @@ var _ = Describe("Store suite", func() {
 		bdStore = bundledeploymentStore{}
 		// Since there is no abstraction in spf13/afero
 		// to mock afero.Fs, using an in-memory fs.
-		testFs         = afero.NewMemMapFs()
 		baseUnpackPath = "var/cache/bundle"
 		bdName         = "test-bd"
+		testFs         = afero.NewBasePathFs(afero.NewMemMapFs(), filepath.Join(baseUnpackPath, bdName))
 	)
 
 	BeforeEach(func() {
 		bdStore = bundledeploymentStore{
-			bundledeploymentName: bdName,
-			baseDirectory:        baseUnpackPath,
-			fs:                   testFs,
+			bdName,
+			baseUnpackPath,
+			testFs,
 		}
 	})
 
@@ -89,14 +89,14 @@ var _ = Describe("Store suite", func() {
 			Expect(bdStore.CopyTarArchive(tarReader, destination)).To(Succeed())
 
 			By("check if the copied directory and file exists")
-			dirExists, _ := afero.DirExists(bdStore.fs, destination)
+			dirExists, _ := afero.DirExists(bdStore, destination)
 			Expect(dirExists).To(BeTrue())
 
-			fileExists, _ := afero.Exists(bdStore.fs, filepath.Join(destination, "test-file.txt"))
+			fileExists, _ := afero.Exists(bdStore, filepath.Join(destination, "test-file.txt"))
 			Expect(fileExists).To(BeTrue())
 
 			By("verifying if the contents are same")
-			content, err := afero.ReadFile(bdStore.fs, filepath.Join(destination, "test-file.txt"))
+			content, err := afero.ReadFile(bdStore, filepath.Join(destination, "test-file.txt"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(content)).To(BeEquivalentTo("This is a test file."))
 		})
@@ -137,7 +137,7 @@ func createTestTarArchive() []byte {
 		Mode:     0755,
 		Size:     int64(0),
 	}
-	tw.WriteHeader(header)
+	Expect(tw.WriteHeader(header)).NotTo(HaveOccurred())
 
 	content := "This is a test file."
 	header = &tar.Header{
@@ -146,8 +146,10 @@ func createTestTarArchive() []byte {
 		Mode:     0644,
 		Size:     int64(len(content)),
 	}
-	tw.WriteHeader(header)
-	tw.Write([]byte(content))
+	Expect(tw.WriteHeader(header)).NotTo(HaveOccurred())
+
+	_, err := tw.Write([]byte(content))
+	Expect(err).NotTo(HaveOccurred())
 
 	tw.Close()
 	return buf.Bytes()
@@ -168,8 +170,9 @@ func createUnsupportedTarArchive() []byte {
 		Mode:     0644,
 		Size:     int64(len("test")),
 	}
-	tw.WriteHeader(header)
-	tw.Write([]byte("test"))
+	Expect(tw.WriteHeader(header)).To(Not(HaveOccurred()))
+	_, err := tw.Write([]byte("test"))
+	Expect(err).NotTo(HaveOccurred())
 
 	tw.Close()
 	return buf.Bytes()
