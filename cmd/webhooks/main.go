@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -27,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -50,10 +52,13 @@ func main() {
 	var probeAddr string
 	var systemNamespace string
 	var rukpakVersion bool
+	var enableHTTP2 bool
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "", "Configures the namespace that gets used to deploy system resources.")
-	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
+	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the webhook servers.")
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -72,12 +77,26 @@ func main() {
 	if systemNamespace == "" {
 		systemNamespace = util.PodNamespace()
 	}
+
+	// Setup webhook options
+	disableHTTP2 := func(c *tls.Config) {
+		if enableHTTP2 {
+			return
+		}
+		c.NextProtos = []string{"http/1.1"}
+	}
+
+	webhookServer := &crwebhook.Server{
+		TLSOpts: []func(config *tls.Config){disableHTTP2},
+	}
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		Namespace:              systemNamespace,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
+		WebhookServer:          webhookServer,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to create manager")

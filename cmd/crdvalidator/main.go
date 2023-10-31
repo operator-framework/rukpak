@@ -17,6 +17,8 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
+	"flag"
 	"os"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -45,9 +47,24 @@ func init() {
 }
 
 func main() {
-	// Setup a Manager
+	var enableHTTP2 bool
+
+	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the webhook servers.")
+
+	// Setup webhook options
+	disableHTTP2 := func(c *tls.Config) {
+		if enableHTTP2 {
+			return
+		}
+		c.NextProtos = []string{"http/1.1"}
+	}
+
+	webhookServer := &webhook.Server{
+		TLSOpts: []func(config *tls.Config){disableHTTP2},
+	}
+
 	entryLog.Info("setting up manager")
-	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{Scheme: scheme})
+	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{Scheme: scheme, WebhookServer: webhookServer})
 	if err != nil {
 		entryLog.Error(err, "unable to set up overall controller manager")
 		os.Exit(1)
