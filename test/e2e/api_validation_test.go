@@ -257,7 +257,7 @@ var _ = Describe("bundle deployment api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
@@ -302,7 +302,7 @@ var _ = Describe("bundle deployment api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: "invalid/class-name",
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: plain.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
@@ -344,7 +344,7 @@ var _ = Describe("bundle deployment api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
 							ProvisionerClassName: "invalid/class-name",
 							Source: rukpakv1alpha1.BundleSource{

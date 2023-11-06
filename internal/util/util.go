@@ -270,7 +270,7 @@ func GetBundlesForBundleDeploymentSelector(ctx context.Context, c client.Client,
 // CheckExistingBundlesMatchesTemplate evaluates whether the existing list of Bundle objects
 // match the desired Bundle template that's specified in a BundleDeployment object. If a match
 // is found, that Bundle object is returned, so callers are responsible for nil checking the result.
-func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate *rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
+func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
 	for i := range existingBundles.Items {
 		if !CheckDesiredBundleTemplate(&existingBundles.Items[i], desiredBundleTemplate) {
 			continue
@@ -282,7 +282,7 @@ func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleL
 
 // CheckDesiredBundleTemplate is responsible for determining whether the existingBundle
 // hash is equal to the desiredBundle Bundle template hash.
-func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle *rukpakv1alpha1.BundleTemplate) bool {
+func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle rukpakv1alpha1.BundleTemplate) bool {
 	if len(existingBundle.Labels) == 0 {
 		// Existing Bundle has no labels set, which should never be the case.
 		// Return false so that the Bundle is forced to be recreated with the expected labels.
@@ -301,7 +301,7 @@ func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBu
 	return existingHash == desiredHash
 }
 
-func GenerateTemplateHash(template *rukpakv1alpha1.BundleTemplate) string {
+func GenerateTemplateHash(template rukpakv1alpha1.BundleTemplate) string {
 	hasher := fnv.New32a()
 	DeepHashObject(hasher, template)
 	return rand.SafeEncodeString(fmt.Sprintf("%x", hasher.Sum32())[:6])
