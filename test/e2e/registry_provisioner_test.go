@@ -30,7 +30,7 @@ var _ = Describe("registry provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "prometheus",
@@ -89,7 +89,7 @@ var _ = Describe("registry provisioner bundle", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "cincinnati",

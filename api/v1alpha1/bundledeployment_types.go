@@ -53,7 +53,7 @@ type BundleDeploymentSpec struct {
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Template describes the generated Bundle that this deployment will manage.
-	Template *BundleTemplate `json:"template"`
+	Template BundleTemplate `json:"template"`
 	// Config is provisioner specific configurations
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Config runtime.RawExtension `json:"config,omitempty"`

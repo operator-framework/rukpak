@@ -33,7 +33,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "ahoy",
@@ -147,7 +147,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "ahoy",
@@ -203,7 +203,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "ahoy",
@@ -259,7 +259,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "ahoy",
@@ -315,7 +315,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "ahoy",
@@ -439,7 +439,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "ahoy",
@@ -503,7 +503,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
 					Config:               runtime.RawExtension{Raw: []byte(`{"values": "# Default values for hello-world.\n# This is a YAML-formatted file.\n# Declare variables to be passed into your templates.\nreplicaCount: 1\nimage:\n  repository: nginx\n  pullPolicy: IfNotPresent\n  # Overrides the image tag whose default is the chart appVersion.\n  tag: \"\"\nnameOverride: \"fromvalues\"\nfullnameOverride: \"\"\nserviceAccount:\n  # Specifies whether a service account should be created\n  create: true\n  # Annotations to add to the service account\n  annotations: {}\n  # The name of the service account to use.\n  # If not set and create is true, a name is generated using the fullname template\n  name: \"\"\nservice:\n  type: ClusterIP\n  port: 80\n"}`)},
-					Template: &rukpakv1alpha1.BundleTemplate{
+					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"app.kubernetes.io/name": "ahoy",

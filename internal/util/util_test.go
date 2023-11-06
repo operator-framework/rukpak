@@ -21,7 +21,7 @@ var sampleSpec = rukpakv1alpha1.BundleSpec{
 func TestCheckDesiredBundleTemplate(t *testing.T) {
 	type args struct {
 		existingBundle *rukpakv1alpha1.Bundle
-		desiredBundle  *rukpakv1alpha1.BundleTemplate
+		desiredBundle  rukpakv1alpha1.BundleTemplate
 	}
 	tests := []struct {
 		name string
@@ -40,7 +40,7 @@ func TestCheckDesiredBundleTemplate(t *testing.T) {
 					},
 					Spec: sampleSpec,
 				},
-				desiredBundle: &rukpakv1alpha1.BundleTemplate{
+				desiredBundle: rukpakv1alpha1.BundleTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "stub",
 						Labels: map[string]string{
@@ -66,7 +66,7 @@ func TestCheckDesiredBundleTemplate(t *testing.T) {
 						ProvisionerClassName: "non-existent-provisioner-class-name",
 					},
 				},
-				desiredBundle: &rukpakv1alpha1.BundleTemplate{
+				desiredBundle: rukpakv1alpha1.BundleTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "stub",
 						Labels: map[string]string{
@@ -90,7 +90,7 @@ func TestCheckDesiredBundleTemplate(t *testing.T) {
 					},
 					Spec: sampleSpec,
 				},
-				desiredBundle: &rukpakv1alpha1.BundleTemplate{
+				desiredBundle: rukpakv1alpha1.BundleTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "stub",
 						Labels: map[string]string{
@@ -117,7 +117,7 @@ func TestCheckDesiredBundleTemplate(t *testing.T) {
 					},
 					Spec: sampleSpec,
 				},
-				desiredBundle: &rukpakv1alpha1.BundleTemplate{
+				desiredBundle: rukpakv1alpha1.BundleTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "stub",
 						Labels: map[string]string{
@@ -144,7 +144,7 @@ func TestCheckDesiredBundleTemplate(t *testing.T) {
 					},
 					Spec: sampleSpec,
 				},
-				desiredBundle: &rukpakv1alpha1.BundleTemplate{
+				desiredBundle: rukpakv1alpha1.BundleTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "stub-123",
 						Labels: map[string]string{
@@ -180,7 +180,7 @@ func injectCoreLabels(bundle *rukpakv1alpha1.Bundle) {
 	labels[CoreOwnerNameKey] = ""
 }
 
-func injectTemplateHashLabel(bundle *rukpakv1alpha1.Bundle, template *rukpakv1alpha1.BundleTemplate, want bool) {
+func injectTemplateHashLabel(bundle *rukpakv1alpha1.Bundle, template rukpakv1alpha1.BundleTemplate, want bool) {
 	labels := bundle.GetLabels()
 	if want {
 		labels[CoreBundleTemplateHashKey] = GenerateTemplateHash(template)
