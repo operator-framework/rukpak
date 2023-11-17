@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"os"
 	"sort"
@@ -21,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,10 +65,16 @@ func ReconcileDesiredBundle(ctx context.Context, c client.Client, bd *rukpakv1al
 
 	// check whether there's an existing Bundle that matches the desired Bundle template
 	// specified in the BI resource, and if not, generate a new Bundle that matches the template.
-	b := CheckExistingBundlesMatchesTemplate(existingBundles, bd.Spec.Template)
+	b, err := CheckExistingBundlesMatchesTemplate(existingBundles, bd.Spec.Template)
+	if err != nil {
+		return nil, nil, err
+	}
 	if b == nil {
 		controllerRef := metav1.NewControllerRef(bd, bd.GroupVersionKind())
-		hash := GenerateTemplateHash(bd.Spec.Template)
+		hash, err := DeepHashObject(bd.Spec.Template)
+		if err != nil {
+			return nil, nil, err
+		}
 
 		labels := bd.Spec.Template.Labels
 		if len(labels) == 0 {
@@ -270,44 +274,64 @@ func GetBundlesForBundleDeploymentSelector(ctx context.Context, c client.Client,
 // CheckExistingBundlesMatchesTemplate evaluates whether the existing list of Bundle objects
 // match the desired Bundle template that's specified in a BundleDeployment object. If a match
 // is found, that Bundle object is returned, so callers are responsible for nil checking the result.
-func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate rukpakv1alpha1.BundleTemplate) *rukpakv1alpha1.Bundle {
+func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate rukpakv1alpha1.BundleTemplate) (*rukpakv1alpha1.Bundle, error) {
 	for i := range existingBundles.Items {
-		if !CheckDesiredBundleTemplate(&existingBundles.Items[i], desiredBundleTemplate) {
+		ok, err := CheckDesiredBundleTemplate(&existingBundles.Items[i], desiredBundleTemplate)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
 			continue
 		}
-		return existingBundles.Items[i].DeepCopy()
+		return existingBundles.Items[i].DeepCopy(), nil
 	}
-	return nil
+	return nil, nil
 }
 
 // CheckDesiredBundleTemplate is responsible for determining whether the existingBundle
 // hash is equal to the desiredBundle Bundle template hash.
-func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle rukpakv1alpha1.BundleTemplate) bool {
+func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle rukpakv1alpha1.BundleTemplate) (bool, error) {
 	if len(existingBundle.Labels) == 0 {
 		// Existing Bundle has no labels set, which should never be the case.
 		// Return false so that the Bundle is forced to be recreated with the expected labels.
-		return false
+		return false, nil
 	}
 
 	existingHash, ok := existingBundle.Labels[CoreBundleTemplateHashKey]
 	if !ok {
 		// Existing Bundle has no template hash associated with it.
 		// Return false so that the Bundle is forced to be recreated with the template hash label.
-		return false
+		return false, nil
 	}
 
 	// Check whether the hash of the desired bundle template matches the existing bundle on-cluster.
-	desiredHash := GenerateTemplateHash(desiredBundle)
-	return existingHash == desiredHash
+	desiredHash, err := DeepHashObject(desiredBundle)
+	if err != nil {
+		return false, err
+	}
+	return existingHash == desiredHash, nil
 }
 
-func GenerateTemplateHash(template rukpakv1alpha1.BundleTemplate) string {
-	hasher := fnv.New32a()
-	DeepHashObject(hasher, template)
-	return rand.SafeEncodeString(fmt.Sprintf("%x", hasher.Sum32())[:6])
-}
+const (
+	// maxBundleNameLength must be aligned with the Bundle CRD metadata.name length validation, defined in:
+	// <repoRoot>/manifests/base/apis/crds/patches/bundle_validation.yaml
+	maxBundleNameLength = 52
+
+	// maxBundleDeploymentNameLength must be aligned with the BundleDeployment CRD metadata.name length validation,
+	// defined in: <repoRoot>/manifests/base/apis/crds/patches/bundledeployment_validation.yaml
+	maxBundleDeploymentNameLength = 45
+)
 
 func GenerateBundleName(bdName, hash string) string {
+	if len(bdName) > maxBundleDeploymentNameLength {
+		// This should never happen because we have validation on the BundleDeployment CRD to ensure
+		// that the name is no more than 45 characters. But just to be safe...
+		bdName = bdName[:maxBundleDeploymentNameLength]
+	}
+
+	if len(hash) > maxBundleNameLength-len(bdName)-1 {
+		hash = hash[:maxBundleNameLength-len(bdName)-1]
+	}
 	return fmt.Sprintf("%s-%s", bdName, hash)
 }
 
