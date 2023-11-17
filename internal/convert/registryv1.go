@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	registrybundle "github.com/operator-framework/operator-registry/pkg/lib/bundle"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -20,13 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/sets"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
-
-	registrybundle "github.com/operator-framework/operator-registry/pkg/lib/bundle"
 
 	registry "github.com/operator-framework/rukpak/internal/operator-registry"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -279,13 +276,19 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 
 	for _, permission := range permissions {
 		saName := saNameOrDefault(permission.ServiceAccountName)
-		name := generateName(fmt.Sprintf("%s-%s", in.CSV.Name, saName), []interface{}{in.CSV.Name, permission})
+		name, err := generateName(fmt.Sprintf("%s-%s", in.CSV.Name, saName), permission)
+		if err != nil {
+			return nil, err
+		}
 		roles = append(roles, newRole(installNamespace, name, permission.Rules))
 		roleBindings = append(roleBindings, newRoleBinding(installNamespace, name, name, installNamespace, saName))
 	}
 	for _, permission := range clusterPermissions {
 		saName := saNameOrDefault(permission.ServiceAccountName)
-		name := generateName(fmt.Sprintf("%s-%s", in.CSV.Name, saName), []interface{}{in.CSV.GetName(), permission})
+		name, err := generateName(fmt.Sprintf("%s-%s", in.CSV.Name, saName), permission)
+		if err != nil {
+			return nil, err
+		}
 		clusterRoles = append(clusterRoles, newClusterRole(name, permission.Rules))
 		clusterRoleBindings = append(clusterRoleBindings, newClusterRoleBinding(name, name, installNamespace, saName))
 	}
@@ -341,16 +344,16 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 
 const maxNameLength = 63
 
-func generateName(base string, o interface{}) string {
-	hasher := fnv.New32a()
-
-	util.DeepHashObject(hasher, o)
-	hashStr := rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+func generateName(base string, o interface{}) (string, error) {
+	hashStr, err := util.DeepHashObject(o)
+	if err != nil {
+		return "", err
+	}
 	if len(base)+len(hashStr) > maxNameLength {
 		base = base[:maxNameLength-len(hashStr)-1]
 	}
 
-	return fmt.Sprintf("%s-%s", base, hashStr)
+	return fmt.Sprintf("%s-%s", base, hashStr), nil
 }
 
 func newServiceAccount(namespace, name string) corev1.ServiceAccount {

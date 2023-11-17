@@ -1522,7 +1522,11 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					util.SortBundlesByCreation(existingBundles)
 					// Note: existing bundles are sorted by metadata.CreationTimestamp, so select
 					// the Bundle that was generated second to compare to the desired Bundle template.
-					return util.CheckDesiredBundleTemplate(&existingBundles.Items[1], bd.Spec.Template)
+					ok, err := util.CheckDesiredBundleTemplate(&existingBundles.Items[1], bd.Spec.Template)
+					if err != nil {
+						return false
+					}
+					return ok
 				}).Should(BeTrue())
 			})
 
@@ -1594,7 +1598,11 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, currBundle); err != nil {
 						return false
 					}
-					return util.CheckDesiredBundleTemplate(currBundle, bd.Spec.Template)
+					ok, err := util.CheckDesiredBundleTemplate(currBundle, bd.Spec.Template)
+					if err != nil {
+						return false
+					}
+					return ok
 				}).Should(BeTrue())
 			})
 			It("should delete the old Bundle once the newly generated Bundle reports a successful installation state", func() {
