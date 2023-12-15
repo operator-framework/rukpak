@@ -15,8 +15,8 @@ const (
 	ProvisionerID = "core-rukpak-io-registry"
 )
 
-func HandleBundle(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) {
-	plainFS, err := convert.RegistryV1ToPlain(fsys)
+func HandleBundle(_ context.Context, fsys fs.FS, bundle *rukpakv1alpha1.Bundle) (fs.FS, error) {
+	plainFS, err := convert.RegistryV1ToPlain(fsys, bundle.Spec.WatchNamespaces)
 	if err != nil {
 		return nil, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err)
 	}

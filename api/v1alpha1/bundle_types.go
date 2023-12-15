@@ -56,6 +56,9 @@ type BundleSpec struct {
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Source defines the configuration for the underlying Bundle content.
 	Source BundleSource `json:"source"`
+	// +kubebuilder:validation:Optional
+	// watchNamespaces indicates which namespaces the operator should watch.
+	WatchNamespaces []string `json:"watchNamespaces,omitempty"`
 }
 
 type BundleSource struct {

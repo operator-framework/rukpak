@@ -40,7 +40,7 @@ type Plain struct {
 	Objects []client.Object
 }
 
-func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
+func RegistryV1ToPlain(rv1 fs.FS, watchNamespaces []string) (fs.FS, error) {
 	reg := RegistryV1{}
 	fileData, err := fs.ReadFile(rv1, filepath.Join("metadata", "annotations.yaml"))
 	if err != nil {
@@ -102,7 +102,7 @@ func RegistryV1ToPlain(rv1 fs.FS) (fs.FS, error) {
 		}
 	}
 
-	plain, err := Simple(reg)
+	plain, err := Simple(reg, watchNamespaces)
 	if err != nil {
 		return nil, err
 	}
@@ -165,8 +165,8 @@ func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNam
 	return fmt.Errorf("supported install modes %v do not support target namespaces %v", sets.List[string](supportedInstallModes), targetNamespaces)
 }
 
-func Simple(in RegistryV1) (*Plain, error) {
-	return Convert(in, "", nil)
+func Simple(in RegistryV1, watchNamespaces []string) (*Plain, error) {
+	return Convert(in, "", watchNamespaces)
 }
 
 func saNameOrDefault(saName string) string {
@@ -188,9 +188,6 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 		if im.Supported {
 			supportedInstallModes.Insert(string(im.Type))
 		}
-	}
-	if !supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
-		return nil, fmt.Errorf("AllNamespace install mode must be enabled")
 	}
 	if targetNamespaces == nil {
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
@@ -274,15 +271,18 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 		permissions = nil
 	}
 
-	for _, permission := range permissions {
-		saName := saNameOrDefault(permission.ServiceAccountName)
-		name, err := generateName(fmt.Sprintf("%s-%s", in.CSV.Name, saName), permission)
-		if err != nil {
-			return nil, err
+	for _, ns := range targetNamespaces {
+		for _, permission := range permissions {
+			saName := saNameOrDefault(permission.ServiceAccountName)
+			name, err := generateName(fmt.Sprintf("%s-%s", in.CSV.Name, saName), permission)
+			if err != nil {
+				return nil, err
+			}
+			roles = append(roles, newRole(ns, name, permission.Rules))
+			roleBindings = append(roleBindings, newRoleBinding(ns, name, name, installNamespace, saName))
 		}
-		roles = append(roles, newRole(installNamespace, name, permission.Rules))
-		roleBindings = append(roleBindings, newRoleBinding(installNamespace, name, name, installNamespace, saName))
 	}
+
 	for _, permission := range clusterPermissions {
 		saName := saNameOrDefault(permission.ServiceAccountName)
 		name, err := generateName(fmt.Sprintf("%s-%s", in.CSV.Name, saName), permission)
