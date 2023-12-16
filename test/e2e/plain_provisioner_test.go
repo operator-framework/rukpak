@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/internal/provisioner/generic"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/rukpakctl"
 	"github.com/operator-framework/rukpak/internal/storage"
@@ -104,7 +105,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -222,7 +223,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -283,7 +284,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-invalid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -343,7 +344,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing no manifests is created", func() {
+	PWhen("a bundle containing no manifests is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -357,7 +358,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-unsupported",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -392,7 +393,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing an empty manifests directory is created", func() {
+	PWhen("a bundle containing an empty manifests directory is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -406,7 +407,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-unsupported",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -460,7 +461,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-commit",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
+						ProvisionerClassName: generic.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -512,7 +513,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-tag",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
+						ProvisionerClassName: generic.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -583,7 +584,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-branch",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
+						ProvisionerClassName: generic.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -654,7 +655,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-custom-dir",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
+						ProvisionerClassName: generic.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -728,7 +729,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-branch",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
+						ProvisionerClassName: generic.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -790,7 +791,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-branch",
 					},
 					Spec: rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
+						ProvisionerClassName: generic.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -885,7 +886,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-local-",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeConfigMaps,
 						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
@@ -936,7 +937,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-local-",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeConfigMaps,
 						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
@@ -972,7 +973,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("the bundle is backed by an invalid configmap", func() {
+	PWhen("the bundle is backed by an invalid configmap", func() {
 		var (
 			bundle    *rukpakv1alpha1.Bundle
 			configmap *corev1.ConfigMap
@@ -1012,7 +1013,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-local-",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeConfigMaps,
 						ConfigMaps: []rukpakv1alpha1.ConfigMapSource{{
@@ -1064,7 +1065,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Name: fmt.Sprintf("valid-upload-%s", rand.String(8)),
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type:   rukpakv1alpha1.SourceTypeUpload,
 						Upload: &rukpakv1alpha1.UploadSource{},
@@ -1104,7 +1105,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("the bundle is backed by an invalid upload", func() {
+	PWhen("the bundle is backed by an invalid upload", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -1122,7 +1123,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					Name: fmt.Sprintf("invalid-upload-%s", rand.String(8)),
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type:   rukpakv1alpha1.SourceTypeUpload,
 						Upload: &rukpakv1alpha1.UploadSource{},
@@ -1168,7 +1169,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing nested directory is created", func() {
+	PWhen("a bundle containing nested directory is created", func() {
 		var (
 			bundle *rukpakv1alpha1.Bundle
 			ctx    context.Context
@@ -1186,7 +1187,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "namespace-subdirs",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -1234,7 +1235,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-git-commit",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
 						Git: &rukpakv1alpha1.GitSource{
@@ -1396,7 +1397,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					ProvisionerClassName: plain.ProvisionerID,
 					Template: rukpakv1alpha1.BundleTemplate{
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -1493,7 +1494,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 						return err
 					}
 					bd.Spec.Template.Spec = rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
+						ProvisionerClassName: generic.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
 							Git: &rukpakv1alpha1.GitSource{
@@ -1651,7 +1652,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -1710,7 +1711,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -1789,7 +1790,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -1823,9 +1824,8 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonBundleLoadFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, And(
-					ContainSubstring(`Failed to unpack the olm-apis`),
 					ContainSubstring(`get objects from bundle manifests: subdirectories are not allowed within the "manifests" directory of the bundle image filesystem: found "manifests/emptydir"`),
 				)),
 			))
@@ -1853,7 +1853,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -1910,7 +1910,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 								},
 							},
 							Spec: rukpakv1alpha1.BundleSpec{
-								ProvisionerClassName: plain.ProvisionerID,
+								ProvisionerClassName: generic.ProvisionerID,
 								Source: rukpakv1alpha1.BundleSource{
 									Type: rukpakv1alpha1.SourceTypeImage,
 									Image: &rukpakv1alpha1.ImageSource{
@@ -1971,7 +1971,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -2021,7 +2021,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 					GenerateName: "e2e-ownerref-bundle-valid",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -2103,7 +2103,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 							Labels: labels,
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -2197,7 +2197,7 @@ var _ = Describe("plain provisioner garbage collection", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{

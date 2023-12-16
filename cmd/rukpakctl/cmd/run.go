@@ -12,6 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
+	"github.com/operator-framework/rukpak/internal/provisioner/generic"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/rukpakctl"
 	"github.com/operator-framework/rukpak/internal/util"
@@ -85,6 +86,6 @@ one version to the next.
 	cmd.Flags().StringVar(&uploadServiceName, "upload-service-name", util.DefaultUploadServiceName, "the name of the service of the upload manager.")
 	cmd.Flags().StringVar(&caSecretName, "ca-secret-name", "rukpak-ca", "the name of the secret in the system namespace containing the root CAs used to authenticate the upload service.")
 	cmd.Flags().StringVar(&bundleDeploymentProvisionerClassName, "bundle-deployment-provisioner-class", plain.ProvisionerID, "Provisioner class name to set on bundle deployment.")
-	cmd.Flags().StringVar(&bundleProvisionerClassName, "bundle-provisioner-class", plain.ProvisionerID, "Provisioner class name to set on bundle.")
+	cmd.Flags().StringVar(&bundleProvisionerClassName, "bundle-provisioner-class", generic.ProvisionerID, "Provisioner class name to set on bundle.")
 	return cmd
 }

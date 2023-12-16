@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	"github.com/operator-framework/rukpak/internal/provisioner/generic"
 	"github.com/operator-framework/rukpak/internal/provisioner/registry"
 )
 
@@ -29,7 +29,7 @@ var _ = Describe("registry provisioner bundle", func() {
 					GenerateName: "prometheus",
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: registry.ProvisionerID,
 					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
@@ -37,7 +37,7 @@ var _ = Describe("registry provisioner bundle", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: registry.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -88,7 +88,7 @@ var _ = Describe("registry provisioner bundle", func() {
 					GenerateName: "cincinnati",
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: registry.ProvisionerID,
 					Template: rukpakv1alpha1.BundleTemplate{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
@@ -96,7 +96,7 @@ var _ = Describe("registry provisioner bundle", func() {
 							},
 						},
 						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: registry.ProvisionerID,
+							ProvisionerClassName: generic.ProvisionerID,
 							Source: rukpakv1alpha1.BundleSource{
 								Type: rukpakv1alpha1.SourceTypeImage,
 								Image: &rukpakv1alpha1.ImageSource{
@@ -125,7 +125,7 @@ var _ = Describe("registry provisioner bundle", func() {
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonBundleLoadFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("convert registry+v1 bundle to plain+v0 bundle: AllNamespace install mode must be enabled")),
 			))
 		})

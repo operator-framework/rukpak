@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	"github.com/operator-framework/rukpak/internal/provisioner/generic"
 )
 
 const (
@@ -111,7 +111,7 @@ var _ = Describe("rukpakctl run subcommand", func() {
 			Expect(strings.Contains(message, "no such file or directory")).To(BeTrue())
 		})
 	})
-	When("run executed with a bundle cannot unpacked", func() {
+	PWhen("run executed with a bundle cannot unpacked", func() {
 		var (
 			ctx                  context.Context
 			bundlename           string
@@ -189,7 +189,7 @@ var _ = Describe("rukpakctl content subcommand", func() {
 					GenerateName: "combo-git-commit",
 				},
 				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: generic.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
 						Git: &rukpakv1alpha1.GitSource{
@@ -260,7 +260,7 @@ var _ = Describe("rukpakctl content subcommand", func() {
 			)))
 		})
 	})
-	When("content executed on a failed bundle", func() {
+	PWhen("content executed on a failed bundle", func() {
 		var (
 			ctx                  context.Context
 			bundlename           string

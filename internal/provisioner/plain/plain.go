@@ -24,15 +24,12 @@ const (
 	manifestsDir = "manifests"
 )
 
-func HandleBundle(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) {
-	if err := ValidateBundle(fsys); err != nil {
-		return nil, err
-	}
-	return fsys, nil
-}
-
 func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
-	chrt, err := chartFromBundle(fsys, bd)
+	if err := ValidateBundle(fsys); err != nil {
+		return nil, nil, err
+	}
+
+	chrt, err := ChartFromBundle(fsys, bd)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -81,7 +78,7 @@ func getObjects(bundle fs.FS, manifest fs.DirEntry) ([]client.Object, error) {
 	return util.ManifestObjects(manifestReader, manifestPath)
 }
 
-func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Chart, error) {
+func ChartFromBundle(fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Chart, error) {
 	objects, err := getBundleObjects(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
