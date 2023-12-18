@@ -47,36 +47,30 @@ var (
 // Bundle resource that's specified in the BundleDeployment parameter's
 // spec.Template configuration is present on cluster, and if not, creates
 // a new Bundle resource matching that desired specification.
-func ReconcileDesiredBundle(ctx context.Context, c client.Client, bd *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.Bundle, *rukpakv1alpha1.BundleList, error) {
+func ReconcileDesiredBundleDeployment(ctx context.Context, c client.Client, bd *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.BundleDeployment, *rukpakv1alpha1.BundleDeploymentList, error) {
 	// get the set of Bundle resources that already exist on cluster, and sort
 	// by metadata.CreationTimestamp in the case there's multiple Bundles
 	// that match the label selector.
-	existingBundles, err := GetBundlesForBundleDeploymentSelector(ctx, c, bd)
+	existingBundleDeployments, err := GetBundlesForBundleDeploymentSelector(ctx, c, bd)
 	if err != nil {
 		return nil, nil, err
 	}
-	SortBundlesByCreation(existingBundles)
-
-	// check whether the BI controller has already reached the maximum
-	// generated Bundle limit to avoid hotlooping scenarios.
-	if len(existingBundles.Items) > maxGeneratedBundleLimit {
-		return nil, nil, ErrMaxGeneratedLimit
-	}
+	SortBundleDeploymentsByCreation(existingBundleDeployments)
 
 	// check whether there's an existing Bundle that matches the desired Bundle template
 	// specified in the BI resource, and if not, generate a new Bundle that matches the template.
-	b, err := CheckExistingBundlesMatchesTemplate(existingBundles, bd.Spec.Template)
+	b, err := CheckExistingBundlesMatchesTemplate(existingBundleDeployments, bd.Spec.Source)
 	if err != nil {
 		return nil, nil, err
 	}
 	if b == nil {
 		controllerRef := metav1.NewControllerRef(bd, bd.GroupVersionKind())
-		hash, err := DeepHashObject(bd.Spec.Template)
+		hash, err := DeepHashObject(bd.Spec.Source)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		labels := bd.Spec.Template.Labels
+		labels := bd.Labels
 		if len(labels) == 0 {
 			labels = make(map[string]string)
 		}
@@ -84,20 +78,20 @@ func ReconcileDesiredBundle(ctx context.Context, c client.Client, bd *rukpakv1al
 		labels[CoreOwnerNameKey] = bd.GetName()
 		labels[CoreBundleTemplateHashKey] = hash
 
-		b = &rukpakv1alpha1.Bundle{
+		b = &rukpakv1alpha1.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            GenerateBundleName(bd.GetName(), hash),
+				Name:            bd.GetName(),
 				OwnerReferences: []metav1.OwnerReference{*controllerRef},
 				Labels:          labels,
-				Annotations:     bd.Spec.Template.Annotations,
+				Annotations:     bd.Annotations,
 			},
-			Spec: bd.Spec.Template.Spec,
+			Spec: bd.Spec,
 		}
 		if err := c.Create(ctx, b); err != nil {
 			return nil, nil, err
 		}
 	}
-	return b, existingBundles, err
+	return b, existingBundleDeployments, err
 }
 
 func BundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
@@ -260,44 +254,44 @@ func MapConfigMapToBundlesHandler(ctx context.Context, cl client.Client, configM
 // GetBundlesForBundleDeploymentSelector is responsible for returning a list of
 // Bundle resource that exist on cluster that match the label selector specified
 // in the BD parameter's spec.Selector field.
-func GetBundlesForBundleDeploymentSelector(ctx context.Context, c client.Client, bd *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.BundleList, error) {
+func GetBundlesForBundleDeploymentSelector(ctx context.Context, c client.Client, bd *rukpakv1alpha1.BundleDeployment) (*rukpakv1alpha1.BundleDeploymentList, error) {
 	selector := NewBundleDeploymentLabelSelector(bd)
-	bundleList := &rukpakv1alpha1.BundleList{}
-	if err := c.List(ctx, bundleList, &client.ListOptions{
+	bundleDeploymentList := &rukpakv1alpha1.BundleDeploymentList{}
+	if err := c.List(ctx, bundleDeploymentList, &client.ListOptions{
 		LabelSelector: selector,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to list bundles using the %s selector: %v", selector.String(), err)
 	}
-	return bundleList, nil
+	return bundleDeploymentList, nil
 }
 
 // CheckExistingBundlesMatchesTemplate evaluates whether the existing list of Bundle objects
 // match the desired Bundle template that's specified in a BundleDeployment object. If a match
 // is found, that Bundle object is returned, so callers are responsible for nil checking the result.
-func CheckExistingBundlesMatchesTemplate(existingBundles *rukpakv1alpha1.BundleList, desiredBundleTemplate rukpakv1alpha1.BundleTemplate) (*rukpakv1alpha1.Bundle, error) {
-	for i := range existingBundles.Items {
-		ok, err := CheckDesiredBundleTemplate(&existingBundles.Items[i], desiredBundleTemplate)
+func CheckExistingBundlesMatchesTemplate(existingBundleDeployments *rukpakv1alpha1.BundleDeploymentList, desiredBundleTemplate rukpakv1alpha1.BundleSource) (*rukpakv1alpha1.BundleDeployment, error) {
+	for i := range existingBundleDeployments.Items {
+		ok, err := CheckDesiredBundleTemplate(&existingBundleDeployments.Items[i], desiredBundleTemplate)
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
 			continue
 		}
-		return existingBundles.Items[i].DeepCopy(), nil
+		return existingBundleDeployments.Items[i].DeepCopy(), nil
 	}
 	return nil, nil
 }
 
 // CheckDesiredBundleTemplate is responsible for determining whether the existingBundle
 // hash is equal to the desiredBundle Bundle template hash.
-func CheckDesiredBundleTemplate(existingBundle *rukpakv1alpha1.Bundle, desiredBundle rukpakv1alpha1.BundleTemplate) (bool, error) {
-	if len(existingBundle.Labels) == 0 {
+func CheckDesiredBundleTemplate(existingBundleDeployment *rukpakv1alpha1.BundleDeployment, desiredBundle rukpakv1alpha1.BundleSource) (bool, error) {
+	if len(existingBundleDeployment.Labels) == 0 {
 		// Existing Bundle has no labels set, which should never be the case.
 		// Return false so that the Bundle is forced to be recreated with the expected labels.
 		return false, nil
 	}
 
-	existingHash, ok := existingBundle.Labels[CoreBundleTemplateHashKey]
+	existingHash, ok := existingBundleDeployment.Labels[CoreBundleTemplateHashKey]
 	if !ok {
 		// Existing Bundle has no template hash associated with it.
 		// Return false so that the Bundle is forced to be recreated with the template hash label.
@@ -335,9 +329,9 @@ func GenerateBundleName(bdName, hash string) string {
 	return fmt.Sprintf("%s-%s", bdName, hash)
 }
 
-// SortBundlesByCreation sorts a BundleList's items by it's
+// SortBundleDeploymentsByCreation sorts a BundleDeploymentList's items by it's
 // metadata.CreationTimestamp value.
-func SortBundlesByCreation(bundles *rukpakv1alpha1.BundleList) {
+func SortBundleDeploymentsByCreation(bundles *rukpakv1alpha1.BundleDeploymentList) {
 	sort.Slice(bundles.Items, func(a, b int) bool {
 		return bundles.Items[a].CreationTimestamp.Before(&bundles.Items[b].CreationTimestamp)
 	})

@@ -15,7 +15,7 @@ const (
 	ProvisionerID = "core-rukpak-io-registry"
 )
 
-func HandleBundle(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) {
+func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.BundleDeployment) (fs.FS, error) {
 	plainFS, err := convert.RegistryV1ToPlain(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err)
@@ -24,5 +24,6 @@ func HandleBundle(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.F
 	if err := plain.ValidateBundle(plainFS); err != nil {
 		return nil, fmt.Errorf("validate bundle: %v", err)
 	}
+	fmt.Println("processed bundle deployment")
 	return plainFS, nil
 }

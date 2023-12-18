@@ -35,7 +35,7 @@ const (
 // specifications. A source should treat a bundle root directory as an opaque
 // file tree and delegate bundle format concerns to bundle parsers.
 type Unpacker interface {
-	Unpack(context.Context, *rukpakv1alpha1.Bundle) (*Result, error)
+	Unpack(context.Context, *rukpakv1alpha1.BundleDeployment) (*Result, error)
 }
 
 // Result conveys progress information about unpacking bundle content.
@@ -88,7 +88,7 @@ func NewUnpacker(sources map[rukpakv1alpha1.SourceType]Unpacker) Unpacker {
 	return &unpacker{sources: sources}
 }
 
-func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
 	source, ok := s.sources[bundle.Spec.Source.Type]
 	if !ok {
 		return nil, fmt.Errorf("source type %q not supported", bundle.Spec.Source.Type)

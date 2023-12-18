@@ -4,7 +4,7 @@
 ORG := github.com/operator-framework
 PKG := $(ORG)/rukpak
 export IMAGE_REPO ?= quay.io/operator-framework/rukpak
-export IMAGE_TAG ?= devel
+export IMAGE_TAG ?= main
 export GO_BUILD_TAGS ?= ''
 IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= rukpak

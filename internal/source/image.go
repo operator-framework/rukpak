@@ -34,7 +34,7 @@ type Image struct {
 
 const imageBundleUnpackContainerName = "bundle"
 
-func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeImage {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
@@ -64,7 +64,7 @@ func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Res
 	}
 }
 
-func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bundle, pod *corev1.Pod) (controllerutil.OperationResult, error) {
+func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	existingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: i.PodNamespace, Name: bundle.Name}}
 	if err := i.Client.Get(ctx, client.ObjectKeyFromObject(existingPod), existingPod); client.IgnoreNotFound(err) != nil {
 		return controllerutil.OperationResultNone, err
@@ -99,7 +99,7 @@ func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bund
 	return controllerutil.OperationResultUpdated, nil
 }
 
-func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.Bundle) *applyconfigurationcorev1.PodApplyConfiguration {
+func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.BundleDeployment) *applyconfigurationcorev1.PodApplyConfiguration {
 	// TODO (tyslaton): Address unpacker pod allowing root users for image sources
 	//
 	// In our current implementation, we are creating a pod that uses the image
