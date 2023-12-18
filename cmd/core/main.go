@@ -44,7 +44,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/controllers/bundle"
 	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
@@ -146,7 +145,6 @@ func main() {
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&rukpakv1alpha1.BundleDeployment{}: {},
-				&rukpakv1alpha1.Bundle{}:           {},
 			},
 			DefaultSelector: cache.ObjectSelector{
 				Label: dependentSelector,
@@ -231,41 +229,49 @@ func main() {
 		os.Exit(1)
 	}
 
-	commonBundleProvisionerOptions := []bundle.Option{
-		bundle.WithUnpacker(unpacker),
-		bundle.WithFinalizers(bundleFinalizers),
-		bundle.WithStorage(bundleStorage),
-	}
-
 	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
 	acg := helmclient.NewActionClientGetter(cfgGetter)
 	commonBDProvisionerOptions := []bundledeployment.Option{
 		bundledeployment.WithReleaseNamespace(systemNamespace),
 		bundledeployment.WithActionClientGetter(acg),
+		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-		commonBundleProvisionerOptions,
-		bundle.WithProvisionerID(plain.ProvisionerID),
-		bundle.WithHandler(bundle.HandlerFunc(plain.HandleBundle)),
-	)...); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", plain.ProvisionerID)
-		os.Exit(1)
-	}
+	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
+	// 	commonBundleProvisionerOptions,
+	// 	bundle.WithProvisionerID(plain.ProvisionerID),
+	// 	bundle.WithHandler(bundle.HandlerFunc(plain.HandleBundle)),
+	// )...); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", plain.ProvisionerID)
+	// 	os.Exit(1)
+	// }
 
-	if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-		commonBundleProvisionerOptions,
-		bundle.WithProvisionerID(registry.ProvisionerID),
-		bundle.WithHandler(bundle.HandlerFunc(registry.HandleBundle)),
+	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
+	// 	commonBundleProvisionerOptions,
+	// 	bundle.WithProvisionerID(registry.ProvisionerID),
+	// 	bundle.WithHandler(bundle.HandlerFunc(registry.HandleBundle)),
+	// )...); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", registry.ProvisionerID)
+	// 	os.Exit(1)
+	// }
+
+	if err := bundledeployment.SetupWithManager(mgr, append(
+		commonBDProvisionerOptions,
+		bundledeployment.WithUnpacker(unpacker),
+		bundledeployment.WithProvisionerID(plain.ProvisionerID),
+		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.BundleDeploymentProcessorFunc(plain.ProcessBundleDeployment)),
+		bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
 	)...); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", registry.ProvisionerID)
+		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
 		os.Exit(1)
 	}
 
 	if err := bundledeployment.SetupWithManager(mgr, append(
 		commonBDProvisionerOptions,
-		bundledeployment.WithProvisionerID(plain.ProvisionerID),
+		bundledeployment.WithUnpacker(unpacker),
+		bundledeployment.WithProvisionerID(registry.ProvisionerID),
+		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.BundleDeploymentProcessorFunc(registry.ProcessBundleDeployment)),
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
 	)...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)

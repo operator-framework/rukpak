@@ -22,7 +22,7 @@ type HTTP struct {
 }
 
 // Unpack unpacks a bundle by requesting the bundle contents from a specified URL
-func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeHTTP {
 		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeHTTP)
 	}
@@ -75,7 +75,7 @@ func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Resu
 
 // getCredentials reads credentials from the secret specified in the bundle
 // It returns the username ane password when they are in the secret
-func (b *HTTP) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (string, string, error) {
+func (b *HTTP) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (string, string, error) {
 	secret := &corev1.Secret{}
 	err := b.Get(ctx, client.ObjectKey{Namespace: b.SecretNamespace, Name: bundle.Spec.Source.HTTP.Auth.Secret.Name}, secret)
 	if err != nil {

@@ -18,9 +18,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.activeBundle
-      name: Active Bundle
-      type: string
     - jsonPath: .status.conditions[?(.type=="Installed")].reason
       name: Install State
       type: string
@@ -60,243 +57,186 @@ spec:
                   that should reconcile this BundleDeployment.
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
-              template:
-                description: Template describes the generated Bundle that this deployment
-                  will manage.
+              source:
+                description: Source defines the configuration for the underlying Bundle
+                  content.
                 properties:
-                  metadata:
-                    description: 'Standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                  configMaps:
+                    description: ConfigMaps is a list of config map references and
+                      their relative directory paths that represent a bundle filesystem.
+                    items:
+                      properties:
+                        configMap:
+                          description: ConfigMap is a reference to a configmap in
+                            the rukpak system namespace
+                          properties:
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        path:
+                          description: Path is the relative directory path within
+                            the bundle where the files from the configmap will be
+                            present when the bundle is unpacked.
+                          type: string
+                      required:
+                      - configMap
+                      type: object
+                    type: array
+                  git:
+                    description: Git is the git repository that backs the content
+                      of this Bundle.
                     properties:
-                      annotations:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      finalizers:
-                        items:
-                          type: string
-                        type: array
-                      labels:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    type: object
-                  spec:
-                    description: 'Specification of the desired behavior of the Bundle.
-                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status'
-                    properties:
-                      provisionerClassName:
-                        description: ProvisionerClassName sets the name of the provisioner
-                          that should reconcile this BundleDeployment.
-                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-                        type: string
-                      source:
-                        description: Source defines the configuration for the underlying
-                          Bundle content.
+                      auth:
+                        description: Auth configures the authorization method if necessary.
                         properties:
-                          configMaps:
-                            description: ConfigMaps is a list of config map references
-                              and their relative directory paths that represent a
-                              bundle filesystem.
-                            items:
-                              properties:
-                                configMap:
-                                  description: ConfigMap is a reference to a configmap
-                                    in the rukpak system namespace
-                                  properties:
-                                    name:
-                                      description: 'Name of the referent. More info:
-                                        https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                        TODO: Add other useful fields. apiVersion,
-                                        kind, uid?'
-                                      type: string
-                                  type: object
-                                  x-kubernetes-map-type: atomic
-                                path:
-                                  description: Path is the relative directory path
-                                    within the bundle where the files from the configmap
-                                    will be present when the bundle is unpacked.
-                                  type: string
-                              required:
-                              - configMap
-                              type: object
-                            type: array
-                          git:
-                            description: Git is the git repository that backs the
-                              content of this Bundle.
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
                             properties:
-                              auth:
-                                description: Auth configures the authorization method
-                                  if necessary.
-                                properties:
-                                  insecureSkipVerify:
-                                    description: InsecureSkipVerify controls whether
-                                      a client verifies the server's certificate chain
-                                      and host name. If InsecureSkipVerify is true,
-                                      the clone operation will accept any certificate
-                                      presented by the server and any host name in
-                                      that certificate. In this mode, TLS is susceptible
-                                      to machine-in-the-middle attacks unless custom
-                                      verification is used. This should be used only
-                                      for testing.
-                                    type: boolean
-                                  secret:
-                                    description: Secret contains reference to the
-                                      secret that has authorization information and
-                                      is in the namespace that the provisioner is
-                                      deployed. The secret is expected to contain
-                                      `data.username` and `data.password` for the
-                                      username and password, respectively for http(s)
-                                      scheme. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
-                                      For the ssh authorization of the GitSource,
-                                      the secret is expected to contain `data.ssh-privatekey`
-                                      and `data.ssh-knownhosts` for the ssh privatekey
-                                      and the host entry in the known_hosts file respectively.
-                                      Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
-                                    properties:
-                                      name:
-                                        description: 'Name of the referent. More info:
-                                          https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion,
-                                          kind, uid?'
-                                        type: string
-                                    type: object
-                                    x-kubernetes-map-type: atomic
-                                type: object
-                              directory:
-                                description: Directory refers to the location of the
-                                  bundle within the git repository. Directory is optional
-                                  and if not set defaults to ./manifests.
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
                                 type: string
-                              ref:
-                                description: Ref configures the git source to clone
-                                  a specific branch, tag, or commit from the specified
-                                  repo. Ref is required, and exactly one field within
-                                  Ref is required. Setting more than one field or
-                                  zero fields will result in an error.
-                                properties:
-                                  branch:
-                                    description: Branch refers to the branch to checkout
-                                      from the repository. The Branch should contain
-                                      the bundle manifests in the specified directory.
-                                    type: string
-                                  commit:
-                                    description: Commit refers to the commit to checkout
-                                      from the repository. The Commit should contain
-                                      the bundle manifests in the specified directory.
-                                    type: string
-                                  tag:
-                                    description: Tag refers to the tag to checkout
-                                      from the repository. The Tag should contain
-                                      the bundle manifests in the specified directory.
-                                    type: string
-                                type: object
-                              repository:
-                                description: Repository is a URL link to the git repository
-                                  containing the bundle. Repository is required and
-                                  the URL should be parsable by a standard git tool.
-                                type: string
-                            required:
-                            - ref
-                            - repository
                             type: object
-                          http:
-                            description: HTTP is the remote location that backs the
-                              content of this Bundle.
-                            properties:
-                              auth:
-                                description: Auth configures the authorization method
-                                  if necessary.
-                                properties:
-                                  insecureSkipVerify:
-                                    description: InsecureSkipVerify controls whether
-                                      a client verifies the server's certificate chain
-                                      and host name. If InsecureSkipVerify is true,
-                                      the clone operation will accept any certificate
-                                      presented by the server and any host name in
-                                      that certificate. In this mode, TLS is susceptible
-                                      to machine-in-the-middle attacks unless custom
-                                      verification is used. This should be used only
-                                      for testing.
-                                    type: boolean
-                                  secret:
-                                    description: Secret contains reference to the
-                                      secret that has authorization information and
-                                      is in the namespace that the provisioner is
-                                      deployed. The secret is expected to contain
-                                      `data.username` and `data.password` for the
-                                      username and password, respectively for http(s)
-                                      scheme. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
-                                      For the ssh authorization of the GitSource,
-                                      the secret is expected to contain `data.ssh-privatekey`
-                                      and `data.ssh-knownhosts` for the ssh privatekey
-                                      and the host entry in the known_hosts file respectively.
-                                      Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
-                                    properties:
-                                      name:
-                                        description: 'Name of the referent. More info:
-                                          https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Add other useful fields. apiVersion,
-                                          kind, uid?'
-                                        type: string
-                                    type: object
-                                    x-kubernetes-map-type: atomic
-                                type: object
-                              url:
-                                description: URL is where the bundle contents is.
-                                type: string
-                            required:
-                            - url
-                            type: object
-                          image:
-                            description: Image is the bundle image that backs the
-                              content of this bundle.
-                            properties:
-                              pullSecret:
-                                description: ImagePullSecretName contains the name
-                                  of the image pull secret in the namespace that the
-                                  provisioner is deployed.
-                                type: string
-                              ref:
-                                description: Ref contains the reference to a container
-                                  image containing Bundle contents.
-                                type: string
-                            required:
-                            - ref
-                            type: object
-                          type:
-                            description: Type defines the kind of Bundle content being
-                              sourced.
-                            type: string
-                          upload:
-                            description: Upload is a source that enables this Bundle's
-                              content to be uploaded via Rukpak's bundle upload service.
-                              This source type is primarily useful with bundle development
-                              workflows because it enables bundle developers to inject
-                              a local bundle directly into the cluster.
-                            type: object
-                        required:
-                        - type
+                            x-kubernetes-map-type: atomic
                         type: object
+                      directory:
+                        description: Directory refers to the location of the bundle
+                          within the git repository. Directory is optional and if
+                          not set defaults to ./manifests.
+                        type: string
+                      ref:
+                        description: Ref configures the git source to clone a specific
+                          branch, tag, or commit from the specified repo. Ref is required,
+                          and exactly one field within Ref is required. Setting more
+                          than one field or zero fields will result in an error.
+                        properties:
+                          branch:
+                            description: Branch refers to the branch to checkout from
+                              the repository. The Branch should contain the bundle
+                              manifests in the specified directory.
+                            type: string
+                          commit:
+                            description: Commit refers to the commit to checkout from
+                              the repository. The Commit should contain the bundle
+                              manifests in the specified directory.
+                            type: string
+                          tag:
+                            description: Tag refers to the tag to checkout from the
+                              repository. The Tag should contain the bundle manifests
+                              in the specified directory.
+                            type: string
+                        type: object
+                      repository:
+                        description: Repository is a URL link to the git repository
+                          containing the bundle. Repository is required and the URL
+                          should be parsable by a standard git tool.
+                        type: string
                     required:
-                    - provisionerClassName
-                    - source
+                    - ref
+                    - repository
+                    type: object
+                  http:
+                    description: HTTP is the remote location that backs the content
+                      of this Bundle.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      url:
+                        description: URL is where the bundle contents is.
+                        type: string
+                    required:
+                    - url
+                    type: object
+                  image:
+                    description: Image is the bundle image that backs the content
+                      of this bundle.
+                    properties:
+                      pullSecret:
+                        description: ImagePullSecretName contains the name of the
+                          image pull secret in the namespace that the provisioner
+                          is deployed.
+                        type: string
+                      ref:
+                        description: Ref contains the reference to a container image
+                          containing Bundle contents.
+                        type: string
+                    required:
+                    - ref
+                    type: object
+                  type:
+                    description: Type defines the kind of Bundle content being sourced.
+                    type: string
+                  upload:
+                    description: Upload is a source that enables this Bundle's content
+                      to be uploaded via Rukpak's bundle upload service. This source
+                      type is primarily useful with bundle development workflows because
+                      it enables bundle developers to inject a local bundle directly
+                      into the cluster.
                     type: object
                 required:
-                - spec
+                - type
                 type: object
             required:
             - provisionerClassName
-            - template
+            - source
             type: object
           status:
             description: BundleDeploymentStatus defines the observed state of BundleDeployment
             properties:
-              activeBundle:
-                type: string
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
@@ -365,9 +305,182 @@ spec:
                   - type
                   type: object
                 type: array
+              contentURL:
+                type: string
               observedGeneration:
                 format: int64
                 type: integer
+              resolvedSource:
+                properties:
+                  configMaps:
+                    description: ConfigMaps is a list of config map references and
+                      their relative directory paths that represent a bundle filesystem.
+                    items:
+                      properties:
+                        configMap:
+                          description: ConfigMap is a reference to a configmap in
+                            the rukpak system namespace
+                          properties:
+                            name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
+                              type: string
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        path:
+                          description: Path is the relative directory path within
+                            the bundle where the files from the configmap will be
+                            present when the bundle is unpacked.
+                          type: string
+                      required:
+                      - configMap
+                      type: object
+                    type: array
+                  git:
+                    description: Git is the git repository that backs the content
+                      of this Bundle.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      directory:
+                        description: Directory refers to the location of the bundle
+                          within the git repository. Directory is optional and if
+                          not set defaults to ./manifests.
+                        type: string
+                      ref:
+                        description: Ref configures the git source to clone a specific
+                          branch, tag, or commit from the specified repo. Ref is required,
+                          and exactly one field within Ref is required. Setting more
+                          than one field or zero fields will result in an error.
+                        properties:
+                          branch:
+                            description: Branch refers to the branch to checkout from
+                              the repository. The Branch should contain the bundle
+                              manifests in the specified directory.
+                            type: string
+                          commit:
+                            description: Commit refers to the commit to checkout from
+                              the repository. The Commit should contain the bundle
+                              manifests in the specified directory.
+                            type: string
+                          tag:
+                            description: Tag refers to the tag to checkout from the
+                              repository. The Tag should contain the bundle manifests
+                              in the specified directory.
+                            type: string
+                        type: object
+                      repository:
+                        description: Repository is a URL link to the git repository
+                          containing the bundle. Repository is required and the URL
+                          should be parsable by a standard git tool.
+                        type: string
+                    required:
+                    - ref
+                    - repository
+                    type: object
+                  http:
+                    description: HTTP is the remote location that backs the content
+                      of this Bundle.
+                    properties:
+                      auth:
+                        description: Auth configures the authorization method if necessary.
+                        properties:
+                          insecureSkipVerify:
+                            description: InsecureSkipVerify controls whether a client
+                              verifies the server's certificate chain and host name.
+                              If InsecureSkipVerify is true, the clone operation will
+                              accept any certificate presented by the server and any
+                              host name in that certificate. In this mode, TLS is
+                              susceptible to machine-in-the-middle attacks unless
+                              custom verification is used. This should be used only
+                              for testing.
+                            type: boolean
+                          secret:
+                            description: Secret contains reference to the secret that
+                              has authorization information and is in the namespace
+                              that the provisioner is deployed. The secret is expected
+                              to contain `data.username` and `data.password` for the
+                              username and password, respectively for http(s) scheme.
+                              Refer to https://kubernetes.io/docs/concepts/configuration/secret/#basic-authentication-secret
+                              For the ssh authorization of the GitSource, the secret
+                              is expected to contain `data.ssh-privatekey` and `data.ssh-knownhosts`
+                              for the ssh privatekey and the host entry in the known_hosts
+                              file respectively. Refer to https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      url:
+                        description: URL is where the bundle contents is.
+                        type: string
+                    required:
+                    - url
+                    type: object
+                  image:
+                    description: Image is the bundle image that backs the content
+                      of this bundle.
+                    properties:
+                      pullSecret:
+                        description: ImagePullSecretName contains the name of the
+                          image pull secret in the namespace that the provisioner
+                          is deployed.
+                        type: string
+                      ref:
+                        description: Ref contains the reference to a container image
+                          containing Bundle contents.
+                        type: string
+                    required:
+                    - ref
+                    type: object
+                  type:
+                    description: Type defines the kind of Bundle content being sourced.
+                    type: string
+                  upload:
+                    description: Upload is a source that enables this Bundle's content
+                      to be uploaded via Rukpak's bundle upload service. This source
+                      type is primarily useful with bundle development workflows because
+                      it enables bundle developers to inject a local bundle directly
+                      into the cluster.
+                    type: object
+                required:
+                - type
+                type: object
             type: object
         required:
         - spec

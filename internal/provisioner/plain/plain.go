@@ -24,7 +24,7 @@ const (
 	manifestsDir = "manifests"
 )
 
-func HandleBundle(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) {
+func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.BundleDeployment) (fs.FS, error) {
 	if err := ValidateBundle(fsys); err != nil {
 		return nil, err
 	}

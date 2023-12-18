@@ -21,7 +21,7 @@ const (
 	ProvisionerID = "core-rukpak-io-helm"
 )
 
-func HandleBundle(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bundle) (fs.FS, error) {
+func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.BundleDeployment) (fs.FS, error) {
 	// Helm expects an FS whose root contains a single chart directory. Depending on how
 	// the bundle is sourced, the FS may or may not contain this single chart directory in
 	// its root (e.g. charts uploaded via 'rukpakctl run <bdName> <chartDir>') would not.

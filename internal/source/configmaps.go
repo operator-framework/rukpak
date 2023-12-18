@@ -19,7 +19,7 @@ type ConfigMaps struct {
 	ConfigMapNamespace string
 }
 
-func (o *ConfigMaps) Unpack(ctx context.Context, bundle *rukpakv1alpha1.Bundle) (*Result, error) {
+func (o *ConfigMaps) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeConfigMaps {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}

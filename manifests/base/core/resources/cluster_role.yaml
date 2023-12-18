@@ -55,6 +55,8 @@ rules:
   - bundledeployments
   verbs:
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - core.rukpak.io
@@ -75,15 +77,7 @@ rules:
   - bundles
   verbs:
   - list
-  - patch
-  - update
   - watch
-- apiGroups:
-  - core.rukpak.io
-  resources:
-  - bundles/finalizers
-  verbs:
-  - update
 - apiGroups:
   - core.rukpak.io
   resources:

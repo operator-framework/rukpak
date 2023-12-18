@@ -52,8 +52,8 @@ type BundleDeploymentSpec struct {
 	//+kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
-	// Template describes the generated Bundle that this deployment will manage.
-	Template BundleTemplate `json:"template"`
+	// Source defines the configuration for the underlying Bundle content.
+	Source BundleSource `json:"source"`
 	// Config is provisioner specific configurations
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Config runtime.RawExtension `json:"config,omitempty"`
@@ -73,14 +73,14 @@ type BundleTemplate struct {
 // BundleDeploymentStatus defines the observed state of BundleDeployment
 type BundleDeploymentStatus struct {
 	Conditions         []metav1.Condition `json:"conditions,omitempty"`
-	ActiveBundle       string             `json:"activeBundle,omitempty"`
+	ResolvedSource     *BundleSource      `json:"resolvedSource,omitempty"`
+	ContentURL         string             `json:"contentURL,omitempty"`
 	ObservedGeneration int64              `json:"observedGeneration,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:scope=Cluster,shortName={"bd","bds"}
-//+kubebuilder:printcolumn:name="Active Bundle",type=string,JSONPath=`.status.activeBundle`
 //+kubebuilder:printcolumn:name="Install State",type=string,JSONPath=`.status.conditions[?(.type=="Installed")].reason`
 //+kubebuilder:printcolumn:name=Age,type=date,JSONPath=`.metadata.creationTimestamp`
 //+kubebuilder:printcolumn:name=Provisioner,type=string,JSONPath=`.spec.provisionerClassName`,priority=1
