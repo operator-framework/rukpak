@@ -101,7 +101,6 @@ under the management of a rukpak BundleDeployment.'
 			}
 			modified, err := r.Run(ctx, bundleDeploymentName, bundleFS, rukpakctl.RunOptions{
 				BundleDeploymentProvisionerClassName: plain.ProvisionerID,
-				BundleProvisionerClassName:           plain.ProvisionerID,
 			})
 			if err != nil {
 				log.Fatal(err)

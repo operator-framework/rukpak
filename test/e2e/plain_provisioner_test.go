@@ -1443,41 +1443,6 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 			By("deleting the testing BD resource")
 			Expect(c.Delete(ctx, bd)).To(Succeed())
 		})
-		It("should generate a Bundle that contains an owner reference", func() {
-			// Note: cannot use bd.GroupVersionKind() as the Kind/APIVersion fields
-			// will be empty during the testing suite.
-			bdRef := metav1.NewControllerRef(bd, rukpakv1alpha1.BundleDeploymentGVK)
-
-			Eventually(func() []metav1.OwnerReference {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil
-				}
-				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, b); err != nil {
-					return nil
-				}
-				return b.GetOwnerReferences()
-			}).Should(And(
-				Not(BeNil()),
-				ContainElement(*bdRef)),
-			)
-		})
-		It("should generate a Bundle that contains the correct labels", func() {
-			Eventually(func() (map[string]string, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, b); err != nil {
-					return nil, err
-				}
-				return b.Labels, nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerKindKey] }, Equal(rukpakv1alpha1.BundleDeploymentKind)),
-				WithTransform(func(s map[string]string) string { return s[util.CoreOwnerNameKey] }, Equal(bd.GetName())),
-			))
-		})
 		Describe("template is unsuccessfully updated", func() {
 			var (
 				originalBundle *rukpakv1alpha1.Bundle
@@ -1507,28 +1472,6 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					return c.Update(ctx, bd)
 				}).Should(Succeed())
 			})
-			It("should generate a new Bundle resource that matches the desired specification", func() {
-				Eventually(func() bool {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-						return false
-					}
-					existingBundles, err := util.GetBundlesForBundleDeploymentSelector(ctx, c, bd)
-					if err != nil {
-						return false
-					}
-					if len(existingBundles.Items) != 2 {
-						return false
-					}
-					util.SortBundlesByCreation(existingBundles)
-					// Note: existing bundles are sorted by metadata.CreationTimestamp, so select
-					// the Bundle that was generated second to compare to the desired Bundle template.
-					ok, err := util.CheckDesiredBundleTemplate(&existingBundles.Items[1], bd.Spec.Template)
-					if err != nil {
-						return false
-					}
-					return ok
-				}).Should(BeTrue())
-			})
 
 			It("should delete the old Bundle once the newly generated Bundle reports a successful installation state", func() {
 				By("waiting until the BD reports a successful installation")
@@ -1536,9 +1479,7 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 						return nil, err
 					}
-					if bd.Status.ActiveBundle == "" {
-						return nil, fmt.Errorf("waiting for bundle name to be populated")
-					}
+
 					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 				}).Should(And(
 					Not(BeNil()),
@@ -2187,23 +2128,16 @@ var _ = Describe("plain provisioner garbage collection", func() {
 			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "e2e-ownerref-bd-valid-",
+					Labels: map[string]string{
+						"app.kubernetes.io/name": "e2e-ownerref-bundle-valid",
+					},
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "e2e-ownerref-bundle-valid",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
-								},
-							},
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
 						},
 					},
 				},

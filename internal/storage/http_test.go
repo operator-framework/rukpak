@@ -24,14 +24,14 @@ import (
 var _ = Describe("HTTP", func() {
 	var (
 		ctx        context.Context
-		bundle     *rukpakv1alpha1.Bundle
+		bundledeployment    *rukpakv1alpha1.BundleDeployment
 		testFS     fs.FS
 		localStore *LocalDirectory
 		server     *httptest.Server
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
-		bundle = &rukpakv1alpha1.Bundle{ObjectMeta: metav1.ObjectMeta{
+		bundledeployment = &rukpakv1alpha1.BundleDeployment{ObjectMeta: metav1.ObjectMeta{
 			Name: util.GenerateBundleName("testbundle", rand.String(8)),
 		}}
 
@@ -44,16 +44,16 @@ var _ = Describe("HTTP", func() {
 
 		// Setup the local store and store the generated FS.
 		localStore = &LocalDirectory{RootDirectory: testDir}
-		Expect(localStore.Store(ctx, bundle, testFS)).To(Succeed())
+		Expect(localStore.Store(ctx, bundledeployment, testFS)).To(Succeed())
 
 		// Create and start the server
 		server = newTLSServer(localStore, "abc123")
 
 		// Populate the content URL, this has to happen after the server has
 		// started so that we know the server's base URL.
-		contentURL, err := localStore.URLFor(ctx, bundle)
+		contentURL, err := localStore.URLFor(ctx, bundledeployment)
 		Expect(err).ToNot(HaveOccurred())
-		bundle.Status.ContentURL = contentURL
+		bundledeployment.Status.ContentURL = contentURL
 	})
 	AfterEach(func() {
 		server.Close()
@@ -67,7 +67,7 @@ var _ = Describe("HTTP", func() {
 
 		It("should get a certificate verification error", func() {
 			store := NewHTTP(opts...)
-			loadedTestFS, err := store.Load(ctx, bundle)
+			loadedTestFS, err := store.Load(ctx, bundledeployment)
 			Expect(loadedTestFS).To(BeNil())
 			Expect(err).To(MatchError(Or(
 				ContainSubstring("certificate is not trusted"),              // works on darwin
@@ -87,18 +87,18 @@ var _ = Describe("HTTP", func() {
 			Context("with existing bundle", func() {
 				It("should succeed", func() {
 					store := NewHTTP(opts...)
-					loadedTestFS, err := store.Load(ctx, bundle)
+					loadedTestFS, err := store.Load(ctx, bundledeployment)
 					Expect(fsEqual(testFS, loadedTestFS)).To(BeTrue())
 					Expect(err).ToNot(HaveOccurred())
 				})
 			})
 			Context("with non-existing bundle", func() {
 				BeforeEach(func() {
-					bundle.Status.ContentURL += "foobar"
+					bundledeployment.Status.ContentURL += "foobar"
 				})
 				It("should get 404 not found error", func() {
 					store := NewHTTP(opts...)
-					loadedTestFS, err := store.Load(ctx, bundle)
+					loadedTestFS, err := store.Load(ctx, bundledeployment)
 					Expect(loadedTestFS).To(BeNil())
 					Expect(err).To(MatchError(ContainSubstring("404 Not Found")))
 				})
@@ -110,7 +110,7 @@ var _ = Describe("HTTP", func() {
 			})
 			It("should get a 401 Unauthorized error", func() {
 				store := NewHTTP(opts...)
-				loadedTestFS, err := store.Load(ctx, bundle)
+				loadedTestFS, err := store.Load(ctx, bundledeployment)
 				Expect(loadedTestFS).To(BeNil())
 				Expect(err).To(MatchError(ContainSubstring("401 Unauthorized")))
 			})
@@ -130,18 +130,18 @@ var _ = Describe("HTTP", func() {
 			Context("with existing bundle", func() {
 				It("should succeed", func() {
 					store := NewHTTP(opts...)
-					loadedTestFS, err := store.Load(ctx, bundle)
+					loadedTestFS, err := store.Load(ctx, bundledeployment)
 					Expect(fsEqual(testFS, loadedTestFS)).To(BeTrue())
 					Expect(err).ToNot(HaveOccurred())
 				})
 			})
 			Context("with non-existing bundle", func() {
 				BeforeEach(func() {
-					bundle.Status.ContentURL += "foobar"
+					bundledeployment.Status.ContentURL += "foobar"
 				})
 				It("should get 404 not found error", func() {
 					store := NewHTTP(opts...)
-					loadedTestFS, err := store.Load(ctx, bundle)
+					loadedTestFS, err := store.Load(ctx, bundledeployment)
 					Expect(loadedTestFS).To(BeNil())
 					Expect(err).To(MatchError(ContainSubstring("404 Not Found")))
 				})
@@ -153,7 +153,7 @@ var _ = Describe("HTTP", func() {
 			})
 			It("should get a 401 Unauthorized error", func() {
 				store := NewHTTP(opts...)
-				loadedTestFS, err := store.Load(ctx, bundle)
+				loadedTestFS, err := store.Load(ctx, bundledeployment)
 				Expect(loadedTestFS).To(BeNil())
 				Expect(err).To(MatchError(ContainSubstring("401 Unauthorized")))
 			})

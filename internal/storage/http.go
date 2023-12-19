@@ -69,8 +69,8 @@ func NewHTTP(opts ...HTTPOption) *HTTP {
 }
 
 func (s *HTTP) Load(ctx context.Context, owner client.Object) (fs.FS, error) {
-	bundle := owner.(*rukpakv1alpha1.Bundle)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bundle.Status.ContentURL, nil)
+	bundledeployment := owner.(*rukpakv1alpha1.BundleDeployment)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bundledeployment.Status.ContentURL, nil)
 	if err != nil {
 		return nil, err
 	}

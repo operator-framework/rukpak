@@ -238,25 +238,8 @@ func main() {
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-	// 	commonBundleProvisionerOptions,
-	// 	bundle.WithProvisionerID(plain.ProvisionerID),
-	// 	bundle.WithHandler(bundle.HandlerFunc(plain.HandleBundle)),
-	// )...); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", plain.ProvisionerID)
-	// 	os.Exit(1)
-	// }
 
-	// if err := bundle.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
-	// 	commonBundleProvisionerOptions,
-	// 	bundle.WithProvisionerID(registry.ProvisionerID),
-	// 	bundle.WithHandler(bundle.HandlerFunc(registry.HandleBundle)),
-	// )...); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleKind, "provisionerID", registry.ProvisionerID)
-	// 	os.Exit(1)
-	// }
-
-	if err := bundledeployment.SetupWithManager(mgr, append(
+	if err := bundledeployment.SetupWithManager(mgr,systemNsCluster.GetCache(), systemNamespace,append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithUnpacker(unpacker),
 		bundledeployment.WithProvisionerID(plain.ProvisionerID),
@@ -267,7 +250,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := bundledeployment.SetupWithManager(mgr, append(
+	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace,append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithUnpacker(unpacker),
 		bundledeployment.WithProvisionerID(registry.ProvisionerID),

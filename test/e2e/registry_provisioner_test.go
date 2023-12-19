@@ -12,7 +12,6 @@ import (
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
-	"github.com/operator-framework/rukpak/internal/provisioner/registry"
 )
 
 var _ = Describe("registry provisioner bundle", func() {
@@ -27,23 +26,16 @@ var _ = Describe("registry provisioner bundle", func() {
 			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "prometheus",
+					Labels: map[string]string{
+						"app.kubernetes.io/name": "prometheus",
+					},
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "prometheus",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: registry.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:valid"),
-								},
-							},
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:valid"),
 						},
 					},
 				},
@@ -61,9 +53,6 @@ var _ = Describe("registry provisioner bundle", func() {
 			Eventually(func() (*metav1.Condition, error) {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
-				}
-				if bd.Status.ActiveBundle == "" {
-					return nil, fmt.Errorf("waiting for bundle name to be populated")
 				}
 				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 			}).Should(And(
@@ -86,23 +75,16 @@ var _ = Describe("registry provisioner bundle", func() {
 			bd = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cincinnati",
+					Labels: map[string]string{
+						"app.kubernetes.io/name": "cincinnati",
+					},
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "cincinnati",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: registry.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:invalid"),
-								},
-							},
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:invalid"),
 						},
 					},
 				},

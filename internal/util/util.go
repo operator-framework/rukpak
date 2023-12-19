@@ -219,13 +219,13 @@ func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, p
 		return []reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(managingBD)}}
 	}
 }
-func MapConfigMapToBundles(ctx context.Context, cl client.Client, cmNamespace string, cm corev1.ConfigMap) []*rukpakv1alpha1.Bundle {
-	bundleList := &rukpakv1alpha1.BundleList{}
-	if err := cl.List(ctx, bundleList); err != nil {
+func MapConfigMapToBundleDeployment(ctx context.Context, cl client.Client, cmNamespace string, cm corev1.ConfigMap) []*rukpakv1alpha1.BundleDeployment {
+	bundleDeploymentList := &rukpakv1alpha1.BundleDeploymentList{}
+	if err := cl.List(ctx, bundleDeploymentList); err != nil {
 		return nil
 	}
-	var bs []*rukpakv1alpha1.Bundle
-	for _, b := range bundleList.Items {
+	var bs []*rukpakv1alpha1.BundleDeployment
+	for _, b := range bundleDeploymentList.Items {
 		b := b
 		for _, cmSource := range b.Spec.Source.ConfigMaps {
 			cmName := cmSource.ConfigMap.Name
@@ -236,12 +236,12 @@ func MapConfigMapToBundles(ctx context.Context, cl client.Client, cmNamespace st
 	}
 	return bs
 }
-func MapConfigMapToBundlesHandler(ctx context.Context, cl client.Client, configMapNamespace string, provisionerClassName string) handler.EventHandler {
+func MapConfigMapToBundleDeploymentHandler(ctx context.Context, cl client.Client, configMapNamespace string, provisionerClassName string) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
 		cm := object.(*corev1.ConfigMap)
 		var requests []reconcile.Request
-		matchingBundles := MapConfigMapToBundles(ctx, cl, configMapNamespace, *cm)
-		for _, b := range matchingBundles {
+		matchingBundleDeployment := MapConfigMapToBundleDeployment(ctx, cl, configMapNamespace, *cm)
+		for _, b := range matchingBundleDeployment {
 			if b.Spec.ProvisionerClassName != provisionerClassName {
 				continue
 			}

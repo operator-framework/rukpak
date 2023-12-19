@@ -24,6 +24,5 @@ func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bu
 	if err := plain.ValidateBundle(plainFS); err != nil {
 		return nil, fmt.Errorf("validate bundle: %v", err)
 	}
-	fmt.Println("processed bundle deployment")
 	return plainFS, nil
 }
