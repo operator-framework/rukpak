@@ -50,9 +50,9 @@ func newContentCmd() *cobra.Command {
 	var opt options
 
 	contentCmd := &cobra.Command{
-		Use:   "content <bundle name>",
-		Short: "display contents of the specified bundle.",
-		Long:  `display contents of the specified bundle.`,
+		Use:   "content <bundledeployment name>",
+		Short: "display contents of the specified bundledeployment.",
+		Long:  `display contents of the specified bundledeployment.`,
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			sch := runtime.NewScheme()
@@ -121,12 +121,12 @@ func content(ctx context.Context, opt options, args []string) error {
 		return fmt.Errorf("failed to create a service account: %v", err)
 	}
 
-	bundle := &rukpakv1alpha1.Bundle{}
-	err = opt.Get(ctx, runtimeclient.ObjectKey{Name: args[0]}, bundle)
+	bundledeployment := &rukpakv1alpha1.BundleDeployment{}
+	err = opt.Get(ctx, runtimeclient.ObjectKey{Name: args[0]}, bundledeployment)
 	if err != nil {
 		return err
 	}
-	url := bundle.Status.ContentURL
+	url := bundledeployment.Status.ContentURL
 	if url == "" {
 		return errors.New("error: url is not available")
 	}

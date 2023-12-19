@@ -207,14 +207,14 @@ func main() {
 	acg := helmclient.NewActionClientGetter(cfgGetter)
 	commonBDProvisionerOptions := []bundledeployment.Option{
 		bundledeployment.WithReleaseNamespace(systemNamespace),
+		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	if err := bundledeployment.SetupWithManager(mgr, append(
+	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace,append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(helm.ProvisionerID),
-		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithUnpacker(unpacker),
 		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.BundleDeploymentProcessorFunc(helm.ProcessBundleDeployment)),
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(helm.HandleBundleDeployment)),

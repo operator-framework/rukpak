@@ -73,7 +73,6 @@ one version to the next.
 			}
 			_, err := r.Run(ctx, bundleDeploymentName, os.DirFS(bundleDir), rukpakctl.RunOptions{
 				BundleDeploymentProvisionerClassName: bundleDeploymentProvisionerClassName,
-				BundleProvisionerClassName:           bundleProvisionerClassName,
 				Log:                                  func(format string, a ...interface{}) { fmt.Printf(format, a...) },
 			})
 			if err != nil {

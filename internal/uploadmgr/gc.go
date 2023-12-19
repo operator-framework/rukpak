@@ -35,18 +35,18 @@ func NewBundleGC(cache cache.Cache, storageDir string, storageSyncInterval time.
 // Start implemente the controller-runtime Runnable interface.
 // It blocks until the context is closed.
 func (gc *bundleGC) Start(ctx context.Context) error {
-	bundleInformer, err := gc.cache.GetInformer(ctx, &rukpakv1alpha1.Bundle{})
+	bundledeploymentInformer, err := gc.cache.GetInformer(ctx, &rukpakv1alpha1.BundleDeployment{})
 	if err != nil {
 		return err
 	}
 	// Ignore the return value
-	_, err = bundleInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+	_, err = bundledeploymentInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			bundle := obj.(*rukpakv1alpha1.Bundle)
-			if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
+			bundleDeployment := obj.(*rukpakv1alpha1.BundleDeployment)
+			if bundleDeployment.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
 				return
 			}
-			filename := bundlePath(gc.storageDir, bundle.Name)
+			filename := bundlePath(gc.storageDir, bundleDeployment.Name)
 			gc.log.Info("removing file", "path", filename)
 			if err := os.RemoveAll(filename); err != nil {
 				gc.log.Error(err, "failed to remove file", "path", filename)
@@ -83,12 +83,12 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 			for _, e := range storageDirEntries {
 				existingFiles.Insert(e.Name())
 			}
-			bundles := &rukpakv1alpha1.BundleList{}
-			if err := gc.cache.List(ctx, bundles); err != nil {
+			bundledeployments := &rukpakv1alpha1.BundleDeploymentList{}
+			if err := gc.cache.List(ctx, bundledeployments); err != nil {
 				gc.log.Error(err, "failed to list bundles from cache", err)
 				continue
 			}
-			for _, bundle := range bundles.Items {
+			for _, bundle := range bundledeployments.Items {
 				if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
 					continue
 				}

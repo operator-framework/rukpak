@@ -257,15 +257,10 @@ var _ = Describe("bundle deployment api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "localhost/testdata/bundles/plain-v0:valid",
-								},
-							},
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
 				},
@@ -302,15 +297,10 @@ var _ = Describe("bundle deployment api validation", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: "invalid/class-name",
-					Template: rukpakv1alpha1.BundleTemplate{
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "localhost/testdata/bundles/plain-v0:valid",
-								},
-							},
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
 				},
@@ -343,16 +333,11 @@ var _ = Describe("bundle deployment api validation", func() {
 					Name: fmt.Sprintf("bd-invalid-%s", rand.String(6)),
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: "invalid/class-name",
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: "localhost/testdata/bundles/plain-v0:valid",
-								},
-							},
+					ProvisionerClassName: "invalid/class-name",
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
 				},

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"helm.sh/helm/v3/pkg/postrender"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -29,6 +31,7 @@ import (
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
@@ -111,7 +114,7 @@ func WithReleaseNamespace(releaseNamespace string) Option {
 	}
 }
 
-func SetupWithManager(mgr manager.Manager, opts ...Option) error {
+func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, systemNamespace string, opts ...Option) error {
 	c := &controller{
 		cl:               mgr.GetClient(),
 		dynamicWatchGVKs: map[schema.GroupVersionKind]struct{}{},
@@ -121,22 +124,33 @@ func SetupWithManager(mgr manager.Manager, opts ...Option) error {
 		o(c)
 	}
 
+	c.setDefaults()
+
 	if err := c.validateConfig(); err != nil {
 		return fmt.Errorf("invalid configuration: %v", err)
 	}
 
 	controllerName := fmt.Sprintf("controller.bundledeployment.%s", c.provisionerID)
+	l := mgr.GetLogger().WithName(controllerName)
 	controller, err := ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(
 			util.BundleDeploymentProvisionerFilter(c.provisionerID)),
 		).
+		Watches(source.NewKindWithCache(&corev1.Pod{}, systemNsCache), util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, c.provisionerID, &rukpakv1alpha1.Bundle{})).
+		Watches(source.NewKindWithCache(&corev1.ConfigMap{}, systemNsCache), util.MapConfigMapToBundleDeploymentHandler(context.Background(), mgr.GetClient(), systemNamespace, c.provisionerID)).
 		Build(c)
 	if err != nil {
 		return err
 	}
 	c.controller = controller
 	return nil
+}
+
+func (c *controller) setDefaults() {
+	if c.bundleDeploymentProcessor == nil {
+		c.bundleDeploymentProcessor = BundleDeploymentProcessorFunc(func(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.BundleDeployment) (fs.FS, error) { return fsys, nil })
+	}
 }
 
 func (c *controller) validateConfig() error {
@@ -152,6 +166,12 @@ func (c *controller) validateConfig() error {
 	}
 	if c.storage == nil {
 		errs = append(errs, errors.New("storage is unset"))
+	}
+	if c.unpacker == nil {
+		errs = append(errs, errors.New("unpacker is unset"))
+	}
+	if c.finalizers == nil {
+		errs = append(errs, errors.New("finalizer handler is unset"))
 	}
 	if c.releaseNamespace == "" {
 		errs = append(errs, errors.New("release namespace is unset"))
@@ -233,7 +253,6 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 	finalizerBundleDelpoyment := bd.DeepCopy()
 	finalizerResult, err := c.finalizers.Finalize(ctx, finalizerBundleDelpoyment)
 
-	fmt.Println("here - finalizong")
 	if err != nil {
 		bd.Status.ResolvedSource = nil
 		bd.Status.ContentURL = ""
@@ -264,7 +283,6 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 		return ctrl.Result{}, updateStatusUnpackFailing(&bd.Status, fmt.Errorf("source bundle content: %v", err))
 	}
 
-	fmt.Println("state: ", unpackResult.State)
 	switch unpackResult.State {
 	case unpackersource.StatePending:
 		updateStatusUnpackPending(&bd.Status, unpackResult)
@@ -295,36 +313,6 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 		return ctrl.Result{}, updateStatusUnpackFailing(&bd.Status, fmt.Errorf("unknown unpack state %q: %v", unpackResult.State, err))
 	}
 
-	// Move this to bundle deployment Phase
-	// if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-	// 	reason := rukpakv1alpha1.ReasonUnpackPending
-	// 	status := metav1.ConditionTrue
-	// 	message := fmt.Sprintf("Waiting for the %s Bundle to be unpacked", bundle.GetName())
-	// 	if bundle.Status.Phase == rukpakv1alpha1.PhaseFailing {
-	// 		reason = rukpakv1alpha1.ReasonUnpackFailed
-	// 		status = metav1.ConditionFalse
-	// 		message = fmt.Sprintf("Failed to unpack the %s Bundle", bundle.GetName())
-	// 		if c := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked); c != nil {
-	// 			message = fmt.Sprintf("%s: %s", message, c.Message)
-	// 		}
-	// 	}
-	// 	meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-	// 		Type:    rukpakv1alpha1.TypeHasValidBundle,
-	// 		Status:  status,
-	// 		Reason:  reason,
-	// 		Message: message,
-	// 	})
-	// 	return ctrl.Result{}, nil
-	// }
-
-	// meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-	// 	Type:    rukpakv1alpha1.TypeHasValidBundle,
-	// 	Status:  metav1.ConditionTrue,
-	// 	Reason:  rukpakv1alpha1.ReasonUnpackSuccessful,
-	// 	Message: fmt.Sprintf("Successfully unpacked the %s Bundle", bundle.GetName()),
-	// })
-
-	fmt.Println("loading chart values")
 	bundleFS, err := c.storage.Load(ctx, bd)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
@@ -336,7 +324,6 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha1.BundleDep
 		return ctrl.Result{}, err
 	}
 
-	fmt.Println("installing chart")
 	chrt, values, err := c.handler.Handle(ctx, bundleFS, bd)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
