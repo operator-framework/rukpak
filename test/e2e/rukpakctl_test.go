@@ -27,7 +27,6 @@ var _ = Describe("rukpakctl run subcommand", func() {
 		var (
 			ctx                  context.Context
 			bundlename           string
-			bundle               *rukpakv1alpha1.Bundle
 			bundledeploymentname string
 			bundledeployment     *rukpakv1alpha1.BundleDeployment
 		)
@@ -41,30 +40,6 @@ var _ = Describe("rukpakctl run subcommand", func() {
 			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
 		})
 		It("should eventually report a successful state", func() {
-			bundle = &rukpakv1alpha1.Bundle{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: bundlename,
-				},
-			}
-			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() (string, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
-					}
-					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
-				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return nil, err
-					}
-					return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
-				}).Should(And(
-					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
-					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackSuccessful)),
-				))
-			})
 			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: bundledeploymentname,
@@ -75,10 +50,10 @@ var _ = Describe("rukpakctl run subcommand", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackSuccessful)),
 				))
@@ -115,7 +90,6 @@ var _ = Describe("rukpakctl run subcommand", func() {
 		var (
 			ctx                  context.Context
 			bundlename           string
-			bundle               *rukpakv1alpha1.Bundle
 			bundledeploymentname string
 			bundledeployment     *rukpakv1alpha1.BundleDeployment
 		)
@@ -129,30 +103,6 @@ var _ = Describe("rukpakctl run subcommand", func() {
 			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
 		})
 		It("should eventually report unpack fail", func() {
-			bundle = &rukpakv1alpha1.Bundle{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: bundlename,
-				},
-			}
-			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() (string, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
-					}
-					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseFailing))
-				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return nil, err
-					}
-					return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
-				}).Should(And(
-					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
-					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
-				))
-			})
 			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: bundledeploymentname,
@@ -163,10 +113,10 @@ var _ = Describe("rukpakctl run subcommand", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				))
@@ -179,16 +129,16 @@ var _ = Describe("rukpakctl content subcommand", func() {
 	When("content executed with a valid bundle", func() {
 		var (
 			ctx    context.Context
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			output string
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "combo-git-commit",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
@@ -201,22 +151,27 @@ var _ = Describe("rukpakctl content subcommand", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() (string, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
+				Eventually(func() (*metav1.Condition, error) {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
+						return nil, err
 					}
-					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackSuccessful)),
+				))
 			})
-			out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundle.ObjectMeta.Name).Output() // nolint:gosec
+			out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundledeployment.ObjectMeta.Name).Output() // nolint:gosec
 			Expect(err).ToNot(HaveOccurred())
 			output = string(out)
 		})
 		AfterEach(func() {
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -256,63 +211,8 @@ var _ = Describe("rukpakctl content subcommand", func() {
 				return string(exitErr.Stderr)
 			}, SatisfyAll(
 				ContainSubstring("content command failed"),
-				ContainSubstring("bundles.core.rukpak.io \"badname\" not found"),
+				ContainSubstring("bundledeployments.core.rukpak.io \"badname\" not found"),
 			)))
 		})
 	})
-	When("content executed on a failed bundle", func() {
-		var (
-			ctx                  context.Context
-			bundlename           string
-			bundle               *rukpakv1alpha1.Bundle
-			bundledeploymentname string
-			bundledeployment     *rukpakv1alpha1.BundleDeployment
-			output               string
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-			out, err := exec.Command("sh", "-c", rukpakctlcmd+"run test "+testbundles+"plain-v0/subdir").Output()
-			Expect(err).ToNot(HaveOccurred())
-			fmt.Sscanf(string(out), "bundledeployment.core.rukpak.io %q applied\nsuccessfully uploaded bundle content for %q", &bundledeploymentname, &bundlename)
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: bundledeploymentname,
-				},
-			}
-			bundle = &rukpakv1alpha1.Bundle{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: bundlename,
-				},
-			}
-			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() (string, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
-					}
-					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseFailing))
-				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return nil, err
-					}
-					return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
-				}).Should(And(
-					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
-					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
-				))
-				out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundlename).CombinedOutput() // nolint: gosec
-				Expect(err).To(HaveOccurred())
-				output = string(out)
-			})
-		})
-		AfterEach(func() {
-			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
-		})
-		It("should eventually report a failure", func() {
-			Expect(strings.Contains(output, "content command failed: error: url is not available")).To(BeTrue())
-		})
-	})
-
 })

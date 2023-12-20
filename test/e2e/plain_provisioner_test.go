@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -52,18 +51,18 @@ func Logf(f string, v ...interface{}) {
 var _ = Describe("plain provisioner bundle", func() {
 	When("a valid Bundle references the wrong unique provisioner ID", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds-valid",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: "non-existent-class-name",
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -73,37 +72,37 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		It("should consistently contain an empty status", func() {
 			Consistently(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 					return false
 				}
-				return len(bundle.Status.Conditions) == 0
+				return len(bundledeployment.Status.Conditions) == 0
 			}, 10*time.Second, 1*time.Second).Should(BeTrue())
 		})
 	})
-	When("a valid Bundle referencing a remote container image is created", func() {
+	When("a valid Bundle Deployment referencing a remote container image is created", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds-valid",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -113,31 +112,23 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should eventually report a successful state", func() {
-			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() (string, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
-					}
-					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
-			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
 				Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return bundle.Status.ResolvedSource, nil
+					return bundledeployment.Status.ResolvedSource, nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeImage)),
@@ -155,7 +146,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			)
 
 			By("getting the underlying bundle unpacking pod")
-			selector := util.NewBundleLabelSelector(bundle)
+			selector := util.NewBundleDeploymentLabelSelector(bundledeployment)
 			Eventually(func() bool {
 				pods := &corev1.PodList{}
 				if err := c.List(ctx, pods, &client.ListOptions{
@@ -184,44 +175,22 @@ var _ = Describe("plain provisioner bundle", func() {
 				return pod.GetUID(), err
 			}).ShouldNot(Equal(originalUID))
 		})
-		It("should block spec.source updates", func() {
-			Consistently(func() error {
-				return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return err
-					}
-					bundle.Spec.Source.Image.Ref = "foobar"
-					return c.Update(ctx, bundle)
-				})
-			}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("bundle.spec is immutable")))
-		})
-		It("should block spec.provisionerClassName updates", func() {
-			Consistently(func() error {
-				return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return err
-					}
-					bundle.Spec.ProvisionerClassName = "foobar"
-					return c.Update(ctx, bundle)
-				})
-			}, 3*time.Second, 250*time.Millisecond).Should(MatchError(ContainSubstring("bundle.spec is immutable")))
-		})
 	})
 
-	When("a valid Bundle referencing a remote private container image is created", func() {
+	When("a valid Bundle Deployment referencing a remote private container image is created", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds-valid",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -232,31 +201,37 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should eventually report a successful state", func() {
 			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() (string, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
-					}
-					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
+				Eventually(func() (*metav1.Condition, error){
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
+				))
 			})
 
 			By("eventually writing a non-empty image digest to the status", func() {
 				Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return bundle.Status.ResolvedSource, nil
+					return bundledeployment.Status.ResolvedSource, nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeImage)),
@@ -269,20 +244,20 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("an invalid Bundle referencing a remote container image is created", func() {
+	When("an invalid Bundle Deployment referencing a remote container image is created", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds-invalid",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -292,12 +267,12 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -306,7 +281,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			Eventually(func() bool {
 				pod := &corev1.Pod{}
 				if err := c.Get(ctx, types.NamespacedName{
-					Name:      bundle.GetName(),
+					Name:      bundledeployment.GetName(),
 					Namespace: defaultSystemNamespace,
 				}, pod); err != nil {
 					return false
@@ -324,18 +299,15 @@ var _ = Describe("plain provisioner bundle", func() {
 
 			By("waiting for the bundle to report back that state")
 			Eventually(func() bool {
-				err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
+				err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment)
 				if err != nil {
 					return false
 				}
-				if bundle.Status.Phase != rukpakv1alpha1.PhasePending {
-					return false
-				}
-				unpackPending := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.PhaseUnpacked)
+				unpackPending := meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.PhaseUnpacked)
 				if unpackPending == nil {
 					return false
 				}
-				if unpackPending.Message != fmt.Sprintf(`Back-off pulling image "%s"`, bundle.Spec.Source.Image.Ref) {
+				if unpackPending.Message != fmt.Sprintf(`Back-off pulling image "%s"`, bundledeployment.Spec.Source.Image.Ref) {
 					return false
 				}
 				return true
@@ -343,20 +315,20 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing no manifests is created", func() {
+	When("a bundle deployment containing no manifests is created", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds-unsupported",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -366,22 +338,22 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		It("reports an unpack error when the manifests directory is missing", func() {
 			By("waiting for the bundle to report back that state")
 			Eventually(func() (*metav1.Condition, error) {
-				err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
+				err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment)
 				if err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
@@ -394,18 +366,18 @@ var _ = Describe("plain provisioner bundle", func() {
 
 	When("a bundle containing an empty manifests directory is created", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
 			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "olm-crds-unsupported",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -415,22 +387,22 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		It("reports an unpack error when the manifests directory contains no objects", func() {
 			By("waiting for the bundle to report back that state")
 			Eventually(func() (*metav1.Condition, error) {
-				err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
+				err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment)
 				if err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
@@ -452,14 +424,14 @@ var _ = Describe("plain provisioner bundle", func() {
 
 		When("the bundle is backed by a git commit", func() {
 			var (
-				bundle *rukpakv1alpha1.Bundle
+				bundledeployment *rukpakv1alpha1.BundleDeployment
 			)
 			BeforeEach(func() {
-				bundle = &rukpakv1alpha1.Bundle{
+				bundledeployment = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "combo-git-commit",
 					},
-					Spec: rukpakv1alpha1.BundleSpec{
+					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
@@ -472,22 +444,19 @@ var _ = Describe("plain provisioner bundle", func() {
 						},
 					},
 				}
-				err := c.Create(ctx, bundle)
+				err := c.Create(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				err := c.Delete(ctx, bundle)
+				err := c.Delete(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
 				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return err
-					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return errors.New("bundle is not unpacked")
 					}
 
 					provisionerPods := &corev1.PodList{}
@@ -498,20 +467,20 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundleDeployment(ctx, bundledeployment, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
-		When("the bundle is backed by a git tag", func() {
+		When("the bundle deployment is backed by a git tag", func() {
 			var (
-				bundle *rukpakv1alpha1.Bundle
+				bundledeployment *rukpakv1alpha1.BundleDeployment
 			)
 			BeforeEach(func() {
-				bundle = &rukpakv1alpha1.Bundle{
+				bundledeployment = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "combo-git-tag",
 					},
-					Spec: rukpakv1alpha1.BundleSpec{
+					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
@@ -524,23 +493,20 @@ var _ = Describe("plain provisioner bundle", func() {
 						},
 					},
 				}
-				err := c.Create(ctx, bundle)
+				err := c.Create(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				err := c.Delete(ctx, bundle)
+				err := c.Delete(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
 				By("eventually unpacking the bundle", func() {
 					Eventually(func() error {
-						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 							return err
-						}
-						if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-							return errors.New("bundle is not unpacked")
 						}
 
 						provisionerPods := &corev1.PodList{}
@@ -551,16 +517,16 @@ var _ = Describe("plain provisioner bundle", func() {
 							return errors.New("expected exactly 1 provisioner pod")
 						}
 
-						return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
+						return checkProvisionerBundleDeployment(ctx, bundledeployment, provisionerPods.Items[0].Name)
 					}).Should(BeNil())
 				})
 
 				By("eventually writing a non-empty commit hash to the status", func() {
 					Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
-						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 							return nil, err
 						}
-						return bundle.Status.ResolvedSource, nil
+						return bundledeployment.Status.ResolvedSource, nil
 					}).Should(And(
 						Not(BeNil()),
 						WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeGit)),
@@ -573,16 +539,16 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 
-		When("the bundle is backed by a git branch", func() {
+		When("the bundle deployment is backed by a git branch", func() {
 			var (
-				bundle *rukpakv1alpha1.Bundle
+				bundledeployment *rukpakv1alpha1.BundleDeployment
 			)
 			BeforeEach(func() {
-				bundle = &rukpakv1alpha1.Bundle{
+				bundledeployment = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "combo-git-branch",
 					},
-					Spec: rukpakv1alpha1.BundleSpec{
+					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
@@ -595,23 +561,20 @@ var _ = Describe("plain provisioner bundle", func() {
 						},
 					},
 				}
-				err := c.Create(ctx, bundle)
+				err := c.Create(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				err := c.Delete(ctx, bundle)
+				err := c.Delete(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
 				By("eventually unpacking the bundle", func() {
 					Eventually(func() error {
-						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 							return err
-						}
-						if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-							return errors.New("bundle is not unpacked")
 						}
 
 						provisionerPods := &corev1.PodList{}
@@ -622,16 +585,16 @@ var _ = Describe("plain provisioner bundle", func() {
 							return errors.New("expected exactly 1 provisioner pod")
 						}
 
-						return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
+						return checkProvisionerBundleDeployment(ctx, bundledeployment, provisionerPods.Items[0].Name)
 					}).Should(BeNil())
 				})
 
 				By("eventually writing a non-empty commit hash to the status", func() {
 					Eventually(func() (*rukpakv1alpha1.BundleSource, error) {
-						if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+						if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 							return nil, err
 						}
-						return bundle.Status.ResolvedSource, nil
+						return bundledeployment.Status.ResolvedSource, nil
 					}).Should(And(
 						Not(BeNil()),
 						WithTransform(func(s *rukpakv1alpha1.BundleSource) rukpakv1alpha1.SourceType { return s.Type }, Equal(rukpakv1alpha1.SourceTypeGit)),
@@ -644,16 +607,16 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 
-		When("the bundle has a custom manifests directory", func() {
+		When("the bundle deployment has a custom manifests directory", func() {
 			var (
-				bundle *rukpakv1alpha1.Bundle
+				bundledeployment *rukpakv1alpha1.BundleDeployment
 			)
 			BeforeEach(func() {
-				bundle = &rukpakv1alpha1.Bundle{
+				bundledeployment = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "combo-git-custom-dir",
 					},
-					Spec: rukpakv1alpha1.BundleSpec{
+					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
@@ -667,22 +630,19 @@ var _ = Describe("plain provisioner bundle", func() {
 						},
 					},
 				}
-				err := c.Create(ctx, bundle)
+				err := c.Create(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				err := c.Delete(ctx, bundle)
+				err := c.Delete(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
 				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return err
-					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return errors.New("bundle is not unpacked")
 					}
 
 					provisionerPods := &corev1.PodList{}
@@ -693,14 +653,14 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundleDeployment(ctx, bundledeployment, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
 
-		When("the bundle is backed by a private repository", func() {
+		When("the bundle deployment is backed by a private repository", func() {
 			var (
-				bundle      *rukpakv1alpha1.Bundle
+				bundledeployment      *rukpakv1alpha1.BundleDeployment
 				secret      *corev1.Secret
 				privateRepo string
 			)
@@ -723,11 +683,11 @@ var _ = Describe("plain provisioner bundle", func() {
 				}
 				err := c.Create(ctx, secret)
 				Expect(err).ToNot(HaveOccurred())
-				bundle = &rukpakv1alpha1.Bundle{
+				bundledeployment = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "combo-git-branch",
 					},
-					Spec: rukpakv1alpha1.BundleSpec{
+					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
@@ -745,12 +705,12 @@ var _ = Describe("plain provisioner bundle", func() {
 						},
 					},
 				}
-				err = c.Create(ctx, bundle)
+				err = c.Create(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				err := c.Delete(ctx, bundle)
+				err := c.Delete(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 				err = c.Delete(ctx, secret)
 				Expect(err).ToNot(HaveOccurred())
@@ -758,11 +718,8 @@ var _ = Describe("plain provisioner bundle", func() {
 
 			It("Can create and unpack the bundle successfully", func() {
 				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return err
-					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						return errors.New("bundle is not unpacked")
 					}
 
 					provisionerPods := &corev1.PodList{}
@@ -773,23 +730,23 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundleDeployment(ctx, bundledeployment, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
 
-		When("the bundle is backed by a local git repository", func() {
+		When("the bundle deployment is backed by a local git repository", func() {
 			var (
-				bundle      *rukpakv1alpha1.Bundle
+				bundledeployment      *rukpakv1alpha1.BundleDeployment
 				privateRepo string
 			)
 			BeforeEach(func() {
 				privateRepo = "ssh://git@local-git.rukpak-e2e.svc.cluster.local:2222/git-server/repos/combo"
-				bundle = &rukpakv1alpha1.Bundle{
+				bundledeployment = &rukpakv1alpha1.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "combo-git-branch",
 					},
-					Spec: rukpakv1alpha1.BundleSpec{
+					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha1.BundleSource{
 							Type: rukpakv1alpha1.SourceTypeGit,
@@ -808,26 +765,19 @@ var _ = Describe("plain provisioner bundle", func() {
 						},
 					},
 				}
-				err := c.Create(ctx, bundle)
+				err := c.Create(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				err := c.Delete(ctx, bundle)
+				err := c.Delete(ctx, bundledeployment)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Can create and unpack the bundle successfully", func() {
 				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return err
-					}
-					if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-						unpackedCondition := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked)
-						if unpackedCondition == nil {
-							return errors.New("bundle is not unpacked")
-						}
-						return fmt.Errorf("bundle is not unpacked: %s", unpackedCondition.Message)
 					}
 
 					provisionerPods := &corev1.PodList{}
@@ -838,15 +788,15 @@ var _ = Describe("plain provisioner bundle", func() {
 						return errors.New("expected exactly 1 provisioner pod")
 					}
 
-					return checkProvisionerBundle(ctx, bundle, provisionerPods.Items[0].Name)
+					return checkProvisionerBundleDeployment(ctx, bundledeployment, provisionerPods.Items[0].Name)
 				}).Should(BeNil())
 			})
 		})
 	})
 
-	When("the bundle is backed by a configmap", func() {
+	When("the bundle deployment is backed by a configmap", func() {
 		var (
-			bundle    *rukpakv1alpha1.Bundle
+			bundledeployment    *rukpakv1alpha1.BundleDeployment
 			configmap *corev1.ConfigMap
 			ctx       context.Context
 		)
@@ -880,11 +830,11 @@ var _ = Describe("plain provisioner bundle", func() {
 			}
 			err = c.Create(ctx, configmap)
 			Expect(err).ToNot(HaveOccurred())
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "combo-local-",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeConfigMaps,
@@ -895,12 +845,12 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundle)
+			err = c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			Expect(client.IgnoreNotFound(c.Delete(ctx, bundle))).To(Succeed())
+			Expect(client.IgnoreNotFound(c.Delete(ctx, bundledeployment))).To(Succeed())
 			Eventually(func() error {
 				return client.IgnoreNotFound(c.Delete(ctx, configmap))
 			}).Should(Succeed())
@@ -908,15 +858,8 @@ var _ = Describe("plain provisioner bundle", func() {
 
 		It("Can create and unpack the bundle successfully", func() {
 			Eventually(func() error {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 					return err
-				}
-				if bundle.Status.Phase != rukpakv1alpha1.PhaseUnpacked {
-					unpackedCondition := meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked)
-					if unpackedCondition == nil {
-						return errors.New("bundle is not unpacked")
-					}
-					return fmt.Errorf("bundle is not unpacked: %s", unpackedCondition.Message)
 				}
 				return nil
 			}).Should(BeNil())
@@ -925,17 +868,17 @@ var _ = Describe("plain provisioner bundle", func() {
 
 	When("the bundle is backed by a non-existent configmap", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 
 		BeforeEach(func() {
 			ctx = context.Background()
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "combo-local-",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeConfigMaps,
@@ -946,21 +889,21 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(client.IgnoreNotFound(err)).To(Succeed())
 		})
 		It("eventually results in a failing bundle state", func() {
 			By("waiting until the bundle is reporting Failing state")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
@@ -974,7 +917,7 @@ var _ = Describe("plain provisioner bundle", func() {
 
 	When("the bundle is backed by an invalid configmap", func() {
 		var (
-			bundle    *rukpakv1alpha1.Bundle
+			bundledeployment    *rukpakv1alpha1.BundleDeployment
 			configmap *corev1.ConfigMap
 			ctx       context.Context
 		)
@@ -1007,11 +950,11 @@ var _ = Describe("plain provisioner bundle", func() {
 			}
 			err = c.Create(ctx, configmap)
 			Expect(err).ToNot(HaveOccurred())
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "combo-local-",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeConfigMaps,
@@ -1022,12 +965,12 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundle)
+			err = c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			Expect(client.IgnoreNotFound(c.Delete(ctx, bundle))).To(Succeed())
+			Expect(client.IgnoreNotFound(c.Delete(ctx, bundledeployment))).To(Succeed())
 			Eventually(func() error {
 				return client.IgnoreNotFound(c.Delete(ctx, configmap))
 			}).Should(Succeed())
@@ -1035,10 +978,10 @@ var _ = Describe("plain provisioner bundle", func() {
 		It("checks the bundle's phase gets failing", func() {
 			By("waiting until the bundle is reporting Failing state")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
@@ -1049,9 +992,9 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("the bundle is uploaded", func() {
+	When("the bundle deployment is uploaded", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 
@@ -1059,11 +1002,11 @@ var _ = Describe("plain provisioner bundle", func() {
 			ctx = context.Background()
 
 			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/valid"))
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("valid-upload-%s", rand.String(8)),
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type:   rukpakv1alpha1.SourceTypeUpload,
@@ -1071,7 +1014,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 
 			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
@@ -1085,28 +1028,34 @@ var _ = Describe("plain provisioner bundle", func() {
 			}
 			uploadCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 			defer cancel()
-			_, err = bu.Upload(uploadCtx, bundle.Name, bundleFS)
+			_, err = bu.Upload(uploadCtx, bundledeployment.Name, bundleFS)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(client.IgnoreNotFound(err)).To(Succeed())
 		})
 
 		It("can unpack the bundle successfully", func() {
-			Eventually(func() (*rukpakv1alpha1.Bundle, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-					return nil, err
-				}
-				return bundle, nil
-			}).Should(WithTransform(func(b *rukpakv1alpha1.Bundle) string { return b.Status.Phase }, Equal(rukpakv1alpha1.PhaseUnpacked)))
+			Eventually(func() (*metav1.Condition, error){
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
+				return nil, err
+			}
+			return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
+			))
 		})
 	})
 
-	When("the bundle is backed by an invalid upload", func() {
+	When("the bundle deployment is backed by an invalid upload", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		const (
@@ -1117,11 +1066,11 @@ var _ = Describe("plain provisioner bundle", func() {
 			ctx = context.Background()
 
 			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/subdir"))
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("invalid-upload-%s", rand.String(8)),
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type:   rukpakv1alpha1.SourceTypeUpload,
@@ -1129,7 +1078,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 
 			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
@@ -1143,20 +1092,20 @@ var _ = Describe("plain provisioner bundle", func() {
 			}
 			uploadCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 			defer cancel()
-			_, err = bu.Upload(uploadCtx, bundle.Name, bundleFS)
+			_, err = bu.Upload(uploadCtx, bundledeployment.Name, bundleFS)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(client.IgnoreNotFound(err)).To(Succeed())
 		})
 		It("checks the bundle's phase gets failing", func() {
 			By("waiting until the bundle is reporting Failing state")
 			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
@@ -1168,9 +1117,9 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("a bundle containing nested directory is created", func() {
+	When("a bundle deployment containing nested directory is created", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 		)
 		const (
@@ -1181,11 +1130,11 @@ var _ = Describe("plain provisioner bundle", func() {
 			ctx = context.Background()
 
 			By("creating the testing Bundle resource")
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "namespace-subdirs",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -1195,21 +1144,21 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		It("reports an unpack error when the manifests directory contains directories", func() {
 			By("eventually reporting an Unpacked phase", func() {
 				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bundle.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 				}).Should(And(
 					Not(BeNil()),
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
@@ -1225,15 +1174,15 @@ var _ = Describe("plain provisioner bundle", func() {
 	When("valid  bundle is created", func() {
 		var (
 			ctx    context.Context
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "combo-git-commit",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
@@ -1246,27 +1195,32 @@ var _ = Describe("plain provisioner bundle", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundle)
+			err := c.Create(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 			By("eventually reporting an Unpacked phase", func() {
-				Eventually(func() (string, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle); err != nil {
-						return "", err
-					}
-					return bundle.Status.Phase, nil
-				}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
+				Eventually(func() (*metav1.Condition, error){
+					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				}).Should(And(
+					Not(BeNil()),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackSuccessful)),
+				))
 			})
 
 			By("eventually writing a content URL to the status", func() {
 				Eventually(func() (string, error) {
-					err := c.Get(ctx, client.ObjectKeyFromObject(bundle), bundle)
+					err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment)
 					Expect(err).ToNot(HaveOccurred())
-					return bundle.Status.ContentURL, nil
+					return bundledeployment.Status.ContentURL, nil
 				}).Should(Not(BeEmpty()))
 			})
 		})
 		AfterEach(func() {
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		When("start server for bundle contents", func() {
@@ -1300,7 +1254,7 @@ var _ = Describe("plain provisioner bundle", func() {
 
 				err = c.Create(ctx, &crb)
 				Expect(err).ToNot(HaveOccurred())
-				url := bundle.Status.ContentURL
+				url := bundledeployment.Status.ContentURL
 
 				// Create a Job that reads from the URL and outputs contents in the pod log
 				mounttoken := true
@@ -1377,402 +1331,8 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 	})
-})
 
-var _ = Describe("plain provisioner bundledeployment", func() {
-	Context("embedded bundle template", func() {
-		var (
-			bd  *rukpakv1alpha1.BundleDeployment
-			ctx context.Context
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-
-			bd = &rukpakv1alpha1.BundleDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "olm-crds",
-				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
-								},
-							},
-						},
-					},
-				},
-			}
-			err := c.Create(ctx, bd)
-			Expect(err).ToNot(HaveOccurred())
-
-			By("waiting until the BD reports a successful installation")
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				if bd.Status.ActiveBundle == "" {
-					return nil, fmt.Errorf("waiting for bundle name to be populated")
-				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
-			))
-			By("waiting until the BD reports a healthy condition")
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHealthy), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHealthy)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonHealthy)),
-			))
-		})
-		AfterEach(func() {
-			By("deleting the testing BD resource")
-			Expect(c.Delete(ctx, bd)).To(Succeed())
-		})
-		Describe("template is unsuccessfully updated", func() {
-			var (
-				originalBundle *rukpakv1alpha1.Bundle
-			)
-			BeforeEach(func() {
-				originalBundle = &rukpakv1alpha1.Bundle{}
-
-				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-						return err
-					}
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, originalBundle); err != nil {
-						return err
-					}
-					bd.Spec.Template.Spec = rukpakv1alpha1.BundleSpec{
-						ProvisionerClassName: plain.ProvisionerID,
-						Source: rukpakv1alpha1.BundleSource{
-							Type: rukpakv1alpha1.SourceTypeGit,
-							Git: &rukpakv1alpha1.GitSource{
-								Repository: "github.com/operator-framework/combo",
-								Ref: rukpakv1alpha1.GitRef{
-									Tag: "non-existent-tag",
-								},
-							},
-						},
-					}
-					return c.Update(ctx, bd)
-				}).Should(Succeed())
-			})
-
-			It("should delete the old Bundle once the newly generated Bundle reports a successful installation state", func() {
-				By("waiting until the BD reports a successful installation")
-				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-						return nil, err
-					}
-
-					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
-				}).Should(And(
-					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
-					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
-				))
-
-				By("verifying that the BD reports an invalid desired Bundle")
-				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-						return nil, err
-					}
-					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
-				}).Should(And(
-					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
-					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
-					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`Failed to unpack`)),
-				))
-
-				By("verifying that the old Bundle still exists")
-				Consistently(func() error {
-					return c.Get(ctx, client.ObjectKeyFromObject(originalBundle), &rukpakv1alpha1.Bundle{})
-				}, 15*time.Second, 250*time.Millisecond).Should(Succeed())
-			})
-		})
-		Describe("template is successfully updated", func() {
-			var (
-				originalBundle *rukpakv1alpha1.Bundle
-			)
-			BeforeEach(func() {
-				originalBundle = &rukpakv1alpha1.Bundle{}
-
-				Eventually(func() error {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-						return err
-					}
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, originalBundle); err != nil {
-						return err
-					}
-					if len(bd.Spec.Template.Labels) == 0 {
-						bd.Spec.Template.Labels = make(map[string]string)
-					}
-					bd.Spec.Template.Labels["e2e-test"] = "stub"
-					return c.Update(ctx, bd)
-				}).Should(Succeed())
-			})
-			It("should generate a new Bundle resource that matches the desired specification", func() {
-				Eventually(func() bool {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-						return false
-					}
-					currBundle := &rukpakv1alpha1.Bundle{}
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.Status.ActiveBundle}, currBundle); err != nil {
-						return false
-					}
-					ok, err := util.CheckDesiredBundleTemplate(currBundle, bd.Spec.Template)
-					if err != nil {
-						return false
-					}
-					return ok
-				}).Should(BeTrue())
-			})
-			It("should delete the old Bundle once the newly generated Bundle reports a successful installation state", func() {
-				By("waiting until the BD reports a successful installation")
-				Eventually(func() (*metav1.Condition, error) {
-					if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-						return nil, err
-					}
-					if bd.Status.ActiveBundle == "" {
-						return nil, fmt.Errorf("waiting for bundle name to be populated")
-					}
-					return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
-				}).Should(And(
-					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
-					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
-				))
-				By("verifying that the old Bundle no longer exists")
-				Eventually(func() error {
-					return c.Get(ctx, client.ObjectKeyFromObject(originalBundle), &rukpakv1alpha1.Bundle{})
-				}).Should(WithTransform(apierrors.IsNotFound, BeTrue()))
-			})
-		})
-	})
-
-	When("a BundleDeployment targets a valid Bundle", func() {
-		var (
-			bd  *rukpakv1alpha1.BundleDeployment
-			ctx context.Context
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-
-			bd = &rukpakv1alpha1.BundleDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "olm-crds",
-				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "olm-crds",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
-								},
-							},
-						},
-					},
-				},
-			}
-			err := c.Create(ctx, bd)
-			Expect(err).ToNot(HaveOccurred())
-		})
-		AfterEach(func() {
-			By("deleting the testing BD resource")
-			Expect(c.Delete(ctx, bd)).To(Succeed())
-		})
-
-		It("should rollout the bundle contents successfully", func() {
-			By("eventually writing a successful installation state back to the bundledeployment status")
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				if bd.Status.ActiveBundle == "" {
-					return nil, fmt.Errorf("waiting for bundle name to be populated")
-				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
-			))
-		})
-	})
-
-	When("a BundleDeployment targets an invalid Bundle", func() {
-		var (
-			bd  *rukpakv1alpha1.BundleDeployment
-			ctx context.Context
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-			bd = &rukpakv1alpha1.BundleDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "olm-apis",
-				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "olm-apis",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-missing-crds"),
-								},
-							},
-						},
-					},
-				},
-			}
-			err := c.Create(ctx, bd)
-			Expect(err).ToNot(HaveOccurred())
-		})
-		AfterEach(func() {
-			By("deleting the testing BundleDeployment resource")
-			Eventually(func() error {
-				return client.IgnoreNotFound(c.Delete(ctx, bd))
-			}).Should(Succeed())
-		})
-
-		It("should project a failed installation state", func() {
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				if bd.Status.ActiveBundle != "" {
-					return nil, fmt.Errorf("bi.Status.ActiveBundle is non-empty (%q)", bd.Status.ActiveBundle)
-				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallFailed)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, And(
-					// TODO(tflannag): Add a custom error type for API-based Bundle installations that
-					// are missing the requisite CRDs to be able to deploy the unpacked Bundle successfully.
-					ContainSubstring(`no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"`),
-					ContainSubstring(`no matches for kind "ClusterServiceVersion" in version "operators.coreos.com/v1alpha1"`),
-					ContainSubstring(`no matches for kind "OLMConfig" in version "operators.coreos.com/v1"`),
-					ContainSubstring(`no matches for kind "OperatorGroup" in version "operators.coreos.com/v1"`),
-				)),
-			))
-			By("waiting until the BD reports a non healthy condition")
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHealthy), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHealthy)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationStatusFalse)),
-			))
-		})
-	})
-
-	When("a BundleDeployment target cannot be unpacked", func() {
-		var (
-			bd  *rukpakv1alpha1.BundleDeployment
-			ctx context.Context
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-			bd = &rukpakv1alpha1.BundleDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "olm-apis",
-				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "olm-apis",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:subdir"),
-								},
-							},
-						},
-					},
-				},
-			}
-			err := c.Create(ctx, bd)
-			Expect(err).ToNot(HaveOccurred())
-		})
-		AfterEach(func() {
-			By("deleting the testing BundleDeployment resource")
-			Eventually(func() error {
-				return client.IgnoreNotFound(c.Delete(ctx, bd))
-			}).Should(Succeed())
-		})
-
-		It("should project an unpack failed state", func() {
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				if bd.Status.ActiveBundle != "" {
-					return nil, fmt.Errorf("bi.Status.ActiveBundle is non-empty (%q)", bd.Status.ActiveBundle)
-				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, And(
-					ContainSubstring(`Failed to unpack the olm-apis`),
-					ContainSubstring(`get objects from bundle manifests: subdirectories are not allowed within the "manifests" directory of the bundle image filesystem: found "manifests/emptydir"`),
-				)),
-			))
-		})
-	})
-
+	var _ = Describe("plain provisioner bundledeployment", func() {
 	When("a BundleDeployment is dependent on another BundleDeployment", func() {
 		var (
 			ctx         context.Context
@@ -1787,20 +1347,10 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "e2e-dependent-bundle",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:dependent"),
-								},
-							},
+					Source: rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:dependent"),
 						},
 					},
 				},
@@ -1844,20 +1394,10 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 					},
 					Spec: rukpakv1alpha1.BundleDeploymentSpec{
 						ProvisionerClassName: plain.ProvisionerID,
-						Template: rukpakv1alpha1.BundleTemplate{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"app.kubernetes.io/name": "e2e-bundle-providing",
-								},
-							},
-							Spec: rukpakv1alpha1.BundleSpec{
-								ProvisionerClassName: plain.ProvisionerID,
-								Source: rukpakv1alpha1.BundleSource{
-									Type: rukpakv1alpha1.SourceTypeImage,
-									Image: &rukpakv1alpha1.ImageSource{
-										Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:provides"),
-									},
-								},
+						Source: rukpakv1alpha1.BundleSource{
+							Type: rukpakv1alpha1.SourceTypeImage,
+							Image: &rukpakv1alpha1.ImageSource{
+								Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:provides"),
 							},
 						},
 					},
@@ -1874,9 +1414,6 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				Eventually(func() (*metav1.Condition, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(dependentBD), dependentBD); err != nil {
 						return nil, err
-					}
-					if dependentBD.Status.ActiveBundle == "" {
-						return nil, fmt.Errorf("waiting for bundle name to be populated")
 					}
 					return meta.FindStatusCondition(dependentBD.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
 				}).Should(And(
@@ -1905,20 +1442,10 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								"app.kubernetes.io/name": "e2e-bundle-crds-and-crs",
-							},
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-crds-and-crs"),
-								},
-							},
+					Source:rukpakv1alpha1.BundleSource{
+						Type: rukpakv1alpha1.SourceTypeImage,
+						Image: &rukpakv1alpha1.ImageSource{
+							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-crds-and-crs"),
 						},
 					},
 				},
@@ -1948,173 +1475,6 @@ var _ = Describe("plain provisioner bundledeployment", func() {
 })
 
 var _ = Describe("plain provisioner garbage collection", func() {
-	When("a Bundle has been deleted", func() {
-		var (
-			ctx context.Context
-			b   *rukpakv1alpha1.Bundle
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-
-			By("creating the testing Bundle resource")
-			b = &rukpakv1alpha1.Bundle{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "e2e-ownerref-bundle-valid",
-				},
-				Spec: rukpakv1alpha1.BundleSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
-						},
-					},
-				},
-			}
-			Expect(c.Create(ctx, b)).To(Succeed())
-
-			By("eventually reporting an Unpacked phase")
-			Eventually(func() (string, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(b), b); err != nil {
-					return "", err
-				}
-				return b.Status.Phase, nil
-			}).Should(Equal(rukpakv1alpha1.PhaseUnpacked))
-		})
-		AfterEach(func() {
-			By("deleting the testing Bundle resource")
-			Expect(c.Get(ctx, client.ObjectKeyFromObject(b), &rukpakv1alpha1.Bundle{})).To(WithTransform(apierrors.IsNotFound, BeTrue()))
-		})
-		It("should result in the underlying bundle unpack pod being deleted", func() {
-			By("deleting the test Bundle resource")
-			Expect(c.Delete(ctx, b)).To(Succeed())
-
-			By("waiting until the unpack pods for this bundle have been deleted")
-			selector := util.NewBundleLabelSelector(b)
-			Eventually(func() bool {
-				pods := &corev1.PodList{}
-				if err := c.List(ctx, pods, &client.ListOptions{
-					Namespace:     defaultSystemNamespace,
-					LabelSelector: selector,
-				}); err != nil {
-					return false
-				}
-				return len(pods.Items) == 0
-			}).Should(BeTrue())
-		})
-		It("should result in the underlying bundle file being deleted", func() {
-			provisionerPods := &corev1.PodList{}
-			err := c.List(context.Background(), provisionerPods, client.MatchingLabels{"app": "core"})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(provisionerPods.Items).To(HaveLen(1))
-
-			By("checking that the bundle file exists")
-			Expect(checkProvisionerBundle(ctx, b, provisionerPods.Items[0].Name)).To(Succeed())
-
-			By("deleting the test Bundle resource")
-			Expect(c.Delete(ctx, b)).To(Succeed())
-
-			By("waiting until the bundle file has been deleted")
-			Eventually(func() error {
-				return checkProvisionerBundle(ctx, b, provisionerPods.Items[0].Name)
-			}).Should(MatchError(ContainSubstring("command terminated with exit code 1")))
-		})
-	})
-
-	When("an embedded Bundle has been deleted", func() {
-		var (
-			ctx context.Context
-			bd  *rukpakv1alpha1.BundleDeployment
-		)
-		BeforeEach(func() {
-			ctx = context.Background()
-			labels := map[string]string{
-				"e2e": "ownerref-bundle-valid",
-			}
-
-			By("creating the testing Bundle resource")
-			bd = &rukpakv1alpha1.BundleDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "e2e-ownerref-bd-valid",
-				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Template: rukpakv1alpha1.BundleTemplate{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: labels,
-						},
-						Spec: rukpakv1alpha1.BundleSpec{
-							ProvisionerClassName: plain.ProvisionerID,
-							Source: rukpakv1alpha1.BundleSource{
-								Type: rukpakv1alpha1.SourceTypeImage,
-								Image: &rukpakv1alpha1.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
-								},
-							},
-						},
-					},
-				},
-			}
-			Expect(c.Create(ctx, bd)).To(Succeed())
-
-			By("eventually reporting a successful installation")
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return nil, err
-				}
-				if bd.Status.ActiveBundle == "" {
-					return nil, fmt.Errorf("waiting for a populated installed bundle name")
-				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
-			))
-		})
-		AfterEach(func() {
-			By("deleting the testing BD resource")
-			Expect(c.Delete(ctx, bd)).To(Succeed())
-		})
-		It("should result in a new Bundle being generated", func() {
-			var (
-				originalUUID types.UID
-			)
-			By("deleting the test Bundle resource")
-			Eventually(func() error {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return err
-				}
-				originalBundleName := bd.Status.ActiveBundle
-				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: originalBundleName}, b); err != nil {
-					return err
-				}
-				originalUUID = b.ObjectMeta.UID
-				return c.Delete(ctx, b)
-			}).Should(Succeed())
-
-			By("waiting until a new Bundle gets generated")
-			Eventually(func() bool {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
-					return false
-				}
-
-				installedBundleName := bd.Status.ActiveBundle
-				if installedBundleName == "" {
-					return false
-				}
-
-				b := &rukpakv1alpha1.Bundle{}
-				if err := c.Get(ctx, types.NamespacedName{Name: installedBundleName}, b); err != nil {
-					return false
-				}
-				return b.UID != originalUUID
-			}).Should(BeTrue())
-		})
-	})
 
 	When("a BundleDeployment has been deleted", func() {
 		var (
@@ -2180,8 +1540,9 @@ var _ = Describe("plain provisioner garbage collection", func() {
 		})
 	})
 })
+})
 
-func checkProvisionerBundle(ctx context.Context, object client.Object, provisionerPodName string) error {
+func checkProvisionerBundleDeployment(ctx context.Context, object client.Object, provisionerPodName string) error {
 	req := kubeClient.CoreV1().RESTClient().Post().
 		Namespace(defaultSystemNamespace).
 		Resource("pods").

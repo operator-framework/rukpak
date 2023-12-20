@@ -71,17 +71,3 @@ rules:
   verbs:
   - patch
   - update
-- apiGroups:
-  - core.rukpak.io
-  resources:
-  - bundles
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - core.rukpak.io
-  resources:
-  - bundles/status
-  verbs:
-  - patch
-  - update

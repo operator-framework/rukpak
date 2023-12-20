@@ -195,7 +195,7 @@ var _ = Describe("crdvalidator", func() {
 		})
 
 		// TODO (tylerslaton): Check CRDValidator safe storage logic
-		//
+
 		// This test is currently trying to simulate a situtation where an incoming
 		// CRD removes a stored version. However, it does not work as expected because
 		// something (potentially the apiserver) is intervening first and not allowing

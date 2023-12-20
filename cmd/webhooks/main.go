@@ -108,7 +108,7 @@ func main() {
 		Client:          mgr.GetClient(),
 		SystemNamespace: systemNamespace,
 	}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", rukpakv1alpha1.BundleKind)
+		setupLog.Error(err, "unable to create webhook", "webhook", rukpakv1alpha1.BundleDeploymentKind)
 		os.Exit(1)
 	}
 	if err = (&webhook.ConfigMap{

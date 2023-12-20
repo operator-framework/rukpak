@@ -1,10 +1,10 @@
 apiVersion: core.rukpak.io/v1alpha1
 kind: BundleDeployment
 metadata:
-  name: argohelm
+  name: prometheus
 spec:
-  provisionerClassName: core-rukpak-io-helm
+  provisionerClassName: core-rukpak-io-plain
   source:
-    http:
-      url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  
-    type: http
+    type: image
+    image:
+      ref: quay.io/operatorhubio/prometheus:v0.65.0
