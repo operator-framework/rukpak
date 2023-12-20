@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
-	"github.com/operator-framework/rukpak/internal/provisioner/plain"
+	registryprovisioner "github.com/operator-framework/rukpak/internal/provisioner/registry"
 )
 
 var _ = Describe("registry provisioner bundle", func() {
@@ -31,7 +31,7 @@ var _ = Describe("registry provisioner bundle", func() {
 					},
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: registryprovisioner.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -80,7 +80,7 @@ var _ = Describe("registry provisioner bundle", func() {
 					},
 				},
 				Spec: rukpakv1alpha1.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
+					ProvisionerClassName: registryprovisioner.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
 						Image: &rukpakv1alpha1.ImageSource{
@@ -102,10 +102,10 @@ var _ = Describe("registry provisioner bundle", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeHasValidBundle), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeHasValidBundle)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("convert registry+v1 bundle to plain+v0 bundle: AllNamespace install mode must be enabled")),

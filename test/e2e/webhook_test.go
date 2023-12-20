@@ -12,10 +12,10 @@ import (
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 )
 
-var _ = Describe("bundle api validating webhook", func() {
-	When("Bundle is valid", func() {
+var _ = Describe("bundle deployment api validating webhook", func() {
+	When("Bundle Deployment is valid", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 			err    error
 		)
@@ -24,11 +24,11 @@ var _ = Describe("bundle api validating webhook", func() {
 			By("creating the valid Bundle resource")
 			ctx = context.Background()
 
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "valid-bundle-",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -38,11 +38,11 @@ var _ = Describe("bundle api validating webhook", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundle)
+			err = c.Create(ctx, bundledeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundle)
+			err := c.Delete(ctx, bundledeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		It("should create the bundle resource", func() {
@@ -51,7 +51,7 @@ var _ = Describe("bundle api validating webhook", func() {
 	})
 	When("the bundle source type is git and git properties are not set", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 			err    error
 		)
@@ -59,11 +59,11 @@ var _ = Describe("bundle api validating webhook", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamegit",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeGit,
@@ -73,20 +73,20 @@ var _ = Describe("bundle api validating webhook", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundle)
+			err = c.Create(ctx, bundledeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundle)
+			err = c.Delete(ctx, bundledeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the bundle creation", func() {
-			Expect(err).To(MatchError(ContainSubstring("bundle.spec.source.git must be set for source type \"git\"")))
+			Expect(err).To(MatchError(ContainSubstring("bundledeployment.spec.source.git must be set for source type \"git\"")))
 		})
 	})
 	When("the bundle source type is image and image properties are not set", func() {
 		var (
-			bundle *rukpakv1alpha1.Bundle
+			bundledeployment *rukpakv1alpha1.BundleDeployment
 			ctx    context.Context
 			err    error
 		)
@@ -94,11 +94,11 @@ var _ = Describe("bundle api validating webhook", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundle = &rukpakv1alpha1.Bundle{
+			bundledeployment = &rukpakv1alpha1.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenameimage",
 				},
-				Spec: rukpakv1alpha1.BundleSpec{
+				Spec: rukpakv1alpha1.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha1.BundleSource{
 						Type: rukpakv1alpha1.SourceTypeImage,
@@ -111,16 +111,16 @@ var _ = Describe("bundle api validating webhook", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundle)
+			err = c.Create(ctx, bundledeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundle)
+			err = c.Delete(ctx, bundledeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 
 		})
 		It("should fail the bundle creation", func() {
-			Expect(err).To(MatchError(ContainSubstring("bundle.spec.source.image must be set for source type \"image\"")))
+			Expect(err).To(MatchError(ContainSubstring("bundledeployment.spec.source.image must be set for source type \"image\"")))
 		})
 	})
 })
