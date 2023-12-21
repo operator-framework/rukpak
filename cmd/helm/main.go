@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/helm"
@@ -55,7 +55,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
-	utilruntime.Must(rukpakv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(rukpakv1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -98,7 +98,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("starting up the provisioner", "git commit", version.String())
 
-	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha1.BundleDeploymentKind})
+	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha2.BundleDeploymentKind})
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
@@ -126,7 +126,7 @@ func main() {
 		LeaderElectionID:       "helm.core.rukpak.io",
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
-				&rukpakv1alpha1.BundleDeployment{}: {},
+				&rukpakv1alpha2.BundleDeployment{}: {},
 			},
 			DefaultSelector: cache.ObjectSelector{
 				Label: dependentSelector,
@@ -212,14 +212,14 @@ func main() {
 		bundledeployment.WithStorage(bundleStorage),
 	}
 
-	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace,append(
+	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(helm.ProvisionerID),
 		bundledeployment.WithUnpacker(unpacker),
-		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.BundleDeploymentProcessorFunc(helm.ProcessBundleDeployment)),
+		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.ProcessorFunc(helm.ProcessBundleDeployment)),
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(helm.HandleBundleDeployment)),
 	)...); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha1.BundleDeploymentKind, "provisionerID", helm.ProvisionerID)
+		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", helm.ProvisionerID)
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

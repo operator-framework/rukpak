@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -33,7 +33,7 @@ var _ = Describe("BundleDeployment", func() {
 			BeforeEach(func() {
 				postren = &postrenderer{
 					labels: map[string]string{
-						util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind,
+						util.CoreOwnerKindKey: rukpakv1alpha2.BundleDeploymentKind,
 						util.CoreOwnerNameKey: "test-owner",
 					},
 				}

@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -34,8 +34,8 @@ type Image struct {
 
 const imageBundleUnpackContainerName = "bundle"
 
-func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
-	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeImage {
+func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (*Result, error) {
+	if bundle.Spec.Source.Type != rukpakv1alpha2.SourceTypeImage {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
 	if bundle.Spec.Source.Image == nil {
@@ -64,7 +64,7 @@ func (i *Image) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeploym
 	}
 }
 
-func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment, pod *corev1.Pod) (controllerutil.OperationResult, error) {
+func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	existingPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: i.PodNamespace, Name: bundle.Name}}
 	if err := i.Client.Get(ctx, client.ObjectKeyFromObject(existingPod), existingPod); client.IgnoreNotFound(err) != nil {
 		return controllerutil.OperationResultNone, err
@@ -99,7 +99,7 @@ func (i *Image) ensureUnpackPod(ctx context.Context, bundle *rukpakv1alpha1.Bund
 	return controllerutil.OperationResultUpdated, nil
 }
 
-func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha1.BundleDeployment) *applyconfigurationcorev1.PodApplyConfiguration {
+func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment) *applyconfigurationcorev1.PodApplyConfiguration {
 	// TODO (tyslaton): Address unpacker pod allowing root users for image sources
 	//
 	// In our current implementation, we are creating a pod that uses the image
@@ -203,9 +203,9 @@ func (i *Image) succeededPodResult(ctx context.Context, pod *corev1.Pod) (*Resul
 		return nil, fmt.Errorf("get bundle image digest: %v", err)
 	}
 
-	resolvedSource := &rukpakv1alpha1.BundleSource{
-		Type:  rukpakv1alpha1.SourceTypeImage,
-		Image: &rukpakv1alpha1.ImageSource{Ref: digest},
+	resolvedSource := &rukpakv1alpha2.BundleSource{
+		Type:  rukpakv1alpha2.SourceTypeImage,
+		Image: &rukpakv1alpha2.ImageSource{Ref: digest},
 	}
 
 	message := generateMessage("image")

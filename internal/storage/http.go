@@ -13,7 +13,7 @@ import (
 	"github.com/nlepage/go-tarfs"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 type HTTP struct {
@@ -69,7 +69,7 @@ func NewHTTP(opts ...HTTPOption) *HTTP {
 }
 
 func (s *HTTP) Load(ctx context.Context, owner client.Object) (fs.FS, error) {
-	bundledeployment := owner.(*rukpakv1alpha1.BundleDeployment)
+	bundledeployment := owner.(*rukpakv1alpha2.BundleDeployment)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bundledeployment.Status.ContentURL, nil)
 	if err != nil {
 		return nil, err

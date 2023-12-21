@@ -8,7 +8,7 @@ import (
 
 	"github.com/nlepage/go-tarfs"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 // Upload is a bundle source that sources bundles from the rukpak upload service.
@@ -20,9 +20,9 @@ type Upload struct {
 
 // Unpack unpacks an uploaded bundle by requesting the bundle contents from a web server hosted
 // by rukpak's upload service.
-func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
-	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
-		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha1.SourceTypeUpload)
+func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (*Result, error) {
+	if bundle.Spec.Source.Type != rukpakv1alpha2.SourceTypeUpload {
+		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha2.SourceTypeUpload)
 	}
 
 	url := fmt.Sprintf("%s/uploads/%s.tgz", b.baseDownloadURL, bundle.Name)

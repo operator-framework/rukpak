@@ -8,7 +8,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/test/testutil"
@@ -28,7 +28,7 @@ var _ = Describe("crdvalidator", func() {
 				crd = testutil.NewTestingCRD("", testutil.DefaultGroup,
 					[]apiextensionsv1.CustomResourceDefinitionVersion{
 						{
-							Name:    "v1alpha1",
+							Name:    "v1alpha2",
 							Served:  true,
 							Storage: true,
 							Schema: &apiextensionsv1.CustomResourceValidation{
@@ -95,7 +95,7 @@ var _ = Describe("crdvalidator", func() {
 						},
 					})
 
-					crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind}
+					crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha2.BundleDeploymentKind}
 
 					return c.Update(ctx, crd)
 				}).Should(Succeed())
@@ -108,7 +108,7 @@ var _ = Describe("crdvalidator", func() {
 			BeforeEach(func() {
 				crd = testutil.NewTestingCRD("", testutil.DefaultGroup,
 					[]apiextensionsv1.CustomResourceDefinitionVersion{{
-						Name:    "v1alpha1",
+						Name:    "v1alpha2",
 						Served:  true,
 						Storage: true,
 						Schema: &apiextensionsv1.CustomResourceValidation{
@@ -123,14 +123,14 @@ var _ = Describe("crdvalidator", func() {
 					}},
 				)
 
-				crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind}
+				crd.Labels = map[string]string{util.CoreOwnerKindKey: rukpakv1alpha2.BundleDeploymentKind}
 
 				Eventually(func() error {
 					return c.Create(ctx, crd)
 				}).Should(Succeed(), "should be able to create a safe crd but was not")
 
 				// Build up a CR to create out of unstructured.Unstructured
-				sampleCR := testutil.NewTestingCR(testutil.DefaultCrName, testutil.DefaultGroup, "v1alpha1", crd.Spec.Names.Singular)
+				sampleCR := testutil.NewTestingCR(testutil.DefaultCrName, testutil.DefaultGroup, "v1alpha2", crd.Spec.Names.Singular)
 				Eventually(func() error {
 					return c.Create(ctx, sampleCR)
 				}).Should(Succeed(), "should be able to create a cr for the sample crd but was not")
@@ -148,7 +148,7 @@ var _ = Describe("crdvalidator", func() {
 						return err.Error()
 					}
 
-					// Update the v1alpha1 schema to invalidate existing CR created in BeforeEach()
+					// Update the v1alpha2 schema to invalidate existing CR created in BeforeEach()
 					crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Required = []string{"sampleProperty"}
 
 					err := c.Update(ctx, crd)
@@ -169,7 +169,7 @@ var _ = Describe("crdvalidator", func() {
 					crd.Labels = map[string]string{}
 					Expect(c.Update(ctx, crd)).To(Succeed())
 
-					// Update the v1alpha1 schema to invalidate existing CR created in BeforeEach()
+					// Update the v1alpha2 schema to invalidate existing CR created in BeforeEach()
 					crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Required = []string{"sampleProperty"}
 
 					return c.Update(ctx, crd)
@@ -186,7 +186,7 @@ var _ = Describe("crdvalidator", func() {
 					crd.Annotations = map[string]string{annotation.ValidationKey: annotation.Disabled}
 					Expect(c.Update(ctx, crd)).To(Succeed())
 
-					// Update the v1alpha1 schema to invalidate existing CR created in BeforeEach()
+					// Update the v1alpha2 schema to invalidate existing CR created in BeforeEach()
 					crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Required = []string{"sampleProperty"}
 
 					return c.Update(ctx, crd)
@@ -210,7 +210,7 @@ var _ = Describe("crdvalidator", func() {
 				crd = testutil.NewTestingCRD("", testutil.DefaultGroup,
 					[]apiextensionsv1.CustomResourceDefinitionVersion{
 						{
-							Name:    "v1alpha1",
+							Name:    "v1alpha2",
 							Served:  true,
 							Storage: true,
 							Schema: &apiextensionsv1.CustomResourceValidation{

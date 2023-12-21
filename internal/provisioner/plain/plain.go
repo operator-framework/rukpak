@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -24,14 +24,14 @@ const (
 	manifestsDir = "manifests"
 )
 
-func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.BundleDeployment) (fs.FS, error) {
+func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha2.BundleDeployment) (fs.FS, error) {
 	if err := ValidateBundle(fsys); err != nil {
 		return nil, err
 	}
 	return fsys, nil
 }
 
-func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	chrt, err := chartFromBundle(fsys, bd)
 	if err != nil {
 		return nil, nil, err
@@ -81,7 +81,7 @@ func getObjects(bundle fs.FS, manifest fs.DirEntry) ([]client.Object, error) {
 	return util.ManifestObjects(manifestReader, manifestPath)
 }
 
-func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Chart, error) {
+func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, error) {
 	objects, err := getBundleObjects(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
@@ -92,7 +92,7 @@ func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Ch
 	}
 	for _, obj := range objects {
 		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
-			util.CoreOwnerKindKey: rukpakv1alpha1.BundleDeploymentKind,
+			util.CoreOwnerKindKey: rukpakv1alpha2.BundleDeploymentKind,
 			util.CoreOwnerNameKey: bd.Name,
 		}))
 		yamlData, err := yaml.Marshal(obj)

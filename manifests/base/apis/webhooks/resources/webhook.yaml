@@ -10,19 +10,19 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-core-rukpak-io-v1alpha1-bundledeployment
+      path: /validate-core-rukpak-io-v1alpha2-bundledeployment
   failurePolicy: Fail
   name: vbundles.core.rukpak.io
   rules:
   - apiGroups:
     - core.rukpak.io
     apiVersions:
-    - v1alpha1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
     resources:
-    - bundles
+    - bundledeployments
   sideEffects: None
 - admissionReviewVersions:
   - v1

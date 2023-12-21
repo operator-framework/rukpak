@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 type bundleGC struct {
@@ -35,15 +35,15 @@ func NewBundleGC(cache cache.Cache, storageDir string, storageSyncInterval time.
 // Start implemente the controller-runtime Runnable interface.
 // It blocks until the context is closed.
 func (gc *bundleGC) Start(ctx context.Context) error {
-	bundledeploymentInformer, err := gc.cache.GetInformer(ctx, &rukpakv1alpha1.BundleDeployment{})
+	bundledeploymentInformer, err := gc.cache.GetInformer(ctx, &rukpakv1alpha2.BundleDeployment{})
 	if err != nil {
 		return err
 	}
 	// Ignore the return value
 	_, err = bundledeploymentInformer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			bundleDeployment := obj.(*rukpakv1alpha1.BundleDeployment)
-			if bundleDeployment.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
+			bundleDeployment := obj.(*rukpakv1alpha2.BundleDeployment)
+			if bundleDeployment.Spec.Source.Type != rukpakv1alpha2.SourceTypeUpload {
 				return
 			}
 			filename := bundlePath(gc.storageDir, bundleDeployment.Name)
@@ -83,13 +83,13 @@ func (gc *bundleGC) Start(ctx context.Context) error {
 			for _, e := range storageDirEntries {
 				existingFiles.Insert(e.Name())
 			}
-			bundledeployments := &rukpakv1alpha1.BundleDeploymentList{}
+			bundledeployments := &rukpakv1alpha2.BundleDeploymentList{}
 			if err := gc.cache.List(ctx, bundledeployments); err != nil {
 				gc.log.Error(err, "failed to list bundles from cache", err)
 				continue
 			}
 			for _, bundle := range bundledeployments.Items {
-				if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
+				if bundle.Spec.Source.Type != rukpakv1alpha2.SourceTypeUpload {
 					continue
 				}
 				existingFiles.Delete(filepath.Base(bundlePath(gc.storageDir, bundle.Name)))

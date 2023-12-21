@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 const (
@@ -35,7 +35,7 @@ const (
 // specifications. A source should treat a bundle root directory as an opaque
 // file tree and delegate bundle format concerns to bundle parsers.
 type Unpacker interface {
-	Unpack(context.Context, *rukpakv1alpha1.BundleDeployment) (*Result, error)
+	Unpack(context.Context, *rukpakv1alpha2.BundleDeployment) (*Result, error)
 }
 
 // Result conveys progress information about unpacking bundle content.
@@ -52,7 +52,7 @@ type Result struct {
 	// For example, resolved image sources should reference a container image
 	// digest rather than an image tag, and git sources should reference a
 	// commit hash rather than a branch or tag.
-	ResolvedSource *rukpakv1alpha1.BundleSource
+	ResolvedSource *rukpakv1alpha2.BundleSource
 
 	// State is the current state of unpacking the bundle content.
 	State State
@@ -79,16 +79,16 @@ const (
 )
 
 type unpacker struct {
-	sources map[rukpakv1alpha1.SourceType]Unpacker
+	sources map[rukpakv1alpha2.SourceType]Unpacker
 }
 
 // NewUnpacker returns a new composite Source that unpacks bundles using the source
 // mapping provided by the configured sources.
-func NewUnpacker(sources map[rukpakv1alpha1.SourceType]Unpacker) Unpacker {
+func NewUnpacker(sources map[rukpakv1alpha2.SourceType]Unpacker) Unpacker {
 	return &unpacker{sources: sources}
 }
 
-func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
+func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (*Result, error) {
 	source, ok := s.sources[bundle.Spec.Source.Type]
 	if !ok {
 		return nil, fmt.Errorf("source type %q not supported", bundle.Spec.Source.Type)
@@ -114,27 +114,27 @@ func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage 
 		}
 	}
 	httpTransport.TLSClientConfig.RootCAs = rootCAs
-	return NewUnpacker(map[rukpakv1alpha1.SourceType]Unpacker{
-		rukpakv1alpha1.SourceTypeImage: &Image{
+	return NewUnpacker(map[rukpakv1alpha2.SourceType]Unpacker{
+		rukpakv1alpha2.SourceTypeImage: &Image{
 			Client:       systemNsCluster.GetClient(),
 			KubeClient:   kubeClient,
 			PodNamespace: namespace,
 			UnpackImage:  unpackImage,
 		},
-		rukpakv1alpha1.SourceTypeGit: &Git{
+		rukpakv1alpha2.SourceTypeGit: &Git{
 			Reader:          systemNsCluster.GetClient(),
 			SecretNamespace: namespace,
 		},
-		rukpakv1alpha1.SourceTypeConfigMaps: &ConfigMaps{
+		rukpakv1alpha2.SourceTypeConfigMaps: &ConfigMaps{
 			Reader:             systemNsCluster.GetClient(),
 			ConfigMapNamespace: namespace,
 		},
-		rukpakv1alpha1.SourceTypeUpload: &Upload{
+		rukpakv1alpha2.SourceTypeUpload: &Upload{
 			baseDownloadURL: baseUploadManagerURL,
 			bearerToken:     systemNsCluster.GetConfig().BearerToken,
 			client:          http.Client{Timeout: uploadClientTimeout, Transport: httpTransport},
 		},
-		rukpakv1alpha1.SourceTypeHTTP: &HTTP{
+		rukpakv1alpha2.SourceTypeHTTP: &HTTP{
 			Reader:          systemNsCluster.GetClient(),
 			SecretNamespace: namespace,
 		},
