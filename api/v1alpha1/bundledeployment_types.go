@@ -59,16 +59,6 @@ type BundleDeploymentSpec struct {
 	Config runtime.RawExtension `json:"config,omitempty"`
 }
 
-// BundleTemplate defines the desired state of a Bundle resource
-type BundleTemplate struct {
-	// Standard object's metadata.
-	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Specification of the desired behavior of the Bundle.
-	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
-	Spec BundleSpec `json:"spec"`
-}
 
 // BundleDeploymentStatus defines the observed state of BundleDeployment
 type BundleDeploymentStatus struct {
@@ -92,6 +82,10 @@ type BundleDeployment struct {
 
 	Spec   BundleDeploymentSpec   `json:"spec"`
 	Status BundleDeploymentStatus `json:"status,omitempty"`
+}
+
+func (b *BundleDeployment) ProvisionerClassName() string {
+	return b.Spec.ProvisionerClassName
 }
 
 //+kubebuilder:object:root=true

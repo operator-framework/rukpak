@@ -20,8 +20,8 @@ import (
 var _ = Describe("WithFallbackLoader", func() {
 	var (
 		ctx            context.Context
-		primaryBundle  *rukpakv1alpha1.Bundle
-		fallbackBundle *rukpakv1alpha1.Bundle
+		primaryBundleDeployment  *rukpakv1alpha1.BundleDeployment
+		fallbackBundleDeployment *rukpakv1alpha1.BundleDeployment
 		primaryStore   *LocalDirectory
 		fallbackStore  *LocalDirectory
 		primaryFS      fs.FS
@@ -32,12 +32,12 @@ var _ = Describe("WithFallbackLoader", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		primaryBundle = &rukpakv1alpha1.Bundle{
+		primaryBundleDeployment = &rukpakv1alpha1.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateBundleName("primary", rand.String(8)),
 			},
 		}
-		fallbackBundle = &rukpakv1alpha1.Bundle{
+		fallbackBundleDeployment = &rukpakv1alpha1.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateBundleName("fallback", rand.String(8)),
 			},
@@ -49,27 +49,27 @@ var _ = Describe("WithFallbackLoader", func() {
 
 		primaryStore = &LocalDirectory{RootDirectory: primaryDir}
 		primaryFS = generateFS()
-		Expect(primaryStore.Store(ctx, primaryBundle, primaryFS)).To(Succeed())
+		Expect(primaryStore.Store(ctx, primaryBundleDeployment, primaryFS)).To(Succeed())
 
 		fallbackStore = &LocalDirectory{RootDirectory: fallbackDir}
 		fallbackFS = generateFS()
-		Expect(fallbackStore.Store(ctx, fallbackBundle, fallbackFS)).To(Succeed())
+		Expect(fallbackStore.Store(ctx, fallbackBundleDeployment, fallbackFS)).To(Succeed())
 
 		store = WithFallbackLoader(primaryStore, fallbackStore)
 	})
 
 	It("should find primary bundle", func() {
-		loadedTestFS, err := store.Load(ctx, primaryBundle)
+		loadedTestFS, err := store.Load(ctx, primaryBundleDeployment)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(fsEqual(primaryFS, loadedTestFS)).To(BeTrue())
 	})
 	It("should find fallback bundle", func() {
-		loadedTestFS, err := store.Load(ctx, fallbackBundle)
+		loadedTestFS, err := store.Load(ctx, fallbackBundleDeployment)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(fsEqual(fallbackFS, loadedTestFS)).To(BeTrue())
 	})
 	It("should fail to find unknown bundle", func() {
-		unknownBundle := &rukpakv1alpha1.Bundle{
+		unknownBundle := &rukpakv1alpha1.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateBundleName("unknown", rand.String(8)),
 			},

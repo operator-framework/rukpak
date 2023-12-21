@@ -31,12 +31,12 @@ func (w *ConfigMap) ValidateCreate(ctx context.Context, obj runtime.Object) erro
 		return nil
 	}
 
-	bundleList := &rukpakv1alpha1.BundleList{}
-	if err := w.Client.List(ctx, bundleList); err != nil {
+	bundledeploymentList := &rukpakv1alpha1.BundleDeploymentList{}
+	if err := w.Client.List(ctx, bundledeploymentList); err != nil {
 		return err
 	}
 	bundleReferrers := []string{}
-	for _, bundle := range bundleList.Items {
+	for _, bundle := range bundledeploymentList.Items {
 		if bundle.Spec.Source.Type == rukpakv1alpha1.SourceTypeConfigMaps {
 			for _, bundleConfigMapRef := range bundle.Spec.Source.ConfigMaps {
 				if bundleConfigMapRef.ConfigMap.Name == cm.Name {
@@ -58,7 +58,7 @@ func (w *ConfigMap) ValidateUpdate(_ context.Context, _, _ runtime.Object) error
 func (w *ConfigMap) ValidateDelete(ctx context.Context, obj runtime.Object) error {
 	cm := obj.(*corev1.ConfigMap)
 
-	bundleList := &rukpakv1alpha1.BundleList{}
+	bundleList := &rukpakv1alpha1.BundleDeploymentList{}
 	if err := w.Client.List(ctx, bundleList); err != nil {
 		return err
 	}
