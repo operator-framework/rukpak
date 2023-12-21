@@ -137,7 +137,7 @@ func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, systemName
 		For(&rukpakv1alpha1.BundleDeployment{}, builder.WithPredicates(
 			util.BundleDeploymentProvisionerFilter(c.provisionerID)),
 		).
-		Watches(source.NewKindWithCache(&corev1.Pod{}, systemNsCache), util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, c.provisionerID, &rukpakv1alpha1.Bundle{})).
+		Watches(source.NewKindWithCache(&corev1.Pod{}, systemNsCache), util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, c.provisionerID, &rukpakv1alpha1.BundleDeployment{})).
 		Watches(source.NewKindWithCache(&corev1.ConfigMap{}, systemNsCache), util.MapConfigMapToBundleDeploymentHandler(context.Background(), mgr.GetClient(), systemNamespace, c.provisionerID)).
 		Build(c)
 	if err != nil {

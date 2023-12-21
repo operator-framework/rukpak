@@ -94,13 +94,6 @@ func ReconcileDesiredBundleDeployment(ctx context.Context, c client.Client, bd *
 	return b, existingBundleDeployments, err
 }
 
-func BundleProvisionerFilter(provisionerClassName string) predicate.Predicate {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		b := obj.(*rukpakv1alpha1.Bundle)
-		return b.Spec.ProvisionerClassName == provisionerClassName
-	})
-}
-
 func BundleDeploymentProvisionerFilter(provisionerClassName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
 		b := obj.(*rukpakv1alpha1.BundleDeployment)
@@ -171,54 +164,6 @@ func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, lo
 	})
 }
 
-// MapBundleToBundleDeployment is responsible for finding the BundleDeployment resource
-// that's managing this Bundle in the cluster. In the case that this Bundle is a standalone
-// resource, then no BundleDeployment will be returned as static creation of Bundle
-// resources is not a supported workflow right now.
-func MapBundleToBundleDeployment(ctx context.Context, c client.Client, b rukpakv1alpha1.Bundle) *rukpakv1alpha1.BundleDeployment {
-	// check whether this is a standalone bundle that was created outside
-	// of the normal BundleDeployment controller reconciliation process.
-	if bundleOwnerType := b.Labels[CoreOwnerKindKey]; bundleOwnerType != rukpakv1alpha1.BundleDeploymentKind {
-		return nil
-	}
-	bundleOwnerName := b.Labels[CoreOwnerNameKey]
-	if bundleOwnerName == "" {
-		return nil
-	}
-
-	bundleDeployments := &rukpakv1alpha1.BundleDeploymentList{}
-	if err := c.List(ctx, bundleDeployments); err != nil {
-		return nil
-	}
-	for _, bd := range bundleDeployments.Items {
-		bd := bd
-
-		if bd.GetName() == bundleOwnerName {
-			return bd.DeepCopy()
-		}
-	}
-	return nil
-}
-
-// MapBundleToBundleDeploymentHandler is responsible for requeuing a BundleDeployment resource
-// when a new Bundle event has been encountered. In the case that the Bundle resource is a
-// standalone resource, then no BundleDeployment will be returned as static creation of Bundle
-// resources is not a supported workflow right now. The provisionerClassName parameter is used
-// to filter out BundleDeployments that the caller shouldn't be watching.
-func MapBundleToBundleDeploymentHandler(ctx context.Context, cl client.Client, provisionerClassName string) handler.MapFunc {
-	return func(object client.Object) []reconcile.Request {
-		b := object.(*rukpakv1alpha1.Bundle)
-
-		managingBD := MapBundleToBundleDeployment(ctx, cl, *b)
-		if managingBD == nil {
-			return nil
-		}
-		if managingBD.Spec.ProvisionerClassName != provisionerClassName {
-			return nil
-		}
-		return []reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(managingBD)}}
-	}
-}
 func MapConfigMapToBundleDeployment(ctx context.Context, cl client.Client, cmNamespace string, cm corev1.ConfigMap) []*rukpakv1alpha1.BundleDeployment {
 	bundleDeploymentList := &rukpakv1alpha1.BundleDeploymentList{}
 	if err := cl.List(ctx, bundleDeploymentList); err != nil {
@@ -359,12 +304,6 @@ func newLabelSelector(name, kind string) labels.Selector {
 		return nil
 	}
 	return labels.NewSelector().Add(*kindRequirement, *nameRequirement)
-}
-
-// NewBundleLabelSelector is responsible for constructing a label.Selector
-// for any underlying resources that are associated with the Bundle parameter.
-func NewBundleLabelSelector(bundle *rukpakv1alpha1.Bundle) labels.Selector {
-	return newLabelSelector(bundle.GetName(), rukpakv1alpha1.BundleKind)
 }
 
 // NewBundleDeploymentLabelSelector is responsible for constructing a label.Selector
