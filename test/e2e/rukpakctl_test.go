@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 )
 
@@ -28,7 +28,7 @@ var _ = Describe("rukpakctl run subcommand", func() {
 			ctx                  context.Context
 			bundlename           string
 			bundledeploymentname string
-			bundledeployment     *rukpakv1alpha1.BundleDeployment
+			bundledeployment     *rukpakv1alpha2.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -40,7 +40,7 @@ var _ = Describe("rukpakctl run subcommand", func() {
 			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
 		})
 		It("should eventually report a successful state", func() {
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: bundledeploymentname,
 				},
@@ -50,12 +50,12 @@ var _ = Describe("rukpakctl run subcommand", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackSuccessful)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackSuccessful)),
 				))
 			})
 			By("eventually reporting Installed", func() {
@@ -63,12 +63,12 @@ var _ = Describe("rukpakctl run subcommand", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
 				))
 			})
 		})
@@ -91,7 +91,7 @@ var _ = Describe("rukpakctl run subcommand", func() {
 			ctx                  context.Context
 			bundlename           string
 			bundledeploymentname string
-			bundledeployment     *rukpakv1alpha1.BundleDeployment
+			bundledeployment     *rukpakv1alpha2.BundleDeployment
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -103,7 +103,7 @@ var _ = Describe("rukpakctl run subcommand", func() {
 			Expect(c.Delete(ctx, bundledeployment)).To(Succeed())
 		})
 		It("should eventually report unpack fail", func() {
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: bundledeploymentname,
 				},
@@ -113,12 +113,12 @@ var _ = Describe("rukpakctl run subcommand", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackFailed)),
 				))
 			})
 		})
@@ -128,23 +128,23 @@ var _ = Describe("rukpakctl run subcommand", func() {
 var _ = Describe("rukpakctl content subcommand", func() {
 	When("content executed with a valid bundle", func() {
 		var (
-			ctx    context.Context
-			bundledeployment *rukpakv1alpha1.BundleDeployment
-			output string
+			ctx              context.Context
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			output           string
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "combo-git-commit",
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeGit,
+						Git: &rukpakv1alpha2.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: rukpakv1alpha2.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 							},
 						},
@@ -158,12 +158,12 @@ var _ = Describe("rukpakctl content subcommand", func() {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
 						return nil, err
 					}
-					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+					return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
 				}).Should(And(
 					Not(BeNil()),
-					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackSuccessful)),
+					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackSuccessful)),
 				))
 			})
 			out, err := exec.Command("sh", "-c", rukpakctlcmd+"content "+bundledeployment.ObjectMeta.Name).Output() // nolint:gosec

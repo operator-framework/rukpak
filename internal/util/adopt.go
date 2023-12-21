@@ -3,7 +3,7 @@ package util
 import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/operator-framework/rukpak/api/v1alpha1"
+	"github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 // AdoptObject sets metadata on an object to associate that object with a bundle
@@ -36,7 +36,7 @@ func AdoptObject(obj client.Object, systemNamespace, bundleDeploymentName string
 	}
 
 	labels["app.kubernetes.io/managed-by"] = "Helm"
-	labels[CoreOwnerKindKey] = v1alpha1.BundleDeploymentKind
+	labels[CoreOwnerKindKey] = v1alpha2.BundleDeploymentKind
 	labels[CoreOwnerNameKey] = bundleDeploymentName
 	obj.SetLabels(labels)
 }

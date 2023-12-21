@@ -13,35 +13,34 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/provisioner/helm"
 )
 
 var _ = Describe("helm provisioner bundledeployment", func() {
 	When("a BundleDeployment targets a valid Bundle", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ahoy-",
 					Labels: map[string]string{
 						"app.kubernetes.io/name": "ahoy",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeHTTP,
-						HTTP: &rukpakv1alpha1.HTTPSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeHTTP,
+						HTTP: &rukpakv1alpha2.HTTPSource{
 							URL: "https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz",
 						},
 					},
-
 				},
 			}
 			err := c.Create(ctx, bd)
@@ -58,12 +57,12 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 			))
 		})
@@ -125,24 +124,24 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 
 	When("a BundleDeployment targets a Bundle with an invalid url", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ahoy-",
 					Labels: map[string]string{
 						"app.kubernetes.io/name": "ahoy",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeHTTP,
-						HTTP: &rukpakv1alpha1.HTTPSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeHTTP,
+						HTTP: &rukpakv1alpha2.HTTPSource{
 							URL: "https://github.com/helm/examples/releases/download/hello-world-0.1.0/xxx",
 						},
 					},
@@ -162,35 +161,35 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`unexpected status "404 Not Found"`)),
 			))
 		})
 	})
 	When("a BundleDeployment targets a Bundle with a none-tgz file url", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ahoy-",
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeHTTP,
-							HTTP: &rukpakv1alpha1.HTTPSource{
-								URL: "https://raw.githubusercontent.com/helm/examples/main/LICENSE",
-							},
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeHTTP,
+						HTTP: &rukpakv1alpha2.HTTPSource{
+							URL: "https://raw.githubusercontent.com/helm/examples/main/LICENSE",
+						},
 					},
 				},
 			}
@@ -208,36 +207,36 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("gzip: invalid header")),
 			))
 		})
 	})
 	When("a BundleDeployment targets a Bundle with a none chart tgz url", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ahoy-",
 					Labels: map[string]string{
 						"app.kubernetes.io/name": "ahoy",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeHTTP,
-						HTTP: &rukpakv1alpha1.HTTPSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeHTTP,
+						HTTP: &rukpakv1alpha2.HTTPSource{
 							URL: "https://github.com/helm/examples/archive/refs/tags/hello-world-0.1.0.tar.gz",
 						},
 					},
@@ -257,43 +256,43 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Chart.yaml file is missing")),
 			))
 		})
 	})
 	When("a BundleDeployment targets a valid Bundle in Github", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ahoy-",
 					Labels: map[string]string{
 						"app.kubernetes.io/name": "ahoy",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Source:rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeGit,
+						Git: &rukpakv1alpha2.GitSource{
 							Repository: "https://github.com/helm/examples",
 							Directory:  "./charts",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: rukpakv1alpha2.GitRef{
 								Branch: "main",
 							},
 						},
-					} ,
+					},
 				},
 			}
 			err := c.Create(ctx, bd)
@@ -310,12 +309,12 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 			))
 		})
@@ -383,27 +382,27 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 	})
 	When("a BundleDeployment targets a valid Bundle with no chart directory in Github", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ahoy-",
 					Labels: map[string]string{
 						"app.kubernetes.io/name": "ahoy",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeGit,
+						Git: &rukpakv1alpha2.GitSource{
 							Repository: "https://github.com/helm/examples",
 							Directory:  "./charts/hello-world",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: rukpakv1alpha2.GitRef{
 								Branch: "main",
 							},
 						},
@@ -424,37 +423,37 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 			))
 		})
 	})
 	When("a BundleDeployment targets a valid Bundle with values", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ahoy-",
-					Labels:  map[string]string{
+					Labels: map[string]string{
 						"app.kubernetes.io/name": "ahoy",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: helm.ProvisionerID,
 					Config:               runtime.RawExtension{Raw: []byte(`{"values": "# Default values for hello-world.\n# This is a YAML-formatted file.\n# Declare variables to be passed into your templates.\nreplicaCount: 1\nimage:\n  repository: nginx\n  pullPolicy: IfNotPresent\n  # Overrides the image tag whose default is the chart appVersion.\n  tag: \"\"\nnameOverride: \"fromvalues\"\nfullnameOverride: \"\"\nserviceAccount:\n  # Specifies whether a service account should be created\n  create: true\n  # Annotations to add to the service account\n  annotations: {}\n  # The name of the service account to use.\n  # If not set and create is true, a name is generated using the fullname template\n  name: \"\"\nservice:\n  type: ClusterIP\n  port: 80\n"}`)},
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeHTTP,
-						HTTP: &rukpakv1alpha1.HTTPSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeHTTP,
+						HTTP: &rukpakv1alpha2.HTTPSource{
 							URL: "https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz",
 						},
 					},
@@ -474,12 +473,12 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 			))
 

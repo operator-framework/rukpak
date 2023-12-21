@@ -28,7 +28,7 @@ spec:
       name: Provisioner
       priority: 1
       type: string
-    name: v1alpha1
+    name: v1alpha2
     schema:
       openAPIV3Schema:
         description: BundleDeployment is the Schema for the bundledeployments API

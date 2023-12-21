@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 type Bundle struct {
@@ -39,17 +39,17 @@ type Bundle struct {
 }
 
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=list;watch
-//+kubebuilder:webhook:path=/validate-core-rukpak-io-v1alpha1-bundledeployment,mutating=false,failurePolicy=fail,sideEffects=None,groups=core.rukpak.io,resources=bundles,verbs=create;update,versions=v1alpha1,name=vbundles.core.rukpak.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-core-rukpak-io-v1alpha2-bundledeployment,mutating=false,failurePolicy=fail,sideEffects=None,groups=core.rukpak.io,resources=bundledeployments,verbs=create;update,versions=v1alpha2,name=vbundles.core.rukpak.io,admissionReviewVersions=v1
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (b *Bundle) ValidateCreate(ctx context.Context, obj runtime.Object) error {
-	bundledeployment := obj.(*rukpakv1alpha1.BundleDeployment)
+	bundledeployment := obj.(*rukpakv1alpha2.BundleDeployment)
 	return b.checkBundleDeploymentSource(ctx, bundledeployment)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (b *Bundle) ValidateUpdate(ctx context.Context, oldObj runtime.Object, newObj runtime.Object) error {
-	newBundle := newObj.(*rukpakv1alpha1.BundleDeployment)
+func (b *Bundle) ValidateUpdate(ctx context.Context, _ runtime.Object, newObj runtime.Object) error {
+	newBundle := newObj.(*rukpakv1alpha2.BundleDeployment)
 	return b.checkBundleDeploymentSource(ctx, newBundle)
 }
 
@@ -58,20 +58,20 @@ func (b *Bundle) ValidateDelete(_ context.Context, _ runtime.Object) error {
 	return nil
 }
 
-func (b *Bundle) checkBundleDeploymentSource(ctx context.Context, bundledeployment *rukpakv1alpha1.BundleDeployment) error {
+func (b *Bundle) checkBundleDeploymentSource(ctx context.Context, bundledeployment *rukpakv1alpha2.BundleDeployment) error {
 	switch typ := bundledeployment.Spec.Source.Type; typ {
-	case rukpakv1alpha1.SourceTypeImage:
+	case rukpakv1alpha2.SourceTypeImage:
 		if bundledeployment.Spec.Source.Image == nil {
 			return fmt.Errorf("bundledeployment.spec.source.image must be set for source type \"image\"")
 		}
-	case rukpakv1alpha1.SourceTypeGit:
+	case rukpakv1alpha2.SourceTypeGit:
 		if bundledeployment.Spec.Source.Git == nil {
 			return fmt.Errorf("bundledeployment.spec.source.git must be set for source type \"git\"")
 		}
 		if strings.HasPrefix(filepath.Clean(bundledeployment.Spec.Source.Git.Directory), "../") {
 			return fmt.Errorf(`bundledeployment.spec.source.git.directory begins with "../": directory must define path within the repository`)
 		}
-	case rukpakv1alpha1.SourceTypeConfigMaps:
+	case rukpakv1alpha2.SourceTypeConfigMaps:
 		if len(bundledeployment.Spec.Source.ConfigMaps) == 0 {
 			return fmt.Errorf(`bundledeployment.spec.source.configmaps must be set for source type "configmaps"`)
 		}
@@ -104,7 +104,7 @@ func (b *Bundle) verifyConfigMapImmutable(ctx context.Context, configMapName str
 }
 
 func (b *Bundle) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	mgr.GetWebhookServer().Register("/validate-core-rukpak-io-v1alpha1-bundledeployment", admission.WithCustomValidator(&rukpakv1alpha1.BundleDeployment{}, b).WithRecoverPanic(true))
+	mgr.GetWebhookServer().Register("/validate-core-rukpak-io-v1alpha2-bundledeployment", admission.WithCustomValidator(&rukpakv1alpha2.BundleDeployment{}, b).WithRecoverPanic(true))
 	return nil
 }
 

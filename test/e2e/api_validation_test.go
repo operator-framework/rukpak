@@ -11,29 +11,29 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 )
 
 var _ = Describe("bundle api validation", func() {
 	When("the bundle name is too long", func() {
 		var (
-			bundledeployment *rukpakv1alpha1.BundleDeployment
-			ctx    context.Context
-			err    error
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			ctx              context.Context
+			err              error
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "olm-crds-too-long-name-for-the-bundle-1234567890-1234567890",
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeImage,
+						Image: &rukpakv1alpha2.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
@@ -52,28 +52,28 @@ var _ = Describe("bundle api validation", func() {
 	})
 	When("the bundle deployment with multiple sources", func() {
 		var (
-			bundledeployment *rukpakv1alpha1.BundleDeployment
-			ctx    context.Context
-			err    error
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			ctx              context.Context
+			err              error
 		)
 		BeforeEach(func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamegit",
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
+					Source: rukpakv1alpha2.BundleSource{
 						Type: "invalid source",
-						Image: &rukpakv1alpha1.ImageSource{
+						Image: &rukpakv1alpha2.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
-						Git: &rukpakv1alpha1.GitSource{
+						Git: &rukpakv1alpha2.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: rukpakv1alpha2.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 								Tag:    "v0.0.1",
 							},
@@ -95,21 +95,21 @@ var _ = Describe("bundle api validation", func() {
 
 	When("the bundle with no sources", func() {
 		var (
-			bundledeployment *rukpakv1alpha1.BundleDeployment
-			ctx    context.Context
-			err    error
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			ctx              context.Context
+			err              error
 		)
 		BeforeEach(func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamegit",
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
+					Source: rukpakv1alpha2.BundleSource{
 						Type: "invalid source",
 					},
 				},
@@ -128,25 +128,25 @@ var _ = Describe("bundle api validation", func() {
 
 	When("the bundle source type is git and more than 1 refs are set", func() {
 		var (
-			bundledeployment *rukpakv1alpha1.BundleDeployment
-			ctx    context.Context
-			err    error
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			ctx              context.Context
+			err              error
 		)
 		BeforeEach(func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamemorerefs",
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeGit,
+						Git: &rukpakv1alpha2.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref: rukpakv1alpha1.GitRef{
+							Ref: rukpakv1alpha2.GitRef{
 								Commit: "9e3ab7f1a36302ef512294d5c9f2e9b9566b811e",
 								Tag:    "v0.0.1",
 							},
@@ -168,25 +168,25 @@ var _ = Describe("bundle api validation", func() {
 
 	When("the bundle source type is git and no refs are set", func() {
 		var (
-			bundledeployment *rukpakv1alpha1.BundleDeployment
-			ctx    context.Context
-			err    error
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			ctx              context.Context
+			err              error
 		)
 		BeforeEach(func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamemorerefs",
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeGit,
-						Git: &rukpakv1alpha1.GitSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeGit,
+						Git: &rukpakv1alpha2.GitSource{
 							Repository: "https://github.com/exdx/combo-bundle",
-							Ref:        rukpakv1alpha1.GitRef{},
+							Ref:        rukpakv1alpha2.GitRef{},
 						},
 					},
 				},
@@ -204,28 +204,28 @@ var _ = Describe("bundle api validation", func() {
 	})
 	When("a Bundle references an invalid provisioner class name", func() {
 		var (
-			bundledeployment *rukpakv1alpha1.BundleDeployment
-			ctx    context.Context
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			ctx              context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 		})
 		AfterEach(func() {
 			By("ensuring the testing Bundle does not exist")
-			err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), &rukpakv1alpha1.BundleDeployment{})
+			err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), &rukpakv1alpha2.BundleDeployment{})
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()), fmt.Sprintf("error was: %v", err))
 		})
 		It("should fail validation", func() {
 			By("creating the testing Bundle resource")
-			bundledeployment = &rukpakv1alpha1.BundleDeployment{
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("bundle-invalid-%s", rand.String(6)),
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: "invalid/class-name",
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeImage,
+						Image: &rukpakv1alpha2.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},
@@ -241,7 +241,7 @@ var _ = Describe("bundle api validation", func() {
 	})
 	When("a BundleDeployment references an invalid provisioner class name", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
@@ -249,20 +249,20 @@ var _ = Describe("bundle api validation", func() {
 		})
 		AfterEach(func() {
 			By("ensuring the testing Bundle does not exist")
-			err := c.Get(ctx, client.ObjectKeyFromObject(bd), &rukpakv1alpha1.BundleDeployment{})
+			err := c.Get(ctx, client.ObjectKeyFromObject(bd), &rukpakv1alpha2.BundleDeployment{})
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()), fmt.Sprintf("error was: %v", err))
 		})
 		It("should fail validation", func() {
 			By("creating the testing BundleDeployment resource")
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("bd-invalid-%s", rand.String(6)),
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: "invalid/class-name",
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeImage,
+						Image: &rukpakv1alpha2.ImageSource{
 							Ref: "localhost/testdata/bundles/plain-v0:valid",
 						},
 					},

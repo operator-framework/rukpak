@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 type Git struct {
@@ -32,8 +32,8 @@ type Git struct {
 	SecretNamespace string
 }
 
-func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
-	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeGit {
+func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (*Result, error) {
+	if bundle.Spec.Source.Type != rukpakv1alpha2.SourceTypeGit {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
 	if bundle.Spec.Source.Git == nil {
@@ -114,12 +114,12 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeploymen
 	}
 
 	resolvedGit := bundle.Spec.Source.Git.DeepCopy()
-	resolvedGit.Ref = rukpakv1alpha1.GitRef{
+	resolvedGit.Ref = rukpakv1alpha2.GitRef{
 		Commit: commitHash.String(),
 	}
 
-	resolvedSource := &rukpakv1alpha1.BundleSource{
-		Type: rukpakv1alpha1.SourceTypeGit,
+	resolvedSource := &rukpakv1alpha2.BundleSource{
+		Type: rukpakv1alpha2.SourceTypeGit,
 		Git:  resolvedGit,
 	}
 
@@ -128,7 +128,7 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeploymen
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
 
-func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (transport.AuthMethod, error) {
+func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (transport.AuthMethod, error) {
 	var auth transport.AuthMethod
 	if strings.HasPrefix(bundle.Spec.Source.Git.Repository, "http") {
 		userName, password, err := r.getCredentials(ctx, bundle)
@@ -176,7 +176,7 @@ func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha1.BundleDeplo
 
 // getCredentials reads credentials from the secret specified in the bundle
 // It returns the username ane password when they are in the secret
-func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (string, string, error) {
+func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (string, string, error) {
 	secret := &corev1.Secret{}
 	err := r.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: bundle.Spec.Source.Git.Auth.Secret.Name}, secret)
 	if err != nil {
@@ -190,7 +190,7 @@ func (r *Git) getCredentials(ctx context.Context, bundle *rukpakv1alpha1.BundleD
 
 // getCertificate reads certificate from the secret specified in the bundle
 // It returns the privatekey and the entry of the host in known_hosts when they are in the secret
-func (r *Git) getCertificate(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) ([]byte, []byte, error) {
+func (r *Git) getCertificate(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) ([]byte, []byte, error) {
 	secret := &corev1.Secret{}
 	err := r.Get(ctx, client.ObjectKey{Namespace: r.SecretNamespace, Name: bundle.Spec.Source.Git.Auth.Secret.Name}, secret)
 	if err != nil {

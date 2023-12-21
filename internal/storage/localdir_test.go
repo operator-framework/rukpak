@@ -17,20 +17,20 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 var _ = Describe("LocalDirectory", func() {
 	var (
 		ctx    context.Context
-		owner  *rukpakv1alpha1.BundleDeployment
+		owner  *rukpakv1alpha2.BundleDeployment
 		store  LocalDirectory
 		testFS fs.FS
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		owner = &rukpakv1alpha1.BundleDeployment{
+		owner = &rukpakv1alpha2.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: fmt.Sprintf("test-bundle-%s", rand.String(5)),
 				UID:  types.UID(rand.String(8)),

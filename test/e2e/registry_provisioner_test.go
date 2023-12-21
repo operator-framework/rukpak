@@ -10,31 +10,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	registryprovisioner "github.com/operator-framework/rukpak/internal/provisioner/registry"
 )
 
 var _ = Describe("registry provisioner bundle", func() {
 	When("a BundleDeployment targets a registry+v1 Bundle", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "prometheus",
 					Labels: map[string]string{
 						"app.kubernetes.io/name": "prometheus",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: registryprovisioner.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeImage,
+						Image: &rukpakv1alpha2.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:valid"),
 						},
 					},
@@ -54,36 +54,36 @@ var _ = Describe("registry provisioner bundle", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeInstalled), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 			))
 		})
 	})
 	When("a BundleDeployment targets an invalid registry+v1 Bundle", func() {
 		var (
-			bd  *rukpakv1alpha1.BundleDeployment
+			bd  *rukpakv1alpha2.BundleDeployment
 			ctx context.Context
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bd = &rukpakv1alpha1.BundleDeployment{
+			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cincinnati",
 					Labels: map[string]string{
 						"app.kubernetes.io/name": "cincinnati",
 					},
 				},
-				Spec: rukpakv1alpha1.BundleDeploymentSpec{
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
 					ProvisionerClassName: registryprovisioner.ProvisionerID,
-					Source: rukpakv1alpha1.BundleSource{
-						Type: rukpakv1alpha1.SourceTypeImage,
-						Image: &rukpakv1alpha1.ImageSource{
+					Source: rukpakv1alpha2.BundleSource{
+						Type: rukpakv1alpha2.SourceTypeImage,
+						Image: &rukpakv1alpha2.ImageSource{
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:invalid"),
 						},
 					},
@@ -102,12 +102,12 @@ var _ = Describe("registry provisioner bundle", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeUnpacked), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha1.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha1.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("convert registry+v1 bundle to plain+v0 bundle: AllNamespace install mode must be enabled")),
 			))
 		})

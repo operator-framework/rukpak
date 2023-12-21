@@ -14,7 +14,7 @@ rules:
 - apiGroups:
   - core.rukpak.io
   resources:
-  - bundles
+  - bundledeployments
   verbs:
   - list
   - watch

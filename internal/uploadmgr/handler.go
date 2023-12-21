@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -39,13 +39,13 @@ func newPutHandler(cl client.Client, storageDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bundleName := mux.Vars(r)["bundleName"]
 
-		bundledeployment := &rukpakv1alpha1.BundleDeployment{}
+		bundledeployment := &rukpakv1alpha2.BundleDeployment{}
 		if err := cl.Get(r.Context(), types.NamespacedName{Name: bundleName}, bundledeployment); err != nil {
 			http.Error(w, err.Error(), int(getCode(err)))
 			return
 		}
-		if bundledeployment.Spec.Source.Type != rukpakv1alpha1.SourceTypeUpload {
-			http.Error(w, fmt.Sprintf("bundle source type is %q; expected %q", bundledeployment.Spec.Source.Type, rukpakv1alpha1.SourceTypeUpload), http.StatusConflict)
+		if bundledeployment.Spec.Source.Type != rukpakv1alpha2.SourceTypeUpload {
+			http.Error(w, fmt.Sprintf("bundle source type is %q; expected %q", bundledeployment.Spec.Source.Type, rukpakv1alpha2.SourceTypeUpload), http.StatusConflict)
 			return
 		}
 
@@ -61,7 +61,6 @@ func newPutHandler(cl client.Client, storageDir string) http.Handler {
 				return
 			}
 		}
-
 
 		if isBundleDeploymentUnpacked(bundledeployment) {
 			http.Error(w, "bundle has already been unpacked, cannot change content of existing bundle", http.StatusConflict)
@@ -89,9 +88,9 @@ func newPutHandler(cl client.Client, storageDir string) http.Handler {
 			}
 
 			meta.SetStatusCondition(&bundledeployment.Status.Conditions, metav1.Condition{
-				Type:    rukpakv1alpha1.TypeUnpacked,
+				Type:    rukpakv1alpha2.TypeUnpacked,
 				Status:  metav1.ConditionFalse,
-				Reason:  rukpakv1alpha1.ReasonUnpackPending,
+				Reason:  rukpakv1alpha2.ReasonUnpackPending,
 				Message: "received bundle upload, waiting for provisioner to unpack it.",
 			})
 			return cl.Status().Update(r.Context(), bundledeployment)
@@ -103,14 +102,13 @@ func newPutHandler(cl client.Client, storageDir string) http.Handler {
 	})
 }
 
-func isBundleDeploymentUnpacked(bd *rukpakv1alpha1.BundleDeployment) bool {
+func isBundleDeploymentUnpacked(bd *rukpakv1alpha2.BundleDeployment) bool {
 	if bd == nil {
 		return false
 	}
 
-	condition := meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha1.TypeUnpacked)
+	condition := meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUnpacked)
 	return condition.Status == metav1.ConditionTrue
-	
 }
 
 func getCode(err error) int32 {

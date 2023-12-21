@@ -17,21 +17,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
 var _ = Describe("HTTP", func() {
 	var (
-		ctx        context.Context
-		bundledeployment    *rukpakv1alpha1.BundleDeployment
-		testFS     fs.FS
-		localStore *LocalDirectory
-		server     *httptest.Server
+		ctx              context.Context
+		bundledeployment *rukpakv1alpha2.BundleDeployment
+		testFS           fs.FS
+		localStore       *LocalDirectory
+		server           *httptest.Server
 	)
 	BeforeEach(func() {
 		ctx = context.Background()
-		bundledeployment = &rukpakv1alpha1.BundleDeployment{ObjectMeta: metav1.ObjectMeta{
+		bundledeployment = &rukpakv1alpha2.BundleDeployment{ObjectMeta: metav1.ObjectMeta{
 			Name: util.GenerateBundleName("testbundle", rand.String(8)),
 		}}
 

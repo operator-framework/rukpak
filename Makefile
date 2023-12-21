@@ -4,7 +4,7 @@
 ORG := github.com/operator-framework
 PKG := $(ORG)/rukpak
 export IMAGE_REPO ?= quay.io/operator-framework/rukpak
-export IMAGE_TAG ?= main
+export IMAGE_TAG ?= devel
 export GO_BUILD_TAGS ?= ''
 IMAGE?=$(IMAGE_REPO):$(IMAGE_TAG)
 KIND_CLUSTER_NAME ?= rukpak
@@ -111,7 +111,7 @@ test-e2e: $(GINKGO) ## Run the e2e tests
 	$(GINKGO) --tags $(GO_BUILD_TAGS) $(E2E_FLAGS) --trace $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: rukpakctl run image-registry local-git kind-load-bundles registry-load-bundles test-e2e  ## Run e2e tests against an ephemeral kind cluster
+e2e: rukpakctl run image-registry local-git kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
 kind-cluster: $(KIND) kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME} ${KIND_CLUSTER_CONFIG}

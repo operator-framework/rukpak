@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/internal/webhook"
@@ -43,7 +43,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(rukpakv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(rukpakv1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -108,7 +108,7 @@ func main() {
 		Client:          mgr.GetClient(),
 		SystemNamespace: systemNamespace,
 	}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", rukpakv1alpha1.BundleDeploymentKind)
+		setupLog.Error(err, "unable to create webhook", "webhook", rukpakv1alpha2.BundleDeploymentKind)
 		os.Exit(1)
 	}
 	if err = (&webhook.ConfigMap{

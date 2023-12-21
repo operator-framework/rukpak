@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
 
 type ConfigMaps struct {
@@ -19,8 +19,8 @@ type ConfigMaps struct {
 	ConfigMapNamespace string
 }
 
-func (o *ConfigMaps) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDeployment) (*Result, error) {
-	if bundle.Spec.Source.Type != rukpakv1alpha1.SourceTypeConfigMaps {
+func (o *ConfigMaps) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (*Result, error) {
+	if bundle.Spec.Source.Type != rukpakv1alpha2.SourceTypeConfigMaps {
 		return nil, fmt.Errorf("bundle source type %q not supported", bundle.Spec.Source.Type)
 	}
 	if bundle.Spec.Source.ConfigMaps == nil {
@@ -74,8 +74,8 @@ func (o *ConfigMaps) Unpack(ctx context.Context, bundle *rukpakv1alpha1.BundleDe
 		return nil, utilerrors.NewAggregate(errs)
 	}
 
-	resolvedSource := &rukpakv1alpha1.BundleSource{
-		Type:       rukpakv1alpha1.SourceTypeConfigMaps,
+	resolvedSource := &rukpakv1alpha2.BundleSource{
+		Type:       rukpakv1alpha2.SourceTypeConfigMaps,
 		ConfigMaps: bundle.Spec.Source.DeepCopy().ConfigMaps,
 	}
 

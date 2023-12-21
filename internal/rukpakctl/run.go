@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/util"
 )
@@ -46,7 +46,7 @@ func (r *Run) Run(ctx context.Context, bundleDeploymentName string, bundle fs.FS
 	}
 
 	sch := scheme.Scheme
-	if err := rukpakv1alpha1.AddToScheme(sch); err != nil {
+	if err := rukpakv1alpha2.AddToScheme(sch); err != nil {
 		return false, err
 	}
 	cl, err := client.New(r.Config, client.Options{Scheme: sch})
@@ -69,7 +69,6 @@ func (r *Run) Run(ctx context.Context, bundleDeploymentName string, bundle fs.FS
 		return false, fmt.Errorf("apply bundle deployment: %v", err)
 	}
 	opts.Log("bundledeployment.core.rukpak.io %q applied\n", bundleDeploymentName)
-
 
 	rukpakCA, err := GetClusterCA(ctx, cl, types.NamespacedName{Namespace: r.SystemNamespace, Name: r.CASecretName})
 	if err != nil {
@@ -101,17 +100,17 @@ func buildBundleDeployment(bdName string, bundleDeploymentLabels map[string]stri
 	// unstructured ensures that the patch contains only what is specified. Using unstructured like this is basically
 	// identical to "kubectl apply -f"
 	return &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": rukpakv1alpha1.GroupVersion.String(),
-		"kind":       rukpakv1alpha1.BundleDeploymentKind,
+		"apiVersion": rukpakv1alpha2.GroupVersion.String(),
+		"kind":       rukpakv1alpha2.BundleDeploymentKind,
 		"metadata": map[string]interface{}{
-			"name": bdName,
+			"name":   bdName,
 			"labels": bundleDeploymentLabels,
 		},
 		"spec": map[string]interface{}{
 			"provisionerClassName": biPCN,
 			"source": map[string]interface{}{
-				"type":   rukpakv1alpha1.SourceTypeUpload,
-				"upload": &rukpakv1alpha1.UploadSource{},
+				"type":   rukpakv1alpha2.SourceTypeUpload,
+				"upload": &rukpakv1alpha2.UploadSource{},
 			},
 		},
 	}}

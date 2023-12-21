@@ -12,7 +12,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -21,7 +21,7 @@ const (
 	ProvisionerID = "core-rukpak-io-helm"
 )
 
-func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.BundleDeployment) (fs.FS, error) {
+func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha2.BundleDeployment) (fs.FS, error) {
 	// Helm expects an FS whose root contains a single chart directory. Depending on how
 	// the bundle is sourced, the FS may or may not contain this single chart directory in
 	// its root (e.g. charts uploaded via 'rukpakctl run <bdName> <chartDir>') would not.
@@ -37,7 +37,7 @@ func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha1.Bu
 	return chartFS, nil
 }
 
-func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha1.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	values, err := loadValues(bd)
 	if err != nil {
 		return nil, nil, err
@@ -49,7 +49,7 @@ func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha1.Bu
 	return chart, values, nil
 }
 
-func loadValues(bd *rukpakv1alpha1.BundleDeployment) (chartutil.Values, error) {
+func loadValues(bd *rukpakv1alpha2.BundleDeployment) (chartutil.Values, error) {
 	data, err := json.Marshal(bd.Spec.Config)
 	if err != nil {
 		return nil, fmt.Errorf("marshal JSON for deployment config: %v", err)

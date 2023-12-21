@@ -13,31 +13,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
 var _ = Describe("WithFallbackLoader", func() {
 	var (
-		ctx            context.Context
-		primaryBundleDeployment  *rukpakv1alpha1.BundleDeployment
-		fallbackBundleDeployment *rukpakv1alpha1.BundleDeployment
-		primaryStore   *LocalDirectory
-		fallbackStore  *LocalDirectory
-		primaryFS      fs.FS
-		fallbackFS     fs.FS
+		ctx                      context.Context
+		primaryBundleDeployment  *rukpakv1alpha2.BundleDeployment
+		fallbackBundleDeployment *rukpakv1alpha2.BundleDeployment
+		primaryStore             *LocalDirectory
+		fallbackStore            *LocalDirectory
+		primaryFS                fs.FS
+		fallbackFS               fs.FS
 
 		store Storage
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		primaryBundleDeployment = &rukpakv1alpha1.BundleDeployment{
+		primaryBundleDeployment = &rukpakv1alpha2.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateBundleName("primary", rand.String(8)),
 			},
 		}
-		fallbackBundleDeployment = &rukpakv1alpha1.BundleDeployment{
+		fallbackBundleDeployment = &rukpakv1alpha2.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateBundleName("fallback", rand.String(8)),
 			},
@@ -69,7 +69,7 @@ var _ = Describe("WithFallbackLoader", func() {
 		Expect(fsEqual(fallbackFS, loadedTestFS)).To(BeTrue())
 	})
 	It("should fail to find unknown bundle", func() {
-		unknownBundle := &rukpakv1alpha1.BundleDeployment{
+		unknownBundle := &rukpakv1alpha2.BundleDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: util.GenerateBundleName("unknown", rand.String(8)),
 			},

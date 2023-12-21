@@ -36,7 +36,7 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
-	rukpakv1alpha1 "github.com/operator-framework/rukpak/api/v1alpha1"
+	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/util"
 )
 
@@ -56,7 +56,7 @@ func newContentCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			sch := runtime.NewScheme()
-			if err := rukpakv1alpha1.AddToScheme(sch); err != nil {
+			if err := rukpakv1alpha2.AddToScheme(sch); err != nil {
 				log.Fatalf("failed to add rukpak types to scheme: %v", err)
 			}
 
@@ -121,7 +121,7 @@ func content(ctx context.Context, opt options, args []string) error {
 		return fmt.Errorf("failed to create a service account: %v", err)
 	}
 
-	bundledeployment := &rukpakv1alpha1.BundleDeployment{}
+	bundledeployment := &rukpakv1alpha2.BundleDeployment{}
 	err = opt.Get(ctx, runtimeclient.ObjectKey{Name: args[0]}, bundledeployment)
 	if err != nil {
 		return err
