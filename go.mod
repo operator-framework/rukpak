@@ -6,7 +6,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-logr/logr v1.4.1
-	github.com/gorilla/handlers v1.5.1
+	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/nlepage/go-tarfs v1.2.1
 	github.com/onsi/ginkgo/v2 v2.13.2
