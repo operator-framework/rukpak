@@ -30,6 +30,8 @@ const (
 	TypeHasValidBundle = "HasValidBundle"
 	TypeHealthy        = "Healthy"
 	TypeInstalled      = "Installed"
+	// TypeUploadStatus indicates the status of the bundle content upload by the uploadmgr.
+	TypeUploadStatus = "UploadStatus"
 
 	ReasonBundleLoadFailed          = "BundleLoadFailed"
 	ReasonCreateDynamicWatchFailed  = "CreateDynamicWatchFailed"
@@ -45,6 +47,8 @@ const (
 	ReasonReconcileFailed           = "ReconcileFailed"
 	ReasonUnhealthy                 = "Unhealthy"
 	ReasonUpgradeFailed             = "UpgradeFailed"
+	ReasonUploadSuccessful          = "UploadSuccessful"
+	ReasonUploadFailed              = "UploadFailed"
 )
 
 // BundleDeploymentSpec defines the desired state of BundleDeployment

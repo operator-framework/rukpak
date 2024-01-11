@@ -912,67 +912,6 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	When("the bundle deployment is uploaded", func() {
-		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
-			ctx              context.Context
-		)
-
-		BeforeEach(func() {
-			ctx = context.Background()
-
-			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/valid"))
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("valid-upload-%s", rand.String(8)),
-				},
-				Spec: rukpakv1alpha2.BundleDeploymentSpec{
-					ProvisionerClassName: plain.ProvisionerID,
-					Source: rukpakv1alpha2.BundleSource{
-						Type:   rukpakv1alpha2.SourceTypeUpload,
-						Upload: &rukpakv1alpha2.UploadSource{},
-					},
-				},
-			}
-			err := c.Create(ctx, bundledeployment)
-			Expect(err).ToNot(HaveOccurred())
-
-			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
-			Expect(err).ToNot(HaveOccurred())
-
-			bu := rukpakctl.BundleUploader{
-				UploadServiceName:      defaultUploadServiceName,
-				UploadServiceNamespace: defaultSystemNamespace,
-				Cfg:                    cfg,
-				RootCAs:                rootCAs,
-			}
-			uploadCtx, cancel := context.WithTimeout(ctx, time.Second*5)
-			defer cancel()
-			_, err = bu.Upload(uploadCtx, bundledeployment.Name, bundleFS)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			err := c.Delete(ctx, bundledeployment)
-			Expect(client.IgnoreNotFound(err)).To(Succeed())
-		})
-
-		It("can unpack the bundle successfully", func() {
-			Eventually(func() (*metav1.Condition, error) {
-				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
-					return nil, err
-				}
-				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
-			}).Should(And(
-				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
-				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
-			))
-		})
-	})
-
 	When("the bundle is backed by an invalid configmap", func() {
 		var (
 			bundledeployment *rukpakv1alpha2.BundleDeployment
@@ -1046,6 +985,67 @@ var _ = Describe("plain provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("json: cannot unmarshal string into Go value")),
+			))
+		})
+	})
+
+	When("the bundle deployment is uploaded", func() {
+		var (
+			bundledeployment *rukpakv1alpha2.BundleDeployment
+			ctx              context.Context
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			bundleFS := os.DirFS(filepath.Join(testdataDir, "bundles/plain-v0/valid"))
+			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("valid-upload-%s", rand.String(8)),
+				},
+				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					ProvisionerClassName: plain.ProvisionerID,
+					Source: rukpakv1alpha2.BundleSource{
+						Type:   rukpakv1alpha2.SourceTypeUpload,
+						Upload: &rukpakv1alpha2.UploadSource{},
+					},
+				},
+			}
+			err := c.Create(ctx, bundledeployment)
+			Expect(err).ToNot(HaveOccurred())
+
+			rootCAs, err := rukpakctl.GetClusterCA(ctx, c, types.NamespacedName{Namespace: defaultSystemNamespace, Name: "rukpak-ca"})
+			Expect(err).ToNot(HaveOccurred())
+
+			bu := rukpakctl.BundleUploader{
+				UploadServiceName:      defaultUploadServiceName,
+				UploadServiceNamespace: defaultSystemNamespace,
+				Cfg:                    cfg,
+				RootCAs:                rootCAs,
+			}
+			uploadCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+			defer cancel()
+			_, err = bu.Upload(uploadCtx, bundledeployment.Name, bundleFS)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			err := c.Delete(ctx, bundledeployment)
+			Expect(client.IgnoreNotFound(err)).To(Succeed())
+		})
+
+		It("can unpack the bundle successfully", func() {
+			Eventually(func() (*metav1.Condition, error) {
+				if err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), bundledeployment); err != nil {
+					return nil, err
+				}
+				return meta.FindStatusCondition(bundledeployment.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
+			}).Should(And(
+				Not(BeNil()),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
+				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionTrue)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallationSucceeded)),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("Instantiated bundle")),
 			))
 		})
 	})

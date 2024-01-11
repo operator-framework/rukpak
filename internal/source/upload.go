@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"github.com/nlepage/go-tarfs"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 )
@@ -23,6 +25,12 @@ type Upload struct {
 func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (*Result, error) {
 	if bundle.Spec.Source.Type != rukpakv1alpha2.SourceTypeUpload {
 		return nil, fmt.Errorf("cannot unpack source type %q with %q unpacker", bundle.Spec.Source.Type, rukpakv1alpha2.SourceTypeUpload)
+	}
+
+	// Proceed with fetching contents from a web server, only if the bundle upload was successful.
+	// If upload is a failure, we have "TypeUploadState" explicitly set to false.
+	if !isBundleContentUploaded(bundle) {
+		return &Result{State: StatePending, Message: "pending unpacking contents from uploaded bundle"}, nil
 	}
 
 	url := fmt.Sprintf("%s/uploads/%s.tgz", b.baseDownloadURL, bundle.Name)
@@ -56,4 +64,13 @@ func (b *Upload) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeploy
 	message := generateMessage("upload")
 
 	return &Result{Bundle: bundleFS, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked, Message: message}, nil
+}
+
+func isBundleContentUploaded(bd *rukpakv1alpha2.BundleDeployment) bool {
+	if bd == nil {
+		return false
+	}
+
+	condition := meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUploadStatus)
+	return condition != nil && condition.Status == metav1.ConditionTrue
 }

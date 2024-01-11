@@ -95,7 +95,6 @@ func (pf *ServicePortForwarder) Start(ctx context.Context) error {
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", pf.serviceNamespace, podName)
 	host := strings.TrimLeft(pf.cfg.Host, "htps:/")
 	serverURL := url.URL{Scheme: "https", Path: path, Host: host}
-
 	roundTripper, upgrader, err := spdy.RoundTripperFor(pf.cfg)
 	if err != nil {
 		return err

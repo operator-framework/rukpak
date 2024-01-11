@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -95,8 +96,32 @@ func newPutHandler(cl client.Client, storageDir string) http.Handler {
 			})
 			return cl.Status().Update(r.Context(), bundledeployment)
 		}); err != nil {
-			http.Error(w, err.Error(), int(getCode(err)))
+			errs := []error{}
+			errs = append(errs, err)
+
+			meta.SetStatusCondition(&bundledeployment.Status.Conditions, metav1.Condition{
+				Type:    rukpakv1alpha2.TypeUploadStatus,
+				Status:  metav1.ConditionFalse,
+				Reason:  rukpakv1alpha2.ReasonBundleLoadFailed,
+				Message: err.Error(),
+			})
+			if statusUpdateErr := cl.Status().Update(r.Context(), bundledeployment); statusUpdateErr != nil {
+				errs = append(errs, statusUpdateErr)
+			}
+			http.Error(w, utilerrors.NewAggregate(errs).Error(), int(getCode(err)))
 			return
+		}
+		meta.SetStatusCondition(&bundledeployment.Status.Conditions, metav1.Condition{
+			Type:    rukpakv1alpha2.TypeUploadStatus,
+			Status:  metav1.ConditionTrue,
+			Reason:  rukpakv1alpha2.ReasonUploadSuccessful,
+			Message: "successfully uploaded bundle contents.",
+		})
+		if statusUpdateErr := cl.Status().Update(r.Context(), bundledeployment); statusUpdateErr != nil {
+			// Though this would not be the http error returned from uploading, it
+			// is required to error, as BundleDeployment reconciler is waiting for
+			// was a successful upload status.
+			http.Error(w, statusUpdateErr.Error(), int(getCode(statusUpdateErr)))
 		}
 		w.WriteHeader(http.StatusCreated)
 	})
@@ -108,7 +133,7 @@ func isBundleDeploymentUnpacked(bd *rukpakv1alpha2.BundleDeployment) bool {
 	}
 
 	condition := meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUnpacked)
-	return condition.Status == metav1.ConditionTrue
+	return condition != nil && condition.Status == metav1.ConditionTrue
 }
 
 func getCode(err error) int32 {
