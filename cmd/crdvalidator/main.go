@@ -23,8 +23,10 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -48,8 +50,15 @@ func init() {
 
 func main() {
 	var enableHTTP2 bool
-
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the webhook servers.")
+
+	opts := zap.Options{
+		Development: true,
+	}
+	opts.BindFlags(flag.CommandLine)
+
+	flag.Parse()
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// Setup webhook options
 	disableHTTP2 := func(c *tls.Config) {
@@ -59,9 +68,10 @@ func main() {
 		c.NextProtos = []string{"http/1.1"}
 	}
 
-	webhookServer := &webhook.Server{
+	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: []func(config *tls.Config){disableHTTP2},
-	}
+		CertDir: defaultCertDir,
+	})
 
 	entryLog.Info("setting up manager")
 	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{Scheme: scheme, WebhookServer: webhookServer})
@@ -72,9 +82,6 @@ func main() {
 
 	entryLog.Info("setting up webhook server")
 	hookServer := mgr.GetWebhookServer()
-
-	// Point to where cert-mgr is placing the cert
-	hookServer.CertDir = defaultCertDir
 
 	// Register CRD validation handler
 	entryLog.Info("registering webhooks to the webhook server")

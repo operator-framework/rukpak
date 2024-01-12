@@ -37,11 +37,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	unpackersource "github.com/operator-framework/rukpak/internal/source"
-
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/healthchecks"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
+	unpackersource "github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/pkg/features"
@@ -107,9 +106,10 @@ func WithReleaseNamespace(releaseNamespace string) Option {
 	}
 }
 
-func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, systemNamespace string, opts ...Option) error {
+func SetupWithManager(mgr manager.Manager, systemNamespace string, opts ...Option) error {
 	c := &controller{
 		cl:               mgr.GetClient(),
+		cache:            mgr.GetCache(),
 		dynamicWatchGVKs: map[schema.GroupVersionKind]struct{}{},
 	}
 
@@ -128,8 +128,8 @@ func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, systemName
 		For(&rukpakv1alpha2.BundleDeployment{}, builder.WithPredicates(
 			util.BundleDeploymentProvisionerFilter(c.provisionerID)),
 		).
-		Watches(source.NewKindWithCache(&corev1.Pod{}, systemNsCache), util.MapOwneeToOwnerProvisionerHandler(context.Background(), mgr.GetClient(), l, c.provisionerID, &rukpakv1alpha2.BundleDeployment{})).
-		Watches(source.NewKindWithCache(&corev1.ConfigMap{}, systemNsCache), util.MapConfigMapToBundleDeploymentHandler(context.Background(), mgr.GetClient(), systemNamespace, c.provisionerID)).
+		Watches(&corev1.Pod{}, util.MapOwneeToOwnerProvisionerHandler(mgr.GetClient(), l, c.provisionerID, &rukpakv1alpha2.BundleDeployment{})).
+		Watches(&corev1.ConfigMap{}, util.MapConfigMapToBundleDeploymentHandler(mgr.GetClient(), systemNamespace, c.provisionerID)).
 		Build(c)
 	if err != nil {
 		return err
@@ -166,7 +166,8 @@ func (c *controller) validateConfig() error {
 
 // controller reconciles a BundleDeployment object
 type controller struct {
-	cl client.Client
+	cl    client.Client
+	cache cache.Cache
 
 	handler          Handler
 	provisionerID    string
@@ -393,8 +394,8 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 			_, isWatched := c.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()]
 			if !isWatched {
 				if err := c.controller.Watch(
-					&source.Kind{Type: unstructuredObj},
-					&handler.EnqueueRequestForOwner{OwnerType: bd, IsController: true},
+					source.Kind(c.cache, unstructuredObj),
+					handler.EnqueueRequestForOwner(c.cl.Scheme(), c.cl.RESTMapper(), bd, handler.OnlyControllerOwner()),
 					helmpredicate.DependentPredicateFuncs()); err != nil {
 					return err
 				}

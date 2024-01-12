@@ -147,7 +147,7 @@ func validateExistingCRs(ctx context.Context, dynamicClient client.Client, listG
 		return fmt.Errorf("error listing objects for %s: %v", listGVK, err)
 	}
 	for _, cr := range crList.Items {
-		validator, _, err := validation.NewSchemaValidator(convertedVersion.Schema)
+		validator, _, err := validation.NewSchemaValidator(convertedVersion.Schema.OpenAPIV3Schema)
 		if err != nil {
 			return fmt.Errorf("error creating validator for the schema of version %q: %v", newVersion.Name, err)
 		}
