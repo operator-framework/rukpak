@@ -18,14 +18,14 @@ import (
 var _ = Describe("bundle api validation", func() {
 	When("the bundle name is too long", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "olm-crds-too-long-name-for-the-bundle-1234567890-1234567890",
 				},
@@ -39,11 +39,11 @@ var _ = Describe("bundle api validation", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle Deployment resource for failure case")
-			err = c.Delete(ctx, bundledeployment)
+			err = c.Delete(ctx, bundleDeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the long name of bundle deployment during creation", func() {
@@ -52,7 +52,7 @@ var _ = Describe("bundle api validation", func() {
 	})
 	When("the bundle deployment with multiple sources", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
@@ -60,7 +60,7 @@ var _ = Describe("bundle api validation", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamegit",
 				},
@@ -81,11 +81,11 @@ var _ = Describe("bundle api validation", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundledeployment)
+			err = c.Delete(ctx, bundleDeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the bundle creation", func() {
@@ -95,7 +95,7 @@ var _ = Describe("bundle api validation", func() {
 
 	When("the bundle with no sources", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
@@ -103,7 +103,7 @@ var _ = Describe("bundle api validation", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamegit",
 				},
@@ -114,11 +114,11 @@ var _ = Describe("bundle api validation", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundledeployment)
+			err = c.Delete(ctx, bundleDeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the bundle creation", func() {
@@ -128,7 +128,7 @@ var _ = Describe("bundle api validation", func() {
 
 	When("the bundle source type is git and more than 1 refs are set", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
@@ -136,7 +136,7 @@ var _ = Describe("bundle api validation", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamemorerefs",
 				},
@@ -154,11 +154,11 @@ var _ = Describe("bundle api validation", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundledeployment)
+			err = c.Delete(ctx, bundleDeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the bundle creation", func() {
@@ -168,7 +168,7 @@ var _ = Describe("bundle api validation", func() {
 
 	When("the bundle source type is git and no refs are set", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
@@ -176,7 +176,7 @@ var _ = Describe("bundle api validation", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamemorerefs",
 				},
@@ -191,11 +191,11 @@ var _ = Describe("bundle api validation", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundledeployment)
+			err = c.Delete(ctx, bundleDeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the bundle creation", func() {
@@ -204,7 +204,7 @@ var _ = Describe("bundle api validation", func() {
 	})
 	When("a Bundle references an invalid provisioner class name", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 		)
 		BeforeEach(func() {
@@ -212,12 +212,12 @@ var _ = Describe("bundle api validation", func() {
 		})
 		AfterEach(func() {
 			By("ensuring the testing Bundle does not exist")
-			err := c.Get(ctx, client.ObjectKeyFromObject(bundledeployment), &rukpakv1alpha2.BundleDeployment{})
+			err := c.Get(ctx, client.ObjectKeyFromObject(bundleDeployment), &rukpakv1alpha2.BundleDeployment{})
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()), fmt.Sprintf("error was: %v", err))
 		})
 		It("should fail validation", func() {
 			By("creating the testing Bundle resource")
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("bundle-invalid-%s", rand.String(6)),
 				},
@@ -231,7 +231,7 @@ var _ = Describe("bundle api validation", func() {
 					},
 				},
 			}
-			err := c.Create(ctx, bundledeployment)
+			err := c.Create(ctx, bundleDeployment)
 			Expect(err).To(And(
 				Not(BeNil()),
 				WithTransform(apierrors.IsInvalid, Equal(true)),

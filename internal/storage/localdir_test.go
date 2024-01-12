@@ -39,7 +39,7 @@ var _ = Describe("LocalDirectory", func() {
 		store = LocalDirectory{RootDirectory: GinkgoT().TempDir()}
 		testFS = generateFS()
 	})
-	When("a bundledeployment is not stored", func() {
+	When("a bundleDeployment is not stored", func() {
 		Describe("Store", func() {
 			It("should store a bundle FS", func() {
 				Expect(store.Store(ctx, owner, testFS)).To(Succeed())
@@ -61,18 +61,18 @@ var _ = Describe("LocalDirectory", func() {
 			})
 		})
 	})
-	When("a bundledeployment is stored", func() {
+	When("a bundleDeployment is stored", func() {
 		BeforeEach(func() {
 			Expect(store.Store(ctx, owner, testFS)).To(Succeed())
 		})
 		Describe("Store", func() {
-			It("should re-store a bundledeployment FS", func() {
+			It("should re-store a bundleDeployment FS", func() {
 				Expect(store.Store(ctx, owner, testFS)).To(Succeed())
 			})
 		})
 
 		Describe("Load", func() {
-			It("should load the bundledeployment", func() {
+			It("should load the bundleDeployment", func() {
 				loadedTestFS, err := store.Load(ctx, owner)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(fsEqual(testFS, loadedTestFS)).To(BeTrue())
@@ -80,7 +80,7 @@ var _ = Describe("LocalDirectory", func() {
 		})
 
 		Describe("Delete", func() {
-			It("should delete the bundledeployment", func() {
+			It("should delete the bundleDeployment", func() {
 				Expect(store.Delete(ctx, owner)).To(Succeed())
 				_, err := os.Stat(filepath.Join(store.RootDirectory, fmt.Sprintf("%s.tgz", owner.GetName())))
 				Expect(err).To(WithTransform(func(err error) bool { return errors.Is(err, os.ErrNotExist) }, BeTrue()))

@@ -21,28 +21,21 @@ const (
 	ProvisionerID = "core-rukpak-io-helm"
 )
 
-func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha2.BundleDeployment) (fs.FS, error) {
+func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	// Helm expects an FS whose root contains a single chart directory. Depending on how
 	// the bundle is sourced, the FS may or may not contain this single chart directory in
 	// its root (e.g. charts uploaded via 'rukpakctl run <bdName> <chartDir>') would not.
 	// This FS wrapper adds this base directory unless the FS already has a base directory.
 	chartFS, err := util.EnsureBaseDirFS(fsys, "chart")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if _, err = getChart(chartFS); err != nil {
-		return nil, err
-	}
-	return chartFS, nil
-}
-
-func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	values, err := loadValues(bd)
 	if err != nil {
 		return nil, nil, err
 	}
-	chart, err := getChart(fsys)
+	chart, err := getChart(chartFS)
 	if err != nil {
 		return nil, nil, err
 	}

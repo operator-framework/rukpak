@@ -50,7 +50,6 @@ import (
 	"github.com/operator-framework/rukpak/internal/provisioner/registry"
 	"github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
-	"github.com/operator-framework/rukpak/internal/uploadmgr"
 	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/pkg/features"
@@ -78,10 +77,8 @@ func main() {
 		probeAddr                   string
 		systemNamespace             string
 		unpackImage                 string
-		baseUploadManagerURL        string
 		rukpakVersion               bool
 		provisionerStorageDirectory string
-		uploadStorageDirectory      string
 		uploadStorageSyncInterval   time.Duration
 	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
@@ -90,13 +87,11 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&systemNamespace, "system-namespace", "", "Configures the namespace that gets used to deploy system resources.")
 	flag.StringVar(&unpackImage, "unpack-image", util.DefaultUnpackImage, "Configures the container image that gets used to unpack Bundle contents.")
-	flag.StringVar(&baseUploadManagerURL, "base-upload-manager-url", "", "The base URL from which to fetch uploaded bundles.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	flag.StringVar(&provisionerStorageDirectory, "provisioner-storage-dir", storage.DefaultBundleCacheDir, "The directory that is used to store bundle contents.")
-	flag.StringVar(&uploadStorageDirectory, "upload-storage-dir", uploadmgr.DefaultBundleCacheDir, "The directory that is used to store bundle uploads.")
 	flag.DurationVar(&uploadStorageSyncInterval, "upload-storage-sync-interval", time.Minute, "Interval on which to garbage collect unused uploaded bundles")
 	opts := zap.Options{
 		Development: true,
@@ -115,7 +110,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	setupLog.Info("starting up the core controllers and servers", "git commit", version.String(), "unpacker image", unpackImage)
 
-	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha2.BundleKind, rukpakv1alpha2.BundleDeploymentKind})
+	dependentRequirement, err := labels.NewRequirement(util.CoreOwnerKindKey, selection.In, []string{rukpakv1alpha2.BundleDeploymentKind})
 	if err != nil {
 		setupLog.Error(err, "unable to create dependent label selector for cache")
 		os.Exit(1)
@@ -195,14 +190,6 @@ func main() {
 		setupLog.Error(err, "unable to add bundles http handler to manager")
 		os.Exit(1)
 	}
-	if err := mgr.AddMetricsExtraHandler("/uploads/", httpLogger(uploadmgr.NewUploadHandler(mgr.GetClient(), uploadStorageDirectory))); err != nil {
-		setupLog.Error(err, "unable to add uploads http handler to manager")
-		os.Exit(1)
-	}
-	if err := mgr.Add(uploadmgr.NewBundleGC(mgr.GetCache(), uploadStorageDirectory, uploadStorageSyncInterval)); err != nil {
-		setupLog.Error(err, "unable to add bundle garbage collector to manager")
-		os.Exit(1)
-	}
 
 	// This finalizer logic MUST be co-located with this main
 	// controller logic because it deals with cleaning up bundle data
@@ -223,7 +210,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, baseUploadManagerURL, rootCAs)
+	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
@@ -236,13 +223,12 @@ func main() {
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithStorage(bundleStorage),
+		bundledeployment.WithUnpacker(unpacker),
 	}
 
 	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
 		commonBDProvisionerOptions,
-		bundledeployment.WithUnpacker(unpacker),
 		bundledeployment.WithProvisionerID(plain.ProvisionerID),
-		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.ProcessorFunc(plain.ProcessBundleDeployment)),
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
 	)...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
@@ -251,12 +237,10 @@ func main() {
 
 	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
 		commonBDProvisionerOptions,
-		bundledeployment.WithUnpacker(unpacker),
 		bundledeployment.WithProvisionerID(registry.ProvisionerID),
-		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.ProcessorFunc(registry.ProcessBundleDeployment)),
-		bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
+		bundledeployment.WithHandler(bundledeployment.HandlerFunc(registry.HandleBundleDeployment)),
 	)...); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
+		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", registry.ProvisionerID)
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

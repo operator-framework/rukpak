@@ -80,7 +80,6 @@ generate: $(CONTROLLER_GEN) ## Generate code and manifests
 		paths=./internal/controllers/bundledeployment/... \
 		paths=./internal/provisioner/plain/... \
 		paths=./internal/provisioner/registry/... \
-		paths=./internal/uploadmgr/... \
 			output:stdout > ./manifests/base/core/resources/cluster_role.yaml
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=webhooks-admin paths=./internal/webhook/... output:stdout > ./manifests/base/apis/webhooks/resources/cluster_role.yaml
 	$(Q)$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin \
@@ -111,7 +110,7 @@ test-e2e: $(GINKGO) ## Run the e2e tests
 	$(GINKGO) --tags $(GO_BUILD_TAGS) $(E2E_FLAGS) --trace $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME=rukpak-e2e
-e2e: rukpakctl run image-registry local-git kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
+e2e: run image-registry local-git kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
 kind-cluster: $(KIND) kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME} ${KIND_CLUSTER_CONFIG}
@@ -169,7 +168,7 @@ uninstall: ## Remove all rukpak resources from the cluster
 
 ##@ build/load:
 
-BINARIES=core helm unpack webhooks crdvalidator rukpakctl
+BINARIES=core helm unpack webhooks crdvalidator
 LINUX_BINARIES=$(join $(addprefix linux/,$(BINARIES)), )
 
 .PHONY: build $(BINARIES) $(LINUX_BINARIES) build-container kind-load kind-load-bundles kind-cluster registry-load-bundles

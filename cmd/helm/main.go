@@ -68,7 +68,6 @@ func main() {
 		probeAddr            string
 		systemNamespace      string
 		unpackImage          string
-		baseUploadManagerURL string
 		rukpakVersion        bool
 		storageDirectory     string
 	)
@@ -77,7 +76,6 @@ func main() {
 	flag.StringVar(&bundleCAFile, "bundle-ca-file", "", "The file containing the certificate authority for connecting to bundle content servers.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&unpackImage, "unpack-image", util.DefaultUnpackImage, "Configures the container image that gets used to unpack Bundle contents.")
-	flag.StringVar(&baseUploadManagerURL, "base-upload-manager-url", "", "The base URL from which to fetch uploaded bundles.")
 	flag.StringVar(&systemNamespace, "system-namespace", "", "Configures the namespace that gets used to deploy system resources.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -197,7 +195,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, baseUploadManagerURL, rootCAs)
+	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
@@ -210,13 +208,12 @@ func main() {
 		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithStorage(bundleStorage),
+		bundledeployment.WithUnpacker(unpacker),
 	}
 
 	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(helm.ProvisionerID),
-		bundledeployment.WithUnpacker(unpacker),
-		bundledeployment.WithBundleDeplymentProcessor(bundledeployment.ProcessorFunc(helm.ProcessBundleDeployment)),
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(helm.HandleBundleDeployment)),
 	)...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", helm.ProvisionerID)

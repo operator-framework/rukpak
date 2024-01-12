@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"strings"
 	"sync"
-	"time"
 
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"helm.sh/helm/v3/pkg/action"
@@ -73,12 +71,6 @@ func WithHandler(h Handler) Option {
 	}
 }
 
-func WithBundleDeplymentProcessor(b Processor) Option {
-	return func(c *controller) {
-		c.bundleDeploymentProcessor = b
-	}
-}
-
 func WithProvisionerID(provisionerID string) Option {
 	return func(c *controller) {
 		c.provisionerID = provisionerID
@@ -125,8 +117,6 @@ func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, systemName
 		o(c)
 	}
 
-	c.setDefaults()
-
 	if err := c.validateConfig(); err != nil {
 		return fmt.Errorf("invalid configuration: %v", err)
 	}
@@ -146,14 +136,6 @@ func SetupWithManager(mgr manager.Manager, systemNsCache cache.Cache, systemName
 	}
 	c.controller = controller
 	return nil
-}
-
-func (c *controller) setDefaults() {
-	if c.bundleDeploymentProcessor == nil {
-		c.bundleDeploymentProcessor = ProcessorFunc(func(_ context.Context, fsys fs.FS, _ *rukpakv1alpha2.BundleDeployment) (fs.FS, error) {
-			return fsys, nil
-		})
-	}
 }
 
 func (c *controller) validateConfig() error {
@@ -186,12 +168,11 @@ func (c *controller) validateConfig() error {
 type controller struct {
 	cl client.Client
 
-	handler                   Handler
-	bundleDeploymentProcessor Processor
-	provisionerID             string
-	acg                       helmclient.ActionClientGetter
-	storage                   storage.Storage
-	releaseNamespace          string
+	handler          Handler
+	provisionerID    string
+	acg              helmclient.ActionClientGetter
+	storage          storage.Storage
+	releaseNamespace string
 
 	unpacker          unpackersource.Unpacker
 	controller        crcontroller.Controller
@@ -200,11 +181,10 @@ type controller struct {
 	dynamicWatchGVKs  map[schema.GroupVersionKind]struct{}
 }
 
-// TODO: recheck rbac
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch;update;patch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/status,verbs=update;patch
-//+kubebuilder:rbac:verbs=get,urls=/bundles/*;/uploads/*
+//+kubebuilder:rbac:verbs=get,urls=/bundles/*
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=list;watch;create;delete
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=list;watch
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
@@ -230,13 +210,22 @@ func (c *controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	reconciledBD := existingBD.DeepCopy()
 	res, reconcileErr := c.reconcile(ctx, reconciledBD)
 
-	if !equality.Semantic.DeepEqual(existingBD.Status, reconciledBD.Status) {
+	// Do checks before any Update()s, as Update() may modify the resource structure!
+	updateStatus := !equality.Semantic.DeepEqual(existingBD.Status, reconciledBD.Status)
+	updateFinalizers := !equality.Semantic.DeepEqual(existingBD.Finalizers, reconciledBD.Finalizers)
+	unexpectedFieldsChanged := checkForUnexpectedFieldChange(*existingBD, *reconciledBD)
+
+	if updateStatus {
 		if updateErr := c.cl.Status().Update(ctx, reconciledBD); updateErr != nil {
 			return res, utilerrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
 	}
-	existingBD.Status, reconciledBD.Status = rukpakv1alpha2.BundleDeploymentStatus{}, rukpakv1alpha2.BundleDeploymentStatus{}
-	if !equality.Semantic.DeepEqual(existingBD, reconciledBD) {
+
+	if unexpectedFieldsChanged {
+		panic("spec or metadata changed by reconciler")
+	}
+
+	if updateFinalizers {
 		if updateErr := c.cl.Update(ctx, reconciledBD); updateErr != nil {
 			return res, utilerrors.NewAggregate([]error{reconcileErr, updateErr})
 		}
@@ -252,9 +241,8 @@ func (c *controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDeployment) (ctrl.Result, error) {
 	bd.Status.ObservedGeneration = bd.Generation
 
-	// handle finalizers
-	finalizerBundleDelpoyment := bd.DeepCopy()
-	finalizerResult, err := c.finalizers.Finalize(ctx, finalizerBundleDelpoyment)
+	// handle finalizers.
+	_, err := c.finalizers.Finalize(ctx, bd)
 
 	if err != nil {
 		bd.Status.ResolvedSource = nil
@@ -268,19 +256,6 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 		return ctrl.Result{}, err
 	}
 
-	if finalizerResult.Updated {
-		// The only thing outside the status that should ever change when handling finalizers
-		// is the list of finalizers in the object's metadata. In particular, we'd expect
-		// finalizers to be added or removed.
-		bd.ObjectMeta.Finalizers = finalizerBundleDelpoyment.ObjectMeta.Finalizers
-	}
-	if finalizerResult.StatusUpdated {
-		bd.Status = finalizerBundleDelpoyment.Status
-	}
-	if finalizerResult.Updated || finalizerResult.StatusUpdated || !bd.GetDeletionTimestamp().IsZero() {
-		return ctrl.Result{}, nil
-	}
-
 	unpackResult, err := c.unpacker.Unpack(ctx, bd)
 	if err != nil {
 		return ctrl.Result{}, updateStatusUnpackFailing(&bd.Status, fmt.Errorf("source bundle content: %v", err))
@@ -291,20 +266,12 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 		updateStatusUnpackPending(&bd.Status, unpackResult)
 		// There must a limit to number of retries if status is stuck at
 		// unpack pending.
-		// Forcefully requing here, to ensure that the next reconcile
-		// is triggered.
-		// TODO: Caliberate the requeue interval if needed.
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		return ctrl.Result{}, nil
 	case unpackersource.StateUnpacking:
 		updateStatusUnpacking(&bd.Status, unpackResult)
 		return ctrl.Result{}, nil
 	case unpackersource.StateUnpacked:
-		storeFS, err := c.bundleDeploymentProcessor.Process(ctx, unpackResult.Bundle, bd)
-		if err != nil {
-			return ctrl.Result{}, updateStatusUnpackFailing(&bd.Status, err)
-		}
-
-		if err := c.storage.Store(ctx, bd, storeFS); err != nil {
+		if err := c.storage.Store(ctx, bd, unpackResult.Bundle); err != nil {
 			return ctrl.Result{}, updateStatusUnpackFailing(&bd.Status, fmt.Errorf("persist bundle content: %v", err))
 		}
 		contentURL, err := c.storage.URLFor(ctx, bd)
@@ -330,9 +297,9 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 	chrt, values, err := c.handler.Handle(ctx, bundleFS, bd)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-			Type:    rukpakv1alpha2.TypeHasValidBundle,
+			Type:    rukpakv1alpha2.TypeInstalled,
 			Status:  metav1.ConditionFalse,
-			Reason:  rukpakv1alpha2.ReasonBundleLoadFailed,
+			Reason:  rukpakv1alpha2.ReasonInstallFailed,
 			Message: err.Error(),
 		})
 		return ctrl.Result{}, err
@@ -584,6 +551,13 @@ func (p *postrenderer) Run(renderedManifests *bytes.Buffer) (*bytes.Buffer, erro
 		return p.cascade.Run(&buf)
 	}
 	return &buf, nil
+}
+
+// Compare resources - ignoring status & metadata.finalizers
+func checkForUnexpectedFieldChange(a, b rukpakv1alpha2.BundleDeployment) bool {
+	a.Status, b.Status = rukpakv1alpha2.BundleDeploymentStatus{}, rukpakv1alpha2.BundleDeploymentStatus{}
+	a.Finalizers, b.Finalizers = []string{}, []string{}
+	return !equality.Semantic.DeepEqual(a, b)
 }
 
 func updateStatusUnpackFailing(status *rukpakv1alpha2.BundleDeploymentStatus, err error) error {

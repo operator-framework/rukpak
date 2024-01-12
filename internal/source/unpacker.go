@@ -7,17 +7,11 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
-	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
-)
-
-const (
-	// uploadClientTimeout is the timeout to be used with http connections to upload manager.
-	uploadClientTimeout = time.Second * 10
 )
 
 // Unpacker unpacks bundle content, either synchronously or asynchronously and
@@ -101,7 +95,7 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDepl
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage string, baseUploadManagerURL string, rootCAs *x509.CertPool) (Unpacker, error) {
+func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage string, rootCAs *x509.CertPool) (Unpacker, error) {
 	cfg := systemNsCluster.GetConfig()
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -128,11 +122,6 @@ func NewDefaultUnpacker(systemNsCluster cluster.Cluster, namespace, unpackImage 
 		rukpakv1alpha2.SourceTypeConfigMaps: &ConfigMaps{
 			Reader:             systemNsCluster.GetClient(),
 			ConfigMapNamespace: namespace,
-		},
-		rukpakv1alpha2.SourceTypeUpload: &Upload{
-			baseDownloadURL: baseUploadManagerURL,
-			bearerToken:     systemNsCluster.GetConfig().BearerToken,
-			client:          http.Client{Timeout: uploadClientTimeout, Transport: httpTransport},
 		},
 		rukpakv1alpha2.SourceTypeHTTP: &HTTP{
 			Reader:          systemNsCluster.GetClient(),

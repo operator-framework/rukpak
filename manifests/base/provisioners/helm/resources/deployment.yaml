@@ -55,7 +55,6 @@ spec:
           command: ["/helm"]
           args:
             - "--unpack-image=quay.io/operator-framework/rukpak:devel"
-            - "--base-upload-manager-url=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
             - "--storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(HELM_PROVISIONER_SERVICE_NAME).$(HELM_PROVISIONER_SERVICE_NAMESPACE).svc"

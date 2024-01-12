@@ -43,8 +43,8 @@ type Bundle struct {
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (b *Bundle) ValidateCreate(ctx context.Context, obj runtime.Object) error {
-	bundledeployment := obj.(*rukpakv1alpha2.BundleDeployment)
-	return b.checkBundleDeploymentSource(ctx, bundledeployment)
+	bundleDeployment := obj.(*rukpakv1alpha2.BundleDeployment)
+	return b.checkBundleDeploymentSource(ctx, bundleDeployment)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -58,25 +58,25 @@ func (b *Bundle) ValidateDelete(_ context.Context, _ runtime.Object) error {
 	return nil
 }
 
-func (b *Bundle) checkBundleDeploymentSource(ctx context.Context, bundledeployment *rukpakv1alpha2.BundleDeployment) error {
-	switch typ := bundledeployment.Spec.Source.Type; typ {
+func (b *Bundle) checkBundleDeploymentSource(ctx context.Context, bundleDeployment *rukpakv1alpha2.BundleDeployment) error {
+	switch typ := bundleDeployment.Spec.Source.Type; typ {
 	case rukpakv1alpha2.SourceTypeImage:
-		if bundledeployment.Spec.Source.Image == nil {
+		if bundleDeployment.Spec.Source.Image == nil {
 			return fmt.Errorf("bundledeployment.spec.source.image must be set for source type \"image\"")
 		}
 	case rukpakv1alpha2.SourceTypeGit:
-		if bundledeployment.Spec.Source.Git == nil {
+		if bundleDeployment.Spec.Source.Git == nil {
 			return fmt.Errorf("bundledeployment.spec.source.git must be set for source type \"git\"")
 		}
-		if strings.HasPrefix(filepath.Clean(bundledeployment.Spec.Source.Git.Directory), "../") {
+		if strings.HasPrefix(filepath.Clean(bundleDeployment.Spec.Source.Git.Directory), "../") {
 			return fmt.Errorf(`bundledeployment.spec.source.git.directory begins with "../": directory must define path within the repository`)
 		}
 	case rukpakv1alpha2.SourceTypeConfigMaps:
-		if len(bundledeployment.Spec.Source.ConfigMaps) == 0 {
+		if len(bundleDeployment.Spec.Source.ConfigMaps) == 0 {
 			return fmt.Errorf(`bundledeployment.spec.source.configmaps must be set for source type "configmaps"`)
 		}
 		errs := []error{}
-		for i, cmSource := range bundledeployment.Spec.Source.ConfigMaps {
+		for i, cmSource := range bundleDeployment.Spec.Source.ConfigMaps {
 			if strings.HasPrefix(filepath.Clean(cmSource.Path), ".."+string(filepath.Separator)) {
 				errs = append(errs, fmt.Errorf("bundledeployment.spec.source.configmaps[%d].path is invalid: %q is outside bundle root", i, cmSource.Path))
 			}

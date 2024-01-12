@@ -6,7 +6,6 @@ metadata:
 rules:
 - nonResourceURLs:
   - /bundles/*
-  - /uploads/*
   verbs:
   - get
 - apiGroups:
@@ -55,8 +54,6 @@ rules:
   - bundledeployments
   verbs:
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - core.rukpak.io
