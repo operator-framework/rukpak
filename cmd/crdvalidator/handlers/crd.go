@@ -42,8 +42,9 @@ type CrdValidator struct {
 
 func NewCrdValidator(log logr.Logger, client client.Client) CrdValidator {
 	return CrdValidator{
-		log:    log.V(1).WithName("crdhandler"), // Default to non-verbose logs
-		client: client,
+		log:     log.V(1).WithName("crdhandler"), // Default to non-verbose logs
+		client:  client,
+		decoder: admission.NewDecoder(client.Scheme()),
 	}
 }
 
@@ -72,12 +73,6 @@ func (cv *CrdValidator) Handle(ctx context.Context, req admission.Request) admis
 
 	cv.log.Info("admission allowed for %s of CRD %q", req.Name, req.Operation)
 	return admission.Allowed("")
-}
-
-// InjectDecoder injects a decoder for the CrdValidator.
-func (cv *CrdValidator) InjectDecoder(d *admission.Decoder) error {
-	cv.decoder = d
-	return nil
 }
 
 // disabled takes a CRD and checks its content to see crdvalidator

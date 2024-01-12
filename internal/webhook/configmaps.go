@@ -21,19 +21,19 @@ type ConfigMap struct {
 	Client client.Client
 }
 
-func (w *ConfigMap) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (w *ConfigMap) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	// Only allow configmap to be created if either of the following is true:
 	//   1. The configmap is immutable.
 	//   2. The configmap is not referenced by a bundle.
 
 	cm := obj.(*corev1.ConfigMap)
 	if cm.Immutable != nil && *cm.Immutable {
-		return nil
+		return nil, nil
 	}
 
 	bundleDeploymentList := &rukpakv1alpha2.BundleDeploymentList{}
 	if err := w.Client.List(ctx, bundleDeploymentList); err != nil {
-		return err
+		return nil, err
 	}
 	bundleReferrers := []string{}
 	for _, bundle := range bundleDeploymentList.Items {
@@ -46,34 +46,34 @@ func (w *ConfigMap) ValidateCreate(ctx context.Context, obj runtime.Object) erro
 		}
 	}
 	if len(bundleReferrers) > 0 {
-		return fmt.Errorf("configmap %q is referenced in .spec.source.configMaps[].configMap.name by bundles %v; referenced configmaps must have .immutable == true", cm.Name, bundleReferrers)
+		return nil, fmt.Errorf("configmap %q is referenced in .spec.source.configMaps[].configMap.name by bundles %v; referenced configmaps must have .immutable == true", cm.Name, bundleReferrers)
 	}
-	return nil
+	return nil, nil
 }
 
-func (w *ConfigMap) ValidateUpdate(_ context.Context, _, _ runtime.Object) error {
-	return nil
+func (w *ConfigMap) ValidateUpdate(_ context.Context, _, _ runtime.Object) (admission.Warnings, error) {
+	return nil, nil
 }
 
-func (w *ConfigMap) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+func (w *ConfigMap) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	cm := obj.(*corev1.ConfigMap)
 
 	bundleList := &rukpakv1alpha2.BundleDeploymentList{}
 	if err := w.Client.List(ctx, bundleList); err != nil {
-		return err
+		return nil, err
 	}
 	for _, b := range bundleList.Items {
 		for _, cmSource := range b.Spec.Source.ConfigMaps {
 			if cmSource.ConfigMap.Name == cm.Name {
-				return fmt.Errorf("configmap %q is in-use by bundle %q", cm.Name, b.Name)
+				return nil, fmt.Errorf("configmap %q is in-use by bundle %q", cm.Name, b.Name)
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (w *ConfigMap) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	mgr.GetWebhookServer().Register("/validate-core-v1-configmap", admission.WithCustomValidator(&corev1.ConfigMap{}, w).WithRecoverPanic(true))
+	mgr.GetWebhookServer().Register("/validate-core-v1-configmap", admission.WithCustomValidator(mgr.GetScheme(), &corev1.ConfigMap{}, w).WithRecoverPanic(true))
 	return nil
 }
 

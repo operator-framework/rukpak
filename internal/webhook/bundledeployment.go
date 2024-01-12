@@ -42,38 +42,38 @@ type BundleDeployment struct {
 //+kubebuilder:webhook:path=/validate-core-rukpak-io-v1alpha2-bundledeployment,mutating=false,failurePolicy=fail,sideEffects=None,groups=core.rukpak.io,resources=bundledeployments,verbs=create;update,versions=v1alpha2,name=vbundles.core.rukpak.io,admissionReviewVersions=v1
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (b *BundleDeployment) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (b *BundleDeployment) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	bundleDeployment := obj.(*rukpakv1alpha2.BundleDeployment)
 	return b.checkBundleDeploymentSource(ctx, bundleDeployment)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (b *BundleDeployment) ValidateUpdate(ctx context.Context, _ runtime.Object, newObj runtime.Object) error {
+func (b *BundleDeployment) ValidateUpdate(ctx context.Context, _ runtime.Object, newObj runtime.Object) (admission.Warnings, error) {
 	newBundle := newObj.(*rukpakv1alpha2.BundleDeployment)
 	return b.checkBundleDeploymentSource(ctx, newBundle)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (b *BundleDeployment) ValidateDelete(_ context.Context, _ runtime.Object) error {
-	return nil
+func (b *BundleDeployment) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+	return nil, nil
 }
 
-func (b *BundleDeployment) checkBundleDeploymentSource(ctx context.Context, bundleDeployment *rukpakv1alpha2.BundleDeployment) error {
+func (b *BundleDeployment) checkBundleDeploymentSource(ctx context.Context, bundleDeployment *rukpakv1alpha2.BundleDeployment) (admission.Warnings, error) {
 	switch typ := bundleDeployment.Spec.Source.Type; typ {
 	case rukpakv1alpha2.SourceTypeImage:
 		if bundleDeployment.Spec.Source.Image == nil {
-			return fmt.Errorf("bundledeployment.spec.source.image must be set for source type \"image\"")
+			return nil, fmt.Errorf("bundledeployment.spec.source.image must be set for source type \"image\"")
 		}
 	case rukpakv1alpha2.SourceTypeGit:
 		if bundleDeployment.Spec.Source.Git == nil {
-			return fmt.Errorf("bundledeployment.spec.source.git must be set for source type \"git\"")
+			return nil, fmt.Errorf("bundledeployment.spec.source.git must be set for source type \"git\"")
 		}
 		if strings.HasPrefix(filepath.Clean(bundleDeployment.Spec.Source.Git.Directory), "../") {
-			return fmt.Errorf(`bundledeployment.spec.source.git.directory begins with "../": directory must define path within the repository`)
+			return nil, fmt.Errorf(`bundledeployment.spec.source.git.directory begins with "../": directory must define path within the repository`)
 		}
 	case rukpakv1alpha2.SourceTypeConfigMaps:
 		if len(bundleDeployment.Spec.Source.ConfigMaps) == 0 {
-			return fmt.Errorf(`bundledeployment.spec.source.configmaps must be set for source type "configmaps"`)
+			return nil, fmt.Errorf(`bundledeployment.spec.source.configmaps must be set for source type "configmaps"`)
 		}
 		errs := []error{}
 		for i, cmSource := range bundleDeployment.Spec.Source.ConfigMaps {
@@ -85,10 +85,10 @@ func (b *BundleDeployment) checkBundleDeploymentSource(ctx context.Context, bund
 			}
 		}
 		if len(errs) > 0 {
-			return utilerrors.NewAggregate(errs)
+			return nil, utilerrors.NewAggregate(errs)
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (b *BundleDeployment) verifyConfigMapImmutable(ctx context.Context, configMapName string) error {
@@ -104,7 +104,7 @@ func (b *BundleDeployment) verifyConfigMapImmutable(ctx context.Context, configM
 }
 
 func (b *BundleDeployment) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	mgr.GetWebhookServer().Register("/validate-core-rukpak-io-v1alpha2-bundledeployment", admission.WithCustomValidator(&rukpakv1alpha2.BundleDeployment{}, b).WithRecoverPanic(true))
+	mgr.GetWebhookServer().Register("/validate-core-rukpak-io-v1alpha2-bundledeployment", admission.WithCustomValidator(mgr.GetScheme(), &rukpakv1alpha2.BundleDeployment{}, b).WithRecoverPanic(true))
 	return nil
 }
 

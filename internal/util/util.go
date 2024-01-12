@@ -52,8 +52,8 @@ type ProvisionerClassNameGetter interface {
 // MapOwneeToOwnerProvisionerHandler is a handler implementation that finds an owner reference in the event object that
 // references the provided owner. If a reference for the provided owner is found AND that owner's provisioner class name
 // matches the provided provisionerClassName, this handler enqueues a request for that owner to be reconciled.
-func MapOwneeToOwnerProvisionerHandler(ctx context.Context, cl client.Client, log logr.Logger, provisionerClassName string, owner ProvisionerClassNameGetter) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+func MapOwneeToOwnerProvisionerHandler(cl client.Client, log logr.Logger, provisionerClassName string, owner ProvisionerClassNameGetter) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 		ownerGVK, err := apiutil.GVKForObject(owner, cl.Scheme())
 		if err != nil {
 			log.Error(err, "map ownee to owner: lookup GVK for owner")
@@ -124,8 +124,9 @@ func MapConfigMapToBundleDeployment(ctx context.Context, cl client.Client, cmNam
 	}
 	return bs
 }
-func MapConfigMapToBundleDeploymentHandler(ctx context.Context, cl client.Client, configMapNamespace string, provisionerClassName string) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
+
+func MapConfigMapToBundleDeploymentHandler(cl client.Client, configMapNamespace string, provisionerClassName string) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
 		cm := object.(*corev1.ConfigMap)
 		var requests []reconcile.Request
 		matchingBundleDeployment := MapConfigMapToBundleDeployment(ctx, cl, configMapNamespace, *cm)
@@ -216,15 +217,15 @@ func CreateOrRecreate(ctx context.Context, cl client.Client, obj client.Object, 
 		return controllerutil.OperationResultNone, nil
 	}
 
-	if err := wait.PollImmediateUntil(time.Millisecond*5, func() (bool, error) {
-		if err := cl.Delete(ctx, obj); err != nil {
+	if err := wait.PollUntilContextCancel(ctx, time.Millisecond*5, true, func(conditionCtx context.Context) (bool, error) {
+		if err := cl.Delete(conditionCtx, obj); err != nil {
 			if apierrors.IsNotFound(err) {
 				return true, nil
 			}
 			return false, err
 		}
 		return false, nil
-	}, ctx.Done()); err != nil {
+	}); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 

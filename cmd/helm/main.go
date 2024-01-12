@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 
@@ -32,10 +33,11 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
@@ -107,39 +109,6 @@ func main() {
 	if systemNamespace == "" {
 		systemNamespace = util.PodNamespace()
 	}
-	systemNsCluster, err := cluster.New(cfg, func(opts *cluster.Options) {
-		opts.Scheme = scheme
-		opts.Namespace = systemNamespace
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to create system namespace cluster")
-		os.Exit(1)
-	}
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     httpBindAddr,
-		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "helm.core.rukpak.io",
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			SelectorsByObject: cache.SelectorsByObject{
-				&rukpakv1alpha2.BundleDeployment{}: {},
-			},
-			DefaultSelector: cache.ObjectSelector{
-				Label: dependentSelector,
-			},
-		}),
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to create manager")
-		os.Exit(1)
-	}
-
-	if err := mgr.Add(systemNsCluster); err != nil {
-		setupLog.Error(err, "unable to add system namespace cluster to manager")
-		os.Exit(1)
-	}
 
 	storageURL, err := url.Parse(fmt.Sprintf("%s/bundles/", httpExternalAddr))
 	if err != nil {
@@ -167,12 +136,35 @@ func main() {
 	)
 	bundleStorage := storage.WithFallbackLoader(localStorage, httpLoader)
 
-	// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
-	// whatever handlers we want on the existing webserver that
-	// controller-runtime runs when MetricsBindAddress is configured on the
-	// manager.
-	if err := mgr.AddMetricsExtraHandler("/bundles/", bundleStorage); err != nil {
-		setupLog.Error(err, "unable to register bundle content server")
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: httpBindAddr,
+			ExtraHandlers: map[string]http.Handler{
+				// NOTE: AddMetricsExtraHandler isn't actually metrics-specific. We can run
+				// whatever handlers we want on the existing webserver that
+				// controller-runtime runs when MetricsBindAddress is configured on the
+				// manager.
+				"/bundles/": bundleStorage,
+			},
+		},
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "helm.core.rukpak.io",
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&rukpakv1alpha2.BundleDeployment{}: {},
+			},
+			DefaultNamespaces: map[string]cache.Config{
+				systemNamespace: {},
+				cache.AllNamespaces: {
+					LabelSelector: dependentSelector,
+				},
+			},
+		},
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create manager")
 		os.Exit(1)
 	}
 
@@ -195,14 +187,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(systemNsCluster, systemNamespace, unpackImage, rootCAs)
+	unpacker, err := source.NewDefaultUnpacker(mgr, systemNamespace, unpackImage, rootCAs)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)
 	}
 
-	cfgGetter := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
-	acg := helmclient.NewActionClientGetter(cfgGetter)
+	cfgGetter, err := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	if err != nil {
+		setupLog.Error(err, "unable to create action config getter")
+		os.Exit(1)
+	}
+	acg, err := helmclient.NewActionClientGetter(cfgGetter)
+	if err != nil {
+		setupLog.Error(err, "unable to create action client getter")
+		os.Exit(1)
+	}
 	commonBDProvisionerOptions := []bundledeployment.Option{
 		bundledeployment.WithReleaseNamespace(systemNamespace),
 		bundledeployment.WithFinalizers(bundleFinalizers),
@@ -211,7 +211,7 @@ func main() {
 		bundledeployment.WithUnpacker(unpacker),
 	}
 
-	if err := bundledeployment.SetupWithManager(mgr, systemNsCluster.GetCache(), systemNamespace, append(
+	if err := bundledeployment.SetupWithManager(mgr, systemNamespace, append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(helm.ProvisionerID),
 		bundledeployment.WithHandler(bundledeployment.HandlerFunc(helm.HandleBundleDeployment)),

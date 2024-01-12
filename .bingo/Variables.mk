@@ -1,4 +1,4 @@
-# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.8. DO NOT EDIT.
+# Auto generated binary variables helper managed by https://github.com/bwplotka/bingo v0.9. DO NOT EDIT.
 # All tools are designed to be build inside $GOBIN.
 BINGO_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 GOPATH ?= $(shell go env GOPATH)
@@ -29,11 +29,11 @@ $(CONTROLLER_GEN): $(BINGO_DIR)/controller-gen.mod
 	@echo "(re)installing $(GOBIN)/controller-gen-v0.12.0"
 	@cd $(BINGO_DIR) && GOWORK=off $(GO) build -mod=mod -modfile=controller-gen.mod -o=$(GOBIN)/controller-gen-v0.12.0 "sigs.k8s.io/controller-tools/cmd/controller-gen"
 
-GINKGO := $(GOBIN)/ginkgo-v2.13.0
+GINKGO := $(GOBIN)/ginkgo-v2.14.0
 $(GINKGO): $(BINGO_DIR)/ginkgo.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/ginkgo-v2.13.0"
-	@cd $(BINGO_DIR) && GOWORK=off $(GO) build -mod=mod -modfile=ginkgo.mod -o=$(GOBIN)/ginkgo-v2.13.0 "github.com/onsi/ginkgo/v2/ginkgo"
+	@echo "(re)installing $(GOBIN)/ginkgo-v2.14.0"
+	@cd $(BINGO_DIR) && GOWORK=off $(GO) build -mod=mod -modfile=ginkgo.mod -o=$(GOBIN)/ginkgo-v2.14.0 "github.com/onsi/ginkgo/v2/ginkgo"
 
 GOLANGCI_LINT := $(GOBIN)/golangci-lint-v1.53.2
 $(GOLANGCI_LINT): $(BINGO_DIR)/golangci-lint.mod

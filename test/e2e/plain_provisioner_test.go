@@ -1245,7 +1245,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 						WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallFailed)),
 						WithTransform(func(c *metav1.Condition) string { return c.Message },
-							ContainSubstring(`required resource not found`)),
+							ContainSubstring(`the server could not find the requested resource`)),
 					))
 				})
 			})
@@ -1337,7 +1337,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallFailed)),
-					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"`)),
+					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`the server could not find the requested resource`)),
 				))
 			})
 		})
