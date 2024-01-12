@@ -24,14 +24,11 @@ const (
 	manifestsDir = "manifests"
 )
 
-func ProcessBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha2.BundleDeployment) (fs.FS, error) {
-	if err := ValidateBundle(fsys); err != nil {
-		return nil, err
-	}
-	return fsys, nil
-}
-
 func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+	if err := ValidateBundle(fsys); err != nil {
+		return nil, nil, err
+	}
+
 	chrt, err := chartFromBundle(fsys, bd)
 	if err != nil {
 		return nil, nil, err

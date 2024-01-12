@@ -63,17 +63,6 @@ builds:
     - arm64
     - ppc64le
     - s390x
-  - id: rukpakctl
-    main: ./cmd/rukpakctl
-    binary: rukpakctl
-    tags: "{{.Env.GO_BUILD_TAGS}}"
-    goos:
-      - linux
-    goarch:
-      - amd64
-      - arm64
-      - ppc64le
-      - s390x
 dockers:
 - image_templates:
   - "{{ .Env.IMAGE_REPO }}:{{ .Env.IMAGE_TAG }}-amd64"

@@ -31,12 +31,12 @@ func (w *ConfigMap) ValidateCreate(ctx context.Context, obj runtime.Object) erro
 		return nil
 	}
 
-	bundledeploymentList := &rukpakv1alpha2.BundleDeploymentList{}
-	if err := w.Client.List(ctx, bundledeploymentList); err != nil {
+	bundleDeploymentList := &rukpakv1alpha2.BundleDeploymentList{}
+	if err := w.Client.List(ctx, bundleDeploymentList); err != nil {
 		return err
 	}
 	bundleReferrers := []string{}
-	for _, bundle := range bundledeploymentList.Items {
+	for _, bundle := range bundleDeploymentList.Items {
 		if bundle.Spec.Source.Type == rukpakv1alpha2.SourceTypeConfigMaps {
 			for _, bundleConfigMapRef := range bundle.Spec.Source.ConfigMaps {
 				if bundleConfigMapRef.ConfigMap.Name == cm.Name {

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -140,20 +139,6 @@ func MapConfigMapToBundleDeploymentHandler(ctx context.Context, cl client.Client
 	})
 }
 
-// GetBundlesForBundleDeploymentSelector is responsible for returning a list of
-// Bundle resource that exist on cluster that match the label selector specified
-// in the BD parameter's spec.Selector field.
-func GetBundlesForBundleDeploymentSelector(ctx context.Context, c client.Client, bd *rukpakv1alpha2.BundleDeployment) (*rukpakv1alpha2.BundleDeploymentList, error) {
-	selector := NewBundleDeploymentLabelSelector(bd)
-	bundleDeploymentList := &rukpakv1alpha2.BundleDeploymentList{}
-	if err := c.List(ctx, bundleDeploymentList, &client.ListOptions{
-		LabelSelector: selector,
-	}); err != nil {
-		return nil, fmt.Errorf("failed to list bundles using the %s selector: %v", selector.String(), err)
-	}
-	return bundleDeploymentList, nil
-}
-
 const (
 	// maxBundleNameLength must be aligned with the Bundle CRD metadata.name length validation, defined in:
 	// <repoRoot>/manifests/base/apis/crds/patches/bundle_validation.yaml
@@ -175,14 +160,6 @@ func GenerateBundleName(bdName, hash string) string {
 		hash = hash[:maxBundleNameLength-len(bdName)-1]
 	}
 	return fmt.Sprintf("%s-%s", bdName, hash)
-}
-
-// SortBundleDeploymentsByCreation sorts a BundleDeploymentList's items by it's
-// metadata.CreationTimestamp value.
-func SortBundleDeploymentsByCreation(bundles *rukpakv1alpha2.BundleDeploymentList) {
-	sort.Slice(bundles.Items, func(a, b int) bool {
-		return bundles.Items[a].CreationTimestamp.Before(&bundles.Items[b].CreationTimestamp)
-	})
 }
 
 // PodNamespace checks whether the controller is running in a Pod vs.

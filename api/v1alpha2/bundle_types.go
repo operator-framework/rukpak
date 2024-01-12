@@ -20,11 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var (
-	BundleGVK  = SchemeBuilder.GroupVersion.WithKind("Bundle")
-	BundleKind = BundleGVK.Kind
-)
-
 type SourceType string
 
 const (
@@ -58,11 +53,6 @@ type BundleSource struct {
 	// ConfigMaps is a list of config map references and their relative
 	// directory paths that represent a bundle filesystem.
 	ConfigMaps []ConfigMapSource `json:"configMaps,omitempty"`
-	// Upload is a source that enables this Bundle's content to be uploaded
-	// via Rukpak's bundle upload service. This source type is primarily useful
-	// with bundle development workflows because it enables bundle developers
-	// to inject a local bundle directly into the cluster.
-	Upload *UploadSource `json:"upload,omitempty"`
 	//  HTTP is the remote location that backs the content of this Bundle.
 	HTTP *HTTPSource `json:"http,omitempty"`
 }
@@ -130,7 +120,5 @@ type Authorization struct {
 	// used. This should be used only for testing.
 	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
-
-type UploadSource struct{}
 
 type ProvisionerID string

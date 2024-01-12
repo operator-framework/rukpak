@@ -15,7 +15,7 @@ import (
 var _ = Describe("bundle deployment api validating webhook", func() {
 	When("Bundle Deployment is valid", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
@@ -24,7 +24,7 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 			By("creating the valid Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "valid-bundle-",
 				},
@@ -38,11 +38,11 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource")
-			err := c.Delete(ctx, bundledeployment)
+			err := c.Delete(ctx, bundleDeployment)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		It("should create the bundle resource", func() {
@@ -51,7 +51,7 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 	})
 	When("the bundle source type is git and git properties are not set", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
@@ -59,7 +59,7 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenamegit",
 				},
@@ -73,11 +73,11 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundledeployment)
+			err = c.Delete(ctx, bundleDeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 		})
 		It("should fail the bundle creation", func() {
@@ -86,7 +86,7 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 	})
 	When("the bundle source type is image and image properties are not set", func() {
 		var (
-			bundledeployment *rukpakv1alpha2.BundleDeployment
+			bundleDeployment *rukpakv1alpha2.BundleDeployment
 			ctx              context.Context
 			err              error
 		)
@@ -94,7 +94,7 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 			By("creating the Bundle resource")
 			ctx = context.Background()
 
-			bundledeployment = &rukpakv1alpha2.BundleDeployment{
+			bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "bundlenameimage",
 				},
@@ -111,11 +111,11 @@ var _ = Describe("bundle deployment api validating webhook", func() {
 					},
 				},
 			}
-			err = c.Create(ctx, bundledeployment)
+			err = c.Create(ctx, bundleDeployment)
 		})
 		AfterEach(func() {
 			By("deleting the testing Bundle resource for failure case")
-			err = c.Delete(ctx, bundledeployment)
+			err = c.Delete(ctx, bundleDeployment)
 			Expect(err).To(WithTransform(apierrors.IsNotFound, BeTrue()))
 
 		})

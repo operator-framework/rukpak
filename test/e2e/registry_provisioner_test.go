@@ -93,7 +93,7 @@ var _ = Describe("registry provisioner bundle", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {
-			By("deleting the testing BI resource")
+			By("deleting the testing BD resource")
 			Expect(c.Delete(ctx, bd)).To(Succeed())
 		})
 
@@ -102,12 +102,12 @@ var _ = Describe("registry provisioner bundle", func() {
 				if err := c.Get(ctx, client.ObjectKeyFromObject(bd), bd); err != nil {
 					return nil, err
 				}
-				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeUnpacked), nil
+				return meta.FindStatusCondition(bd.Status.Conditions, rukpakv1alpha2.TypeInstalled), nil
 			}).Should(And(
 				Not(BeNil()),
-				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeUnpacked)),
+				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
-				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonUnpackFailed)),
+				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallFailed)),
 				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("convert registry+v1 bundle to plain+v0 bundle: AllNamespace install mode must be enabled")),
 			))
 		})
