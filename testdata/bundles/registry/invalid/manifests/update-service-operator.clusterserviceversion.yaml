@@ -9,11 +9,11 @@ metadata:
   namespace: placeholder
 spec:
   installModes:
-  - supported: true
+  - supported: false
     type: OwnNamespace
   - supported: false
     type: SingleNamespace
-  - supported: false
+  - supported: true
     type: MultiNamespace
   - supported: false
     type: AllNamespaces

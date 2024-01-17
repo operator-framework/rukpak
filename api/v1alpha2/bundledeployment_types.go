@@ -47,6 +47,9 @@ const (
 	ReasonUpgradeFailed             = "UpgradeFailed"
 )
 
+// Add limit to the number of watchNamespaces allowed, as the estimated cost of this rule is linear per BD.
+//+kubebuilder:validation:XValidation:rule="!has(self.watchNamespaces) || size(self.watchNamespaces) <= 1 || (size(self.watchNamespaces) > 1 && !self.watchNamespaces.exists(e, e == ''))",message="Empty string not accepted if length of watchNamespaces is more than 1."
+
 // BundleDeploymentSpec defines the desired state of BundleDeployment
 type BundleDeploymentSpec struct {
 	//+kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
@@ -57,6 +60,8 @@ type BundleDeploymentSpec struct {
 	// Config is provisioner specific configurations
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Config runtime.RawExtension `json:"config,omitempty"`
+	// watchNamespaces indicates which namespaces the operator should watch.
+	WatchNamespaces []string `json:"watchNamespaces,omitempty"`
 }
 
 // BundleDeploymentStatus defines the observed state of BundleDeployment

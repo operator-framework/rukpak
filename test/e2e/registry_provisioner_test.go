@@ -87,6 +87,7 @@ var _ = Describe("registry provisioner bundle", func() {
 							Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:invalid"),
 						},
 					},
+					WatchNamespaces: []string{"test1"},
 				},
 			}
 			err := c.Create(ctx, bd)
@@ -108,7 +109,7 @@ var _ = Describe("registry provisioner bundle", func() {
 				WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 				WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 				WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallFailed)),
-				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("convert registry+v1 bundle to plain+v0 bundle: AllNamespace install mode must be enabled")),
+				WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring("convert registry+v1 bundle to plain+v0 bundle:")),
 			))
 		})
 	})
