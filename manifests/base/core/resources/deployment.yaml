@@ -64,14 +64,10 @@ spec:
           volumeMounts:
             - name: bundle-cache
               mountPath: /var/cache/bundles
-            - name: upload-cache
-              mountPath: /var/cache/uploads
           resources:
             requests:
               cpu: 10m
               memory: 160Mi
       volumes:
         - name: bundle-cache
-          emptyDir: {}
-        - name: upload-cache
           emptyDir: {}

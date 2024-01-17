@@ -104,7 +104,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&webhook.Bundle{
+	if err = (&webhook.BundleDeployment{
 		Client:          mgr.GetClient(),
 		SystemNamespace: systemNamespace,
 	}).SetupWebhookWithManager(mgr); err != nil {

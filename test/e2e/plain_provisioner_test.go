@@ -34,9 +34,8 @@ import (
 )
 
 const (
-	defaultSystemNamespace   = util.DefaultSystemNamespace
-	defaultUploadServiceName = util.DefaultUploadServiceName
-	testdataDir              = "../../testdata"
+	defaultSystemNamespace = util.DefaultSystemNamespace
+	testdataDir            = "../../testdata"
 )
 
 func Logf(f string, v ...interface{}) {

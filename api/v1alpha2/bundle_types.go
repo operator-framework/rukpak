@@ -26,7 +26,6 @@ const (
 	SourceTypeImage      SourceType = "image"
 	SourceTypeGit        SourceType = "git"
 	SourceTypeConfigMaps SourceType = "configMaps"
-	SourceTypeUpload     SourceType = "upload"
 	SourceTypeHTTP       SourceType = "http"
 
 	TypeUnpacked = "Unpacked"
