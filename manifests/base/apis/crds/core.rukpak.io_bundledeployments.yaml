@@ -220,10 +220,22 @@ spec:
                 required:
                 - type
                 type: object
+              watchNamespaces:
+                description: watchNamespaces indicates which namespaces the operator
+                  should watch.
+                items:
+                  type: string
+                type: array
             required:
             - provisionerClassName
             - source
             type: object
+            x-kubernetes-validations:
+            - message: Empty string not accepted if length of watchNamespaces is more
+                than 1.
+              rule: '!has(self.watchNamespaces) || size(self.watchNamespaces) <= 1
+                || (size(self.watchNamespaces) > 1 && !self.watchNamespaces.exists(e,
+                e == ''''))'
           status:
             description: BundleDeploymentStatus defines the observed state of BundleDeployment
             properties:

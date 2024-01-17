@@ -19,7 +19,7 @@ const (
 )
 
 func HandleBundleDeployment(ctx context.Context, fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
-	plainFS, err := convert.RegistryV1ToPlain(fsys)
+	plainFS, err := convert.RegistryV1ToPlain(fsys, bd.Spec.WatchNamespaces)
 	if err != nil {
 		return nil, nil, fmt.Errorf("convert registry+v1 bundle to plain+v0 bundle: %v", err)
 	}
