@@ -19,7 +19,6 @@ Supported source types for a plain bundle currently include the following:
 * A directory in a git repository
 * A [http](../sources/http.md)
 * A [configmap](local-bundles.md)
-* An [upload](../uploading-bundles.md)
 
 Additional source types, such as a local volume are on the roadmap. These source types
 all present the same content, a directory containing a plain bundle, in a different ways.

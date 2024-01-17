@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"time"
 
 	"github.com/gorilla/handlers"
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
@@ -79,7 +78,6 @@ func main() {
 		unpackImage                 string
 		rukpakVersion               bool
 		provisionerStorageDirectory string
-		uploadStorageSyncInterval   time.Duration
 	)
 	flag.StringVar(&httpBindAddr, "http-bind-address", ":8080", "The address the http server binds to.")
 	flag.StringVar(&httpExternalAddr, "http-external-address", "http://localhost:8080", "The external address at which the http server is reachable.")
@@ -92,7 +90,6 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&rukpakVersion, "version", false, "Displays rukpak version information")
 	flag.StringVar(&provisionerStorageDirectory, "provisioner-storage-dir", storage.DefaultBundleCacheDir, "The directory that is used to store bundle contents.")
-	flag.DurationVar(&uploadStorageSyncInterval, "upload-storage-sync-interval", time.Minute, "Interval on which to garbage collect unused uploaded bundles")
 	opts := zap.Options{
 		Development: true,
 	}

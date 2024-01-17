@@ -12,7 +12,6 @@ Supported source types for a helm bundle currently include the following:
 * A container image
 * A directory in a git repository
 * A [http](../sources/http.md)
-* An [upload](../uploading-bundles.md)
 
 Additional source types, such as a local volume are on the roadmap. These source types
 all present the same content, a directory containing a helm chart, in a different ways.

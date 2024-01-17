@@ -1,6 +1,5 @@
 resources:
   - resources/bundle_reader_client_clusterrole.yaml
-  - resources/bundle_uploader_client_clusterrole.yaml
   - resources/cluster_role.yaml
   - resources/cluster_role_binding.yaml
   - resources/deployment.yaml

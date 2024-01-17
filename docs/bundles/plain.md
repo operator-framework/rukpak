@@ -20,7 +20,6 @@ Supported source types for a plain bundle currently include the following:
 * A directory in a [container image](../sources/image.md)
 * A directory in a [`git` repository](../sources/git.md)
 * A set of keys in a [`ConfigMap`](../sources/local.md)
-* An [upload](../sources/upload.md)
 * A `.tgz` file returned by a [http endpoint](../sources/http.md)
 
 
@@ -123,22 +122,6 @@ docker push quay.io/operator-framework/rukpak:example
 ```
 
 If you are looking to use a private image registry for sourcing your bundle content, see the ["Private image registries" section of the image source documentation](../sources/image.md#private-image-registries)
-
-### Upload source
-
-For using the bundle with an [upload source](../sources/upload.md), follow the below steps:
-
-1. Download the `rukpakctl` CLI tool
-```bash
-go install github.com/operator-framework/rukpak/cmd/rukpakctl
-```
-
-2. Ensure RukPak is running. For more info on how to install RukPak on your cluster see the [Installation section of the README](../../README.md#installation)
-
-3. Use `rukpakctl` to create a `BundleDeployment` using the `manifests/` directory
-```bash
-rukpakctl run <bundle-name> .
-```
 
 ### ConfigMap source
 
