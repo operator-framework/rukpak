@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/nlepage/go-tarfs v1.2.1
 	github.com/onsi/ginkgo/v2 v2.14.0
-	github.com/onsi/gomega v1.30.0
+	github.com/onsi/gomega v1.31.0
 	github.com/operator-framework/api v0.21.0
 	github.com/operator-framework/helm-operator-plugins v0.1.1
 	github.com/operator-framework/operator-registry v1.36.0
