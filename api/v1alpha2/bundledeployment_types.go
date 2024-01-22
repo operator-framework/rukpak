@@ -27,9 +27,8 @@ var (
 )
 
 const (
-	TypeHasValidBundle = "HasValidBundle"
-	TypeHealthy        = "Healthy"
-	TypeInstalled      = "Installed"
+	TypeHealthy   = "Healthy"
+	TypeInstalled = "Installed"
 
 	ReasonBundleLoadFailed          = "BundleLoadFailed"
 	ReasonCreateDynamicWatchFailed  = "CreateDynamicWatchFailed"

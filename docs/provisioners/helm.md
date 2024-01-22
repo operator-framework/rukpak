@@ -3,7 +3,7 @@
 ## Summary
 
 The `helm` provisioner is one of the [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner) of RukPak.
-It is able to instantiate a given `helm+v3` bundle with a specified helm chart onto a cluster where it then installs the content. It does so by reconciling `Bundle` and `BundleDeployment` types that have
+It is able to instantiate a given `helm+v3` bundle with a specified helm chart onto a cluster where it then installs the content. It does so by reconciling `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core-rukpak-io-helm`. This field must be set to the correct provisioner
 name in order for the `helm` provisioner to see and interact with the bundle.
 
@@ -25,7 +25,7 @@ all present the same content, a directory containing a helm chart, in a differen
 The `helm` provisioner can install and make available a specific `helm+v3` bundle in the cluster. To do this, the `helm` provisioner will retrieve the configured helm chart, instantiate a Bundle onto the cluster, and eventually install the desired helm chart on the cluster.
 
 ```yaml
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: my-ahoy
@@ -55,43 +55,22 @@ spec:
       service:
         type: ClusterIP
         port: 80
-  template:
-    metadata:
-      labels:
-        app: my-ahoy
-    spec:
-      provisionerClassName: core-rukpak-io-helm
-      source:
-        http:
-          url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  
-        type: http
+    source:
+      http:
+        url: https://github.com/helm/examples/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz  
+      type: http
 ```
 
 For the helm chart, the values file embedded in the `config` can be applied during the installation of the chart.
 
-> Note: the generated Bundle will contain the BundleDeployment's metadata.Name as a prefix, followed by
-> the hash of the provided template.
-
-As the bundle content is retrieved and stored onto the cluster via the defined storage mechanism, the bundle status
-will be updated to Unpacked, indicating that all its contents have been stored on-cluster.
-
-```console
-$ kubectl get bundle -l app=my-ahoy
-NAME                 TYPE   PHASE      AGE
-my-ahoy-5764594dc8   http   Unpacked   33s
-```
-
-Now that the bundle has been unpacked, the provisioner is able to create the resources in the bundle on the cluster.
-These resources will be owned by the corresponding BundleDeployment. Creating the BundleDeployment on-cluster results in an
-InstallationSucceeded Phase if the application of resources to the cluster was successful.
+As the bundle content is retrieved and stored onto the cluster via the defined storage mechanism, the bundledeployment's `Install State` moves from `UnpackSuccessful` to `InstallationSucceeded`.
+The install succeeded state indicates that the provisioner has created the resources in the bundle on the cluster. These resources will be owned by the corresponding BundleDeployment.
 
 ```console
 $ kubectl get bundledeployment my-ahoy
-NAME      ACTIVE BUNDLE        INSTALL STATE           AGE
-my-ahoy   my-ahoy-5764594dc8   InstallationSucceeded   48s
+NAME       INSTALL STATE           AGE
+my-ahoy    InstallationSucceeded   48s
 ```
-
-> Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
 
 ## Quick Start
 
@@ -127,33 +106,27 @@ make run
 
 ### Installing the sample chart
 
-From there, create some Bundles and BundleDeployment types to see the provisioner in action. For an example helm chart to
+From there, create some BundleDeployment types to see the provisioner in action. For an example helm chart to
 use, the [helm/examples](https://github.com/helm/examples) is a good example.
 
 Create the sample BundleDeployment referencing the desired sample helm chart in Bundle configuration:
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: my-ahoy
 spec:
   provisionerClassName: core-rukpak-io-helm
-  template:
-    metadata:
-      labels:
-        app: my-ahoy
-    spec:
-      provisionerClassName: core-rukpak-io-helm
-      source:
-        http:
-        git:
-          ref:
-            branch: main
-          repository: https://github.com/akihikokuroda/examples
-          directory: ./charts
-        type: git
+  source:
+    http:
+    git:
+      ref:
+        branch: main
+      repository: https://github.com/akihikokuroda/examples
+      directory: ./charts
+    type: git
 EOF
 ```
 
@@ -166,21 +139,15 @@ EOF
 bundledeployment.core.rukpak.io/my-ahoy created
 ```
 
-Next, check the Bundle status via:
+Next, check the BundleDeployment status via:
 
 ```bash
-kubectl get bundle -l app=my-ahoy
+kubectl get bundledeployment -l app=my-ahoy
 ```
 
-Eventually the Bundle should show up as Unpacked:
+Eventually the BundleDeployment's `Unpacked` status condition should be set to true. Followed by which, check the BundleDeployment's status to ensure that the installation was successful:
 
-```console
-$ kubectl get bundle -l app=my-ahoy
-NAME                 TYPE   PHASE      AGE
-my-ahoy-5764594dc8   git    Unpacked   33s
-```
-
-Check the BundleDeployment status to ensure that the installation was successful:
+Eventually the BundleDeployment should show up as Unpacked:
 
 ```bash
 kubectl get bundledeployment my-ahoy
@@ -190,8 +157,8 @@ A successful installation will show InstallationSucceeded as the `INSTALL STATE`
 
 ```console
 $ kubectl get bundledeployment my-ahoy
-NAME      ACTIVE BUNDLE        INSTALL STATE           AGE
-my-ahoy   my-ahoy-5764594dc8   InstallationSucceeded   48s
+NAME         INSTALL STATE           AGE
+my-ahoy      InstallationSucceeded   48s
 ```
 
 From there, ensure that the helm chart is installed and the operator is present on the cluster:
@@ -239,7 +206,7 @@ Add a values file into the BundleDeployment to override some default values:
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: my-ahoy
@@ -269,19 +236,13 @@ spec:
       service:
         type: ClusterIP
         port: 80
-  template:
-    metadata:
-      labels:
-        app: my-ahoy
-    spec:
-      provisionerClassName: core-rukpak-io-helm
-      source:
-        git:
-          ref:
-            branch: main
-          repository: https://github.com/akihikokuroda/examples
-          directory: ./charts
-        type: git
+source:
+  git:
+    ref:
+      branch: main
+    repository: https://github.com/akihikokuroda/examples
+    directory: ./charts
+  type: git
 EOF
 ```
 
@@ -313,7 +274,7 @@ Change this a value in the values file.  Update the `nameOverride` to `name1`
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: my-ahoy
@@ -343,19 +304,13 @@ spec:
       service:
         type: ClusterIP
         port: 80
-  template:
-    metadata:
-      labels:
-        app: my-ahoy
-    spec:
-      provisionerClassName: core-rukpak-io-helm
-      source:
-        git:
-          ref:
-            branch: main
-          repository: https://github.com/akihikokuroda/examples
-          directory: ./charts
-        type: git
+  source:
+    git:
+      ref:
+        branch: main
+      repository: https://github.com/akihikokuroda/examples
+      directory: ./charts
+    type: git
 EOF
 ```
 
@@ -397,7 +352,7 @@ Now the helm chart version is `hello-world-0.1.0`.  Change the git branch to `v0
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: my-ahoy
@@ -427,19 +382,13 @@ spec:
       service:
         type: ClusterIP
         port: 80
-  template:
-    metadata:
-      labels:
-        app: my-ahoy
-    spec:
-      provisionerClassName: core-rukpak-io-helm
-      source:
-        git:
-          ref:
-            branch: v0.1.1
-          repository: https://github.com/akihikokuroda/examples
-          directory: ./charts
-        type: git
+  source:
+    git:
+      ref:
+        branch: v0.1.1
+      repository: https://github.com/akihikokuroda/examples
+      directory: ./charts
+    type: git
 EOF
 ```
 

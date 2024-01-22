@@ -9,7 +9,7 @@ manifests in a given directory. For more information on the `plain+v0` format, s
 the [plain+v0 bundle spec](/docs/bundles/plain.md).
 
 The `plain` provisioner is able to unpack a given `plain+v0` bundle onto a cluster and then instantiate it, making the
-content of the bundle available in the cluster. It does so by reconciling `Bundle` and `BundleDeployment` types that have
+content of the bundle available in the cluster. It does so by reconciling `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core-rukpak-io-plain`. This field must be set to the correct provisioner
 name in order for the `plain` provisioner to see and interact with the bundle.
 
@@ -36,55 +36,27 @@ The `plain` provisioner will unpack the provided Bundle onto the cluster, and ev
 available on the cluster.
 
 ```yaml
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: my-bundle-deployment
 spec:
   provisionerClassName: core-rukpak-io-plain
-  template:
-    metadata:
-      labels:
-        app: my-bundle
-    spec:
-      source:
-        type: image
-        image:
-          ref: my-bundle@sha256:xyz123
-      provisionerClassName: core-rukpak-io-plain
+  source:
+    type: image
+    image:
+      ref: my-bundle@sha256:xyz123
+  provisionerClassName: core-rukpak-io-plain
 ```
 
-> Note: the generated Bundle will contain the BundleDeployment's metadata.Name as a prefix, followed by
-> the hash of the provided template.
-
-First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
-
-```console
-$ kubectl get bundle my-bundle
-NAME           TYPE    PHASE      AGE
-my-bundle      image   Pending    3s
-```
-
-Then eventually, as the bundle content is unpacked onto the cluster via the defined storage mechanism, the bundle status
-will be updated to Unpacked, indicating that all its contents have been stored on-cluster.
-
-```console
-$ kubectl get bundle my-bundle
-NAME           TYPE    PHASE      AGE
-my-bundle      image   Unpacked   10s
-```
-
-Now that the bundle has been unpacked, the provisioner is able to create the resources in the bundle on the cluster.
-These resources will be owned by the corresponding BundleDeployment. Creating the BundleDeployment on-cluster results in an
-InstallationSucceeded Phase if the application of resources to the cluster was successful.
+As the bundle content is retrieved and stored onto the cluster via the defined storage mechanism, the bundledeployment's `Install State` moves from `UnpackSuccessful` to `InstallationSucceeded`.
+The install succeeded state indicates that the provisioner has created the resources in the bundle on the cluster. These resources will be owned by the corresponding BundleDeployment.
 
 ```console
 $ kubectl get bundledeployment my-bundle-deployment
-NAME                   ACTIVE BUNDLE    INSTALL STATE           AGE
-my-bundle-deployment   my-bundle        InstallationSucceeded   11s
+NAME                       INSTALL STATE           AGE
+my-bundle-deployment       InstallationSucceeded   11s
 ```
-
-> Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
 
 ## Running locally
 
@@ -106,29 +78,23 @@ make run
 
 ### Installing the Combo Operator
 
-From there, create some Bundles and BundleDeployment types to see the provisioner in action. For an example bundle to
+From there, create some BundleDeployment types to see the provisioner in action. For an example bundle to
 use, the [combo operator](https://github.com/operator-framework/combo) is a good candidate.
 
 Create the combo BundleDeployment referencing the desired combo Bundle configuration:
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: combo
 spec:
   provisionerClassName: core-rukpak-io-plain
-  template:
-    metadata:
-      labels:
-        app: combo
-    spec:
-      provisionerClassName: core-rukpak-io-plain
-      source:
-        image:
-          ref: quay.io/operator-framework/combo-bundle:v0.0.1
-        type: image
+  source:
+    image:
+      ref: quay.io/operator-framework/combo-bundle:v0.0.1
+    type: image
 EOF
 ```
 
@@ -141,20 +107,6 @@ EOF
 bundledeployment.core.rukpak.io/combo created
 ```
 
-Next, check the Bundle status via:
-
-```bash
-kubectl get bundle -l app=combo
-```
-
-Eventually the Bundle should show up as Unpacked:
-
-```console
-$ kubectl get bundle -l app=combo
-NAME               TYPE    PHASE      AGE
-combo-7cdc7d7d6d   image   Unpacked   10s
-```
-
 Check the BundleDeployment status to ensure that the installation was successful:
 
 ```bash
@@ -165,8 +117,8 @@ A successful installation will show InstallationSucceeded as the `INSTALL STATE`
 
 ```console
 $ kubectl get bundledeployment combo
-NAME    ACTIVE BUNDLE      INSTALL STATE           AGE
-combo   combo-7cdc7d7d6d   InstallationSucceeded   10s
+NAME      INSTALL STATE           AGE
+combo     InstallationSucceeded   10s
 ```
 
 From there, check out the combo operator deployment and ensure that the operator is present on the cluster:
@@ -218,43 +170,27 @@ combo-operator   1/1     1            1           15s
 
 Let's say the combo operator released a new patch version, and we want to upgrade to that version.
 
-> Note: Upgrading a BundleDeployment involves updating the desired Bundle template being referenced.
-
 Update the existing `combo` BundleDeployment resource and update the container image being referenced:
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: combo
 spec:
   provisionerClassName: core-rukpak-io-plain
-  template:
-    metadata:
-      labels:
-        app: combo
-    spec:
-      provisionerClassName: core-rukpak-io-plain
-      source:
-        image:
-          ref: quay.io/operator-framework/combo-bundle:v0.0.2
-        type: image
+  source:
+    image:
+      ref: quay.io/operator-framework/combo-bundle:v0.0.2
+    type: image
 EOF
 ```
 
-Once the newly generated Bundle is reporting an Unpacked status, the BundleDeployment `combo` resource should now
-point to the new Bundle (now named `combo-7ddfd9fcd5` instead of `combo-7cdc7d7d6d` previously). The combo-operator
-deployment in the combo namespace should also be healthy and contain a new container image:
-
 ```console
-$ kubectl get bundles -l app=combo
-NAME               TYPE    PHASE      AGE
-combo-7ddfd9fcd5   image   Unpacked   10s
-
 $ kubectl get bundledeployment combo
-NAME    ACTIVE BUNDLE      INSTALL STATE           AGE
-combo   combo-7ddfd9fcd5   InstallationSucceeded   10s
+NAME       INSTALL STATE           AGE
+combo      InstallationSucceeded   10s
 
 $ kubectl -n combo get deployment
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE

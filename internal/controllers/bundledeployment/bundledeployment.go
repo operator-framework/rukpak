@@ -287,7 +287,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 	bundleFS, err := c.storage.Load(ctx, bd)
 	if err != nil {
 		meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
-			Type:    rukpakv1alpha2.TypeHasValidBundle,
+			Type:    rukpakv1alpha2.TypeInstalled,
 			Status:  metav1.ConditionFalse,
 			Reason:  rukpakv1alpha2.ReasonBundleLoadFailed,
 			Message: err.Error(),
