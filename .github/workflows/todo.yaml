@@ -9,4 +9,4 @@ jobs:
     steps:
       - uses: "actions/checkout@v4"
       - name: "Create issues from TODO comments"
-        uses: "alstr/todo-to-issue-action@v4.12.1"
+        uses: "alstr/todo-to-issue-action@v4.12.2"
