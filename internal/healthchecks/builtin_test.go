@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -448,7 +448,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: pointer.Int32(1),
+						Replicas: ptr.To(int32(1)),
 					},
 					Status: appsv1.StatefulSetStatus{
 						Conditions:         nil,
@@ -646,7 +646,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: pointer.Int32(1),
+						Replicas: ptr.To(int32(1)),
 					},
 					Status: appsv1.StatefulSetStatus{
 						ObservedGeneration: 1,
@@ -673,7 +673,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: pointer.Int32(1),
+						Replicas: ptr.To(int32(1)),
 					},
 					Status: appsv1.StatefulSetStatus{
 						ObservedGeneration: 2,
@@ -701,7 +701,7 @@ func TestAreObjectsHealthy(t *testing.T) {
 						UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 							Type: appsv1.RollingUpdateStatefulSetStrategyType,
 						},
-						Replicas: pointer.Int32(1),
+						Replicas: ptr.To(int32(1)),
 					},
 					Status: appsv1.StatefulSetStatus{
 						CurrentRevision:    "revision2",
