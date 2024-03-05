@@ -12,7 +12,7 @@ require (
 	github.com/nlepage/go-tarfs v1.2.1
 	github.com/onsi/ginkgo/v2 v2.16.0
 	github.com/onsi/gomega v1.31.1
-	github.com/operator-framework/api v0.21.0
+	github.com/operator-framework/api v0.22.0
 	github.com/operator-framework/helm-operator-plugins v0.1.3
 	github.com/operator-framework/operator-registry v1.36.0
 	github.com/spf13/cobra v1.8.0
