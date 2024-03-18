@@ -14,7 +14,7 @@ require (
 	github.com/onsi/gomega v1.31.1
 	github.com/operator-framework/api v0.22.0
 	github.com/operator-framework/helm-operator-plugins v0.1.3
-	github.com/operator-framework/operator-registry v1.36.0
+	github.com/operator-framework/operator-registry v1.37.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
@@ -148,7 +148,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
+	github.com/opencontainers/image-spec v1.1.0-rc6 // indirect
 	github.com/opencontainers/runc v1.1.12 // indirect
 	github.com/opencontainers/runtime-spec v1.1.0 // indirect
 	github.com/operator-framework/operator-lib v0.12.0 // indirect
