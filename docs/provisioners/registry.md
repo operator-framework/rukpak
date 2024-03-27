@@ -9,14 +9,10 @@ manifests organized in the legacy Operator Lifecycle Manger (OLM) format. For mo
 the [OLM packaging doc](https://olm.operatorframework.io/docs/tasks/creating-operator-manifests/).
 
 The `registry` provisioner is able to convert a given `registry+v1` bundle onto a cluster in the `plain+v0` format. Instantiation of the
-bundle is then handled by the `plain` provisioner in order to make the content available in the cluster. It does so by reconciling `Bundle`
+bundle is then handled by the `plain` provisioner in order to make the content available in the cluster. It does so by reconciling `BundleDeployment`
 types that have the `spec.provisionerClassName` field set to `core-rukpak-io-registry`. This field must be set to the correct provisioner
-name in order for the `registry` provisioner to see and interact with the bundle. Creating a `BundleDeployment` of that `Bundle` would then
-require that you have set the `BundleDeployment` property `spec.provisionerClassName` field to `core-rukpak-io-plain`. For a concrete example
+name in order for the `registry` provisioner to see and interact with the bundle. For a concrete example
 of this in action, see the [use cases section](#use-cases)
-
-> Note: Not all `registry+v1` content is supported. This mainly applies to `registry+v1` bundles that enable `AllNamespaces` mode
-or include a webhook.
 
 ## Use cases
 
@@ -29,59 +25,30 @@ or include a webhook.
 The `registry` provisioner can convert and make available a specific `registry+v1` bundle as a `plain+v0` in the cluster.
 
 Simply create a `BundleDeployment` resource that contains the desired specification of a Bundle resource.
-The `registry` provisioner will unpack the provided Bundle onto the cluster, and the `plain` provisioner
+The `registry` provisioner will unpack the provided BundleDeployment onto the cluster, and the `plain` provisioner
 will eventually make the content available on the cluster.
 
 ```yaml
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: my-bundle-deployment
 spec:
-  provisionerClassName: core-rukpak-io-plain
-  template:
-    metadata:
-      labels:
-        app: my-bundle
-    spec:
-      source:
-        type: image
-        image:
-          ref: my-bundle@sha256:xyz123
-      provisionerClassName: core-rukpak-io-registry
+  source:
+    type: image
+    image:
+      ref: my-bundle@sha256:xyz123
+  provisionerClassName: core-rukpak-io-registry
 ```
 
-> Note: The generated Bundle will contain the BundleDeployment's metadata.Name as a prefix, followed by
-> the hash of the provided template.
-
-First, the Bundle will be in the Pending stage as the provisioner sees it and begins unpacking the referenced content:
-
-```console
-$ kubectl get bundle my-bundle
-NAME           TYPE    PHASE      AGE
-my-bundle      image   Pending    3s
-```
-
-Then eventually, as the bundle content is unpacked onto the cluster via the defined storage mechanism, the bundle status
-will be updated to Unpacked, indicating that all its contents have been stored on-cluster.
-
-```console
-$ kubectl get bundle my-bundle
-NAME           TYPE    PHASE      AGE
-my-bundle      image   Unpacked   10s
-```
-
-Now that the bundle has been unpacked, the provisioner is able to create the resources in the bundle on the cluster.
-These resources will be owned by the corresponding BundleDeployment. Creating the BundleDeployment on-cluster results in an
-InstallationSucceeded Phase if the application of resources to the cluster was successful.
+As the bundle content is retrieved and stored onto the cluster via the defined storage mechanism, the bundledeployment's `Install State` moves from `UnpackSuccessful` to `InstallationSucceeded`.
+The install succeeded state indicates that the provisioner has created the resources in the bundle on the cluster. These resources will be owned by the corresponding BundleDeployment.
 
 ```console
 $ kubectl get bundledeployment my-bundle-deployment
-NAME                   ACTIVE BUNDLE      INSTALL STATE           AGE
-my-bundle-deployment   my-bundle          InstallationSucceeded   11s
+NAME                          INSTALL STATE           AGE
+my-bundle-deployment          InstallationSucceeded   11s
 ```
-
-> Note: Creation of more than one BundleDeployment from the same Bundle will likely result in an error.
 
 ## Running locally
 
@@ -110,22 +77,16 @@ Create the `prometheus` BundleDeployment referencing the desired `prometheus` Bu
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: prometheus
 spec:
-  provisionerClassName: core-rukpak-io-plain
-  template:
-    metadata:
-      labels:
-        app: prometheus
-    spec:
-      provisionerClassName: core-rukpak-io-registry
-      source:
-        type: image
-        image:
-          ref: quay.io/operatorhubio/prometheus:v0.47.0--20220325T220130
+  provisionerClassName: core-rukpak-io-registry
+  source:
+    type: image
+    image:
+      ref: quay.io/operatorhubio/prometheus:v0.47.0--20220325T220130
 EOF
 ```
 
@@ -138,20 +99,6 @@ EOF
 bundledeployment.core.rukpak.io/prometheus created
 ```
 
-Next, check the Bundle status via:
-
-```bash
-kubectl get bundle -l app=prometheus
-```
-
-Eventually the Bundle should show up as Unpacked:
-
-```console
-$ kubectl get bundle -l app=prometheus
-NAME                    TYPE    PHASE      AGE
-prometheus-5699cbff6   image   Unpacked   14s
-```
-
 Check the BundleDeployment status to ensure that the installation was successful:
 
 ```bash
@@ -162,8 +109,8 @@ A successful installation will show InstallationSucceeded as the `INSTALL STATE`
 
 ```console
 $ kubectl get bundledeployment prometheus
-NAME         ACTIVE BUNDLE           INSTALL STATE           AGE
-prometheus   prometheus-5699cbff6    InstallationSucceeded   10s
+NAME             INSTALL STATE           AGE
+prometheus       InstallationSucceeded   10s
 ```
 
 From there, check out the prometheus operator BundleDeployment and ensure that the operator is present on the cluster:
@@ -212,43 +159,30 @@ prometheus-operator   1/1     1            1           15s
 
 Let's say the `prometheus` operator released a newer release and we want to upgrade to that version.
 
-> Note: Upgrading a BundleDeployment involves updating the desired Bundle template being referenced.
-
 Update the existing `prometheus` BundleDeployment resource and update the container image being referenced:
 
 ```bash
 kubectl apply -f -<<EOF
-apiVersion: core.rukpak.io/v1alpha1
+apiVersion: core.rukpak.io/v1alpha2
 kind: BundleDeployment
 metadata:
   name: prometheus
 spec:
-  provisionerClassName: core-rukpak-io-plain
-  template:
-    metadata:
-      labels:
-        app: prometheus
-    spec:
-      provisionerClassName: core-rukpak-io-registry
-      source:
-        type: image
-        image:
-          ref: quay.io/operatorhubio/prometheus:v0.47.0--20220413T184225
+  provisionerClassName: core-rukpak-io-registry
+  source:
+    type: image
+    image:
+      ref: quay.io/operatorhubio/prometheus:v0.47.0--20220413T184225
 EOF
 ```
 
-Once the newly generated Bundle is reporting an Unpacked status, the BundleDeployment `prometheus` resource should now
-point to the new Bundle (now named `prometheus-7f4f468d94` instead of `prometheus-5699cbff6` previously). The prometheus-operator
+The prometheus-operator
 BundleDeployment in the prometheus-system namespace should also be healthy and contain a new container image:
 
 ```console
-$ kubectl get bundles -l app=prometheus
-NAME                    TYPE    PHASE      AGE
-prometheus-7f4f468d94   image   Unpacked   2m15s
-
 $ kubectl get bundledeployment prometheus
-NAME         ACTIVE BUNDLE           INSTALL STATE           AGE
-prometheus   prometheus-7f4f468d94   InstallationSucceeded   2m47s
+NAME            INSTALL STATE           AGE
+prometheus      InstallationSucceeded   2m47s
 
 $ kubectl -n prometheus-system get bundledeployment
 NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
@@ -260,7 +194,7 @@ prometheus-operator   1/1     1            1           3m6s
 To clean up from the installation, simply remove the BundleDeployment from the cluster. This will remove all references
 resources including the BundleDeployment, RBAC, and the operator namespace.
 
-> Note: There's no need to manually clean up the Bundles that were generated from a BundleDeployment resource. The plain provisioner places owner references on any Bundle that's generated from an individual BundleDeployment resource.
+> Note: There's no need to manually clean up the resources that were generated from a BundleDeployment. The provisioner places owner references on any Bundle that's generated from an individual BundleDeployment resource.
 
 ```bash
 # Delete the prometheus BundleDeployment
