@@ -409,8 +409,8 @@ github.com/operator-framework/helm-operator-plugins v0.1.3 h1:nwl9K1Pq0NZmanpEF/
 github.com/operator-framework/helm-operator-plugins v0.1.3/go.mod h1:f/AR6r2DiSRK5zv9MD+NgWbayP6qDbQMw+unFuw0rPQ=
 github.com/operator-framework/operator-lib v0.12.0 h1:OzpMU5N7mvFgg/uje8FUUeD24Ahq64R6TdN25uswCYA=
 github.com/operator-framework/operator-lib v0.12.0/go.mod h1:ClpLUI7hctEF7F5DBe/kg041dq/4NLR7XC5tArY7bG4=
-github.com/operator-framework/operator-registry v1.37.0 h1:XBCY6pkCBE+rIbnrN+MFblrGfZCvYABf43Lf7AM0X8k=
-github.com/operator-framework/operator-registry v1.37.0/go.mod h1:9w3/HO+6btZAgsUWz4aHEW4womn8ImdrSmHoXDDP5LA=
+github.com/operator-framework/operator-registry v1.38.0 h1:IYFziHSR4LPGGHmEUQyL6iIJj/4WuvaIprR/6/1zaiw=
+github.com/operator-framework/operator-registry v1.38.0/go.mod h1:6JllKmggrMqIwKpwLdk2BTpepD3gLh59Rh7LxtNz5lM=
 github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=
 github.com/otiai10/copy v1.14.0/go.mod h1:ECfuL02W+/FkTWZWgQqXPWZgW9oeKCSQ5qVfSc4qc4w=
 github.com/otiai10/mint v1.5.1 h1:XaPLeE+9vGbuyEHem1JNk3bYc7KKqyI/na0/mLd/Kks=

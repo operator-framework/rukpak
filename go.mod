@@ -14,7 +14,7 @@ require (
 	github.com/onsi/gomega v1.32.0
 	github.com/operator-framework/api v0.22.0
 	github.com/operator-framework/helm-operator-plugins v0.1.3
-	github.com/operator-framework/operator-registry v1.37.0
+	github.com/operator-framework/operator-registry v1.38.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
