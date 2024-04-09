@@ -46,6 +46,15 @@ linters-settings:
       alias: rukpakv1alpha1
   goimports:
     local-prefixes: github.com/operator-framework/rukpak
+  
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/operator-framework)
+      - prefix(github.com/operator-framework/operator-controller)
+    custom-order: true
 
 output:
-  format: tab
+  formats:
+    - format: tab
