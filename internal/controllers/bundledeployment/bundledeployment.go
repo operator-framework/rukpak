@@ -332,13 +332,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 		rel, err = cl.Install(bd.Name, c.releaseNamespace, chrt, values, func(install *action.Install) error {
 			install.CreateNamespace = false
 			return nil
-		},
-			// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
-			func(install *action.Install) error {
-				post.cascade = install.PostRenderer
-				install.PostRenderer = post
-				return nil
-			})
+		}, helmclient.AppendInstallPostRenderer(post))
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -347,13 +341,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
-		rel, err = cl.Upgrade(bd.Name, c.releaseNamespace, chrt, values,
-			// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
-			func(upgrade *action.Upgrade) error {
-				post.cascade = upgrade.PostRenderer
-				upgrade.PostRenderer = post
-				return nil
-			})
+		rel, err = cl.Upgrade(bd.Name, c.releaseNamespace, chrt, values, helmclient.AppendUpgradePostRenderer(post))
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -475,13 +463,7 @@ func (c *controller) getReleaseState(cl helmclient.ActionInterface, obj metav1.O
 	desiredRelease, err := cl.Upgrade(obj.GetName(), c.releaseNamespace, chrt, values, func(upgrade *action.Upgrade) error {
 		upgrade.DryRun = true
 		return nil
-	},
-		// To be refactored issue https://github.com/operator-framework/rukpak/issues/534
-		func(upgrade *action.Upgrade) error {
-			post.cascade = upgrade.PostRenderer
-			upgrade.PostRenderer = post
-			return nil
-		})
+	}, helmclient.AppendUpgradePostRenderer(post))
 	if err != nil {
 		return currentRelease, stateError, err
 	}

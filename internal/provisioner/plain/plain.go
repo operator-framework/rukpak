@@ -24,12 +24,12 @@ const (
 	manifestsDir = "manifests"
 )
 
-func HandleBundleDeployment(_ context.Context, fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
+func HandleBundleDeployment(_ context.Context, fsys fs.FS, _ *rukpakv1alpha2.BundleDeployment) (*chart.Chart, chartutil.Values, error) {
 	if err := ValidateBundle(fsys); err != nil {
 		return nil, nil, err
 	}
 
-	chrt, err := chartFromBundle(fsys, bd)
+	chrt, err := chartFromBundle(fsys)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,7 +78,7 @@ func getObjects(bundle fs.FS, manifest fs.DirEntry) ([]client.Object, error) {
 	return util.ManifestObjects(manifestReader, manifestPath)
 }
 
-func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Chart, error) {
+func chartFromBundle(fsys fs.FS) (*chart.Chart, error) {
 	objects, err := getBundleObjects(fsys)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle objects from bundle: %v", err)
@@ -88,10 +88,6 @@ func chartFromBundle(fsys fs.FS, bd *rukpakv1alpha2.BundleDeployment) (*chart.Ch
 		Metadata: &chart.Metadata{},
 	}
 	for _, obj := range objects {
-		obj.SetLabels(util.MergeMaps(obj.GetLabels(), map[string]string{
-			util.CoreOwnerKindKey: rukpakv1alpha2.BundleDeploymentKind,
-			util.CoreOwnerNameKey: bd.Name,
-		}))
 		yamlData, err := yaml.Marshal(obj)
 		if err != nil {
 			return nil, err
