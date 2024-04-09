@@ -11,8 +11,6 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/operator-framework/api/pkg/operators/v1alpha1"
-	registrybundle "github.com/operator-framework/operator-registry/pkg/lib/bundle"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -24,6 +22,9 @@ import (
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
+
+	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	registrybundle "github.com/operator-framework/operator-registry/pkg/lib/bundle"
 
 	registry "github.com/operator-framework/rukpak/internal/operator-registry"
 	"github.com/operator-framework/rukpak/internal/util"

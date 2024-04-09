@@ -26,7 +26,6 @@ import (
 	"os"
 
 	"github.com/gorilla/handlers"
-	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 	"github.com/spf13/pflag"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,6 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"

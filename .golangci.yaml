@@ -8,6 +8,7 @@ linters:
   - bodyclose
   - errorlint
   - ginkgolinter
+  - gci
   - gofmt
   - goimports
   - gosec
@@ -50,9 +51,10 @@ linters-settings:
   gci:
     sections:
       - standard
+      - dot
       - default
       - prefix(github.com/operator-framework)
-      - prefix(github.com/operator-framework/operator-controller)
+      - prefix(github.com/operator-framework/rukpak)
     custom-order: true
 
 output:
