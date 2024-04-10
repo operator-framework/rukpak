@@ -53,6 +53,19 @@ const (
 // BundleDeploymentSpec defines the desired state of BundleDeployment
 type BundleDeploymentSpec struct {
 	//+kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+	//+kubebuilder:validation:MaxLength:=63
+	// The namespace where the bundle should be installed. However, note that
+	// the bundle may contain resources that are cluster-scoped or that are
+	// installed in a different namespace. This namespace is expected to exist.
+	InstallNamespace string `json:"installNamespace"`
+
+	//+kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$
+	//+kubebuilder:validation:MaxLength:=253
+	// ServiceAccountName is the name of the ServiceAccount to use to manage the resources in the bundle.
+	// The service account is expected to exist in the InstallNamespace.
+	ServiceAccountName string `json:"serviceAccountName"`
+
+	//+kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
 	// ProvisionerClassName sets the name of the provisioner that should reconcile this BundleDeployment.
 	ProvisionerClassName string `json:"provisionerClassName"`
 	// Source defines the configuration for the underlying Bundle content.
