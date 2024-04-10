@@ -41,7 +41,7 @@ type Plain struct {
 	Objects []client.Object
 }
 
-func RegistryV1ToPlain(rv1 fs.FS, watchNamespaces []string) (fs.FS, error) {
+func RegistryV1ToPlain(rv1 fs.FS, installNamespace string, watchNamespaces []string) (fs.FS, error) {
 	reg := RegistryV1{}
 	fileData, err := fs.ReadFile(rv1, filepath.Join("metadata", "annotations.yaml"))
 	if err != nil {
@@ -103,7 +103,7 @@ func RegistryV1ToPlain(rv1 fs.FS, watchNamespaces []string) (fs.FS, error) {
 		}
 	}
 
-	plain, err := Convert(reg, "", watchNamespaces)
+	plain, err := Convert(reg, installNamespace, watchNamespaces)
 	if err != nil {
 		return nil, err
 	}
@@ -290,11 +290,7 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 		clusterRoleBindings = append(clusterRoleBindings, newClusterRoleBinding(name, name, installNamespace, saName))
 	}
 
-	ns := &corev1.Namespace{
-		TypeMeta:   metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
-		ObjectMeta: metav1.ObjectMeta{Name: installNamespace},
-	}
-	objs := []client.Object{ns}
+	objs := []client.Object{}
 	for _, obj := range serviceAccounts {
 		obj := obj
 		if obj.GetName() != "default" {

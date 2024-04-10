@@ -35,6 +35,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 					},
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: helm.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeHTTP,
@@ -74,7 +75,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() (*appsv1.DeploymentCondition, error) {
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: "default"}, deployment); err != nil {
 						return nil, err
 					}
 					for _, c := range deployment.Status.Conditions {
@@ -95,7 +96,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() error {
-					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment)
+					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: "default"}, deployment)
 				}).Should(Succeed())
 
 				By("deleting the deployment resource in the helm chart")
@@ -103,7 +104,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 
 				By("verifying the deleted deployment resource in the helm chart gets recreated")
 				Eventually(func() (*appsv1.DeploymentCondition, error) {
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: "default"}, deployment); err != nil {
 						return nil, err
 					}
 					for _, c := range deployment.Status.Conditions {
@@ -139,6 +140,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 					},
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: helm.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeHTTP,
@@ -185,6 +187,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 					GenerateName: "ahoy-",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: helm.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeHTTP,
@@ -234,6 +237,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 					},
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: helm.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeHTTP,
@@ -283,6 +287,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 					},
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: helm.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeGit,
@@ -326,7 +331,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() (*appsv1.DeploymentCondition, error) {
-					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment); err != nil {
+					if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: "default"}, deployment); err != nil {
 						return nil, err
 					}
 					for _, c := range deployment.Status.Conditions {
@@ -354,7 +359,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 				deployment := &appsv1.Deployment{}
 
 				Eventually(func() error {
-					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: defaultSystemNamespace}, deployment)
+					return c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-hello-world", Namespace: "default"}, deployment)
 				}).Should(Succeed())
 
 				By("deleting the deployment resource in the helm chart")
@@ -397,6 +402,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 					},
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: helm.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeGit,
@@ -450,6 +456,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 					},
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: helm.ProvisionerID,
 					Config:               runtime.RawExtension{Raw: []byte(`{"values": "# Default values for hello-world.\n# This is a YAML-formatted file.\n# Declare variables to be passed into your templates.\nreplicaCount: 1\nimage:\n  repository: nginx\n  pullPolicy: IfNotPresent\n  # Overrides the image tag whose default is the chart appVersion.\n  tag: \"\"\nnameOverride: \"fromvalues\"\nfullnameOverride: \"\"\nserviceAccount:\n  # Specifies whether a service account should be created\n  create: true\n  # Annotations to add to the service account\n  annotations: {}\n  # The name of the service account to use.\n  # If not set and create is true, a name is generated using the fullname template\n  name: \"\"\nservice:\n  type: ClusterIP\n  port: 80\n"}`)},
 					Source: rukpakv1alpha2.BundleSource{
@@ -487,7 +494,7 @@ var _ = Describe("helm provisioner bundledeployment", func() {
 			deployment := &appsv1.Deployment{}
 
 			Eventually(func() (*appsv1.DeploymentCondition, error) {
-				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-fromvalues", Namespace: defaultSystemNamespace}, deployment); err != nil {
+				if err := c.Get(ctx, types.NamespacedName{Name: bd.GetName() + "-fromvalues", Namespace: "default"}, deployment); err != nil {
 					return nil, err
 				}
 				for _, c := range deployment.Status.Conditions {
