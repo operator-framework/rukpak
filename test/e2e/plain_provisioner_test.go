@@ -61,6 +61,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: "non-existent-class-name",
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
@@ -101,6 +102,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
@@ -189,6 +191,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-valid",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
@@ -256,6 +259,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-invalid",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
@@ -327,6 +331,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-unsupported",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
@@ -376,6 +381,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "olm-crds-unsupported",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
@@ -430,6 +436,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-commit",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeGit,
@@ -479,6 +486,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-tag",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeGit,
@@ -547,6 +555,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-branch",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeGit,
@@ -615,6 +624,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-custom-dir",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeGit,
@@ -686,6 +696,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-branch",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeGit,
@@ -745,6 +756,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "combo-git-branch",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeGit,
@@ -833,6 +845,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-local-",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeConfigMaps,
@@ -874,6 +887,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-local-",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeConfigMaps,
@@ -950,6 +964,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-local-",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeConfigMaps,
@@ -1005,6 +1020,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "namespace-subdirs",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
@@ -1053,6 +1069,7 @@ var _ = Describe("plain provisioner bundle", func() {
 					GenerateName: "combo-git-commit",
 				},
 				Spec: rukpakv1alpha2.BundleDeploymentSpec{
+					InstallNamespace:     "default",
 					ProvisionerClassName: plain.ProvisionerID,
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeGit,
@@ -1216,6 +1233,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "e2e-bd-dependent-",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeImage,
@@ -1246,7 +1264,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 						WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallFailed)),
 						WithTransform(func(c *metav1.Condition) string { return c.Message },
-							ContainSubstring(`no matches for kind "OperatorGroup" in version "operators.coreos.com/v1"`)),
+							ContainSubstring(`required resource not found`)),
 					))
 				})
 			})
@@ -1263,6 +1281,7 @@ var _ = Describe("plain provisioner bundle", func() {
 							GenerateName: "e2e-bd-providing-",
 						},
 						Spec: rukpakv1alpha2.BundleDeploymentSpec{
+							InstallNamespace:     "default",
 							ProvisionerClassName: plain.ProvisionerID,
 							Source: rukpakv1alpha2.BundleSource{
 								Type: rukpakv1alpha2.SourceTypeImage,
@@ -1311,6 +1330,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						GenerateName: "e2e-bd-crds-and-crs-",
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeImage,
@@ -1338,7 +1358,9 @@ var _ = Describe("plain provisioner bundle", func() {
 					WithTransform(func(c *metav1.Condition) string { return c.Type }, Equal(rukpakv1alpha2.TypeInstalled)),
 					WithTransform(func(c *metav1.Condition) metav1.ConditionStatus { return c.Status }, Equal(metav1.ConditionFalse)),
 					WithTransform(func(c *metav1.Condition) string { return c.Reason }, Equal(rukpakv1alpha2.ReasonInstallFailed)),
-					WithTransform(func(c *metav1.Condition) string { return c.Message }, ContainSubstring(`no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"`)),
+					WithTransform(func(c *metav1.Condition) string { return c.Message },
+						ContainSubstring(`required resource not found`),
+					),
 				))
 			})
 		})
@@ -1363,6 +1385,7 @@ var _ = Describe("plain provisioner bundle", func() {
 						},
 					},
 					Spec: rukpakv1alpha2.BundleDeploymentSpec{
+						InstallNamespace:     "default",
 						ProvisionerClassName: plain.ProvisionerID,
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeImage,

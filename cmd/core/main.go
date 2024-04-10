@@ -202,18 +202,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfgGetter, err := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	bdNamespaceMapper := func(obj client.Object) (string, error) {
+		bd, ok := obj.(*rukpakv1alpha2.BundleDeployment)
+		if !ok {
+			return "", fmt.Errorf("cannot derive namespace from object of type %T", obj)
+		}
+		return bd.Spec.InstallNamespace, nil
+	}
+	systemNamespaceMapper := func(obj client.Object) (string, error) {
+		return systemNamespace, nil
+	}
+	cfgGetter, err := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(),
+		helmclient.ClientNamespaceMapper(bdNamespaceMapper),
+		helmclient.StorageNamespaceMapper(systemNamespaceMapper),
+	)
 	if err != nil {
 		setupLog.Error(err, "unable to create action config getter")
 		os.Exit(1)
 	}
+
 	acg, err := helmclient.NewActionClientGetter(cfgGetter)
 	if err != nil {
 		setupLog.Error(err, "unable to create action client getter")
 		os.Exit(1)
 	}
 	commonBDProvisionerOptions := []bundledeployment.Option{
-		bundledeployment.WithReleaseNamespace(systemNamespace),
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithStorage(bundleStorage),

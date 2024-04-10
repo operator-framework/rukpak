@@ -68,7 +68,7 @@ var _ = Describe("RegistryV1 Suite", func() {
 
 				By("verifying if plain bundle has required objects")
 				Expect(plainBundle).NotTo(BeNil())
-				Expect(len(plainBundle.Objects)).To(BeEquivalentTo(2))
+				Expect(plainBundle.Objects).To(HaveLen(1))
 
 				By("verifying if ns has been set correctly")
 				resObj := containsObject(unstructuredSvc, plainBundle.Objects)
@@ -94,7 +94,7 @@ var _ = Describe("RegistryV1 Suite", func() {
 
 				By("verifying if plain bundle has required objects")
 				Expect(plainBundle).NotTo(BeNil())
-				Expect(len(plainBundle.Objects)).To(BeEquivalentTo(2))
+				Expect(plainBundle.Objects).To(HaveLen(1))
 
 				By("verifying if ns has been set correctly")
 				resObj := containsObject(unstructuredSvc, plainBundle.Objects)
@@ -152,7 +152,7 @@ var _ = Describe("RegistryV1 Suite", func() {
 
 					By("verifying if plain bundle has required objects")
 					Expect(plainBundle).NotTo(BeNil())
-					Expect(len(plainBundle.Objects)).To(BeEquivalentTo(2))
+					Expect(plainBundle.Objects).To(HaveLen(1))
 
 					By("verifying if ns has been set correctly")
 					resObj := containsObject(unstructuredpriorityclass, plainBundle.Objects)
@@ -219,7 +219,7 @@ var _ = Describe("RegistryV1 Suite", func() {
 
 				By("verifying if plain bundle has required objects")
 				Expect(plainBundle).ShouldNot(BeNil())
-				Expect(len(plainBundle.Objects)).To(BeEquivalentTo(7))
+				Expect(plainBundle.Objects).To(HaveLen(6))
 			})
 
 			It("should error when multinamespace mode is supported with an empty string in target namespaces", func() {
