@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"flag"
 	"fmt"
@@ -28,8 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,6 +45,7 @@ import (
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
+	"github.com/operator-framework/rukpak/internal/authentication"
 	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/helm"
@@ -194,18 +199,44 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfgGetter, err := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(), mgr.GetLogger())
+	saGetter, err := corev1client.NewForConfig(cfg)
 	if err != nil {
-		setupLog.Error(err, "unable to create action config getter")
+		setupLog.Error(err, "unable to create service account client")
 		os.Exit(1)
 	}
+
+	tg := authentication.NewTokenGetter(saGetter, 3600)
+	nsMapper := func(obj client.Object) (string, error) {
+		bd, ok := obj.(*rukpakv1alpha2.BundleDeployment)
+		if !ok {
+			return "", fmt.Errorf("cannot derive namespace from object of type %T", obj)
+		}
+		return bd.Spec.InstallNamespace, nil
+	}
+	rcm := func(ctx context.Context, obj client.Object, baseRestConfig *rest.Config) (*rest.Config, error) {
+		cfg := rest.AnonymousClientConfig(rest.CopyConfig(baseRestConfig))
+		bd, ok := obj.(*rukpakv1alpha2.BundleDeployment)
+		if !ok {
+			return cfg, nil
+		}
+		token, err := tg.Get(ctx, types.NamespacedName{Namespace: bd.Spec.InstallNamespace, Name: bd.Spec.ServiceAccountName})
+		if err != nil {
+			return nil, err
+		}
+		cfg.BearerToken = token
+		return cfg, nil
+	}
+	cfgGetter, err := helmclient.NewActionConfigGetter(mgr.GetConfig(), mgr.GetRESTMapper(),
+		helmclient.ClientNamespaceMapper(nsMapper),
+		helmclient.StorageNamespaceMapper(nsMapper),
+		helmclient.RestConfigMapper(rcm),
+	)
 	acg, err := helmclient.NewActionClientGetter(cfgGetter)
 	if err != nil {
 		setupLog.Error(err, "unable to create action client getter")
 		os.Exit(1)
 	}
 	commonBDProvisionerOptions := []bundledeployment.Option{
-		bundledeployment.WithReleaseNamespace(systemNamespace),
 		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithStorage(bundleStorage),

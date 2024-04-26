@@ -16,6 +16,7 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -23,8 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	apimachyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -39,7 +42,6 @@ import (
 	helmclient "github.com/operator-framework/helm-operator-plugins/pkg/client"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/healthchecks"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
 	unpackersource "github.com/operator-framework/rukpak/internal/source"
 	"github.com/operator-framework/rukpak/internal/storage"
@@ -101,12 +103,6 @@ func WithActionClientGetter(acg helmclient.ActionClientGetter) Option {
 	}
 }
 
-func WithReleaseNamespace(releaseNamespace string) Option {
-	return func(c *controller) {
-		c.releaseNamespace = releaseNamespace
-	}
-}
-
 func SetupWithManager(mgr manager.Manager, systemNamespace string, opts ...Option) error {
 	c := &controller{
 		cl:               mgr.GetClient(),
@@ -159,9 +155,6 @@ func (c *controller) validateConfig() error {
 	if c.finalizers == nil {
 		errs = append(errs, errors.New("finalizer handler is unset"))
 	}
-	if c.releaseNamespace == "" {
-		errs = append(errs, errors.New("release namespace is unset"))
-	}
 	return utilerrors.NewAggregate(errs)
 }
 
@@ -170,12 +163,13 @@ type controller struct {
 	cl    client.Client
 	cache cache.Cache
 
-	handler          Handler
-	provisionerID    string
-	acg              helmclient.ActionClientGetter
-	storage          storage.Storage
-	releaseNamespace string
+	cfg           *rest.Config
+	handler       Handler
+	provisionerID string
+	acg           helmclient.ActionClientGetter
+	storage       storage.Storage
 
+	tokens            map[types.NamespacedName]v1.TokenRequest
 	unpacker          unpackersource.Unpacker
 	controller        crcontroller.Controller
 	finalizers        crfinalizer.Finalizers
@@ -184,13 +178,13 @@ type controller struct {
 }
 
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=list;watch
+//+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments,verbs=update;list;watch
 //+kubebuilder:rbac:groups=core.rukpak.io,resources=bundledeployments/status,verbs=update;patch
 //+kubebuilder:rbac:verbs=get,urls=/bundles/*
-//+kubebuilder:rbac:groups=core,resources=pods,verbs=list;watch;create;delete
+//+kubebuilder:rbac:groups=core,resources=pods,verbs=list;watch;create;patch;delete
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=list;watch
 //+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
-//+kubebuilder:rbac:groups=*,resources=*,verbs=*
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts/token,verbs=create
 //+kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
 //+kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
 
@@ -307,9 +301,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 		return ctrl.Result{}, err
 	}
 
-	bd.SetNamespace(c.releaseNamespace)
-	cl, err := c.acg.ActionClientFor(bd)
-	bd.SetNamespace("")
+	cl, err := c.acg.ActionClientFor(ctx, bd)
 	if err != nil {
 		setInstalledAndHealthyFalse(bd, rukpakv1alpha2.ReasonErrorGettingClient, err.Error())
 		return ctrl.Result{}, err
@@ -330,7 +322,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 
 	switch state {
 	case stateNeedsInstall:
-		rel, err = cl.Install(bd.Name, c.releaseNamespace, chrt, values, func(install *action.Install) error {
+		rel, err = cl.Install(bd.Name, bd.Spec.InstallNamespace, chrt, values, func(install *action.Install) error {
 			install.CreateNamespace = false
 			return nil
 		}, helmclient.AppendInstallPostRenderer(post))
@@ -342,7 +334,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 			return ctrl.Result{}, err
 		}
 	case stateNeedsUpgrade:
-		rel, err = cl.Upgrade(bd.Name, c.releaseNamespace, chrt, values, helmclient.AppendUpgradePostRenderer(post))
+		rel, err = cl.Upgrade(bd.Name, bd.Spec.InstallNamespace, chrt, values, helmclient.AppendUpgradePostRenderer(post))
 		if err != nil {
 			if isResourceNotFoundErr(err) {
 				err = errRequiredResourceNotFound{err}
@@ -404,7 +396,7 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 	})
 
 	if features.RukpakFeatureGate.Enabled(features.BundleDeploymentHealth) {
-		if err = healthchecks.AreObjectsHealthy(ctx, c.cl, relObjects); err != nil {
+		if err = cl.CheckHealth(ctx, rel); err != nil {
 			meta.SetStatusCondition(&bd.Status.Conditions, metav1.Condition{
 				Type:    rukpakv1alpha2.TypeHealthy,
 				Status:  metav1.ConditionFalse,
@@ -453,15 +445,15 @@ const (
 	stateError        releaseState = "Error"
 )
 
-func (c *controller) getReleaseState(cl helmclient.ActionInterface, obj metav1.Object, chrt *chart.Chart, values chartutil.Values, post *postrenderer) (*release.Release, releaseState, error) {
-	currentRelease, err := cl.Get(obj.GetName())
+func (c *controller) getReleaseState(cl helmclient.ActionInterface, bd *rukpakv1alpha2.BundleDeployment, chrt *chart.Chart, values chartutil.Values, post *postrenderer) (*release.Release, releaseState, error) {
+	currentRelease, err := cl.Get(bd.GetName())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateError, err
 	}
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, stateNeedsInstall, nil
 	}
-	desiredRelease, err := cl.Upgrade(obj.GetName(), c.releaseNamespace, chrt, values, func(upgrade *action.Upgrade) error {
+	desiredRelease, err := cl.Upgrade(bd.GetName(), bd.Spec.InstallNamespace, chrt, values, func(upgrade *action.Upgrade) error {
 		upgrade.DryRun = true
 		return nil
 	}, helmclient.AppendUpgradePostRenderer(post))
