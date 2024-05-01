@@ -13,6 +13,7 @@ spec:
     - containerPort: 22
       protocol: TCP
       name: https
+    terminationMessagePolicy: FallbackToLogsOnError
     volumeMounts:
     - name: ssh-cert
       mountPath: "/git-server/keys"

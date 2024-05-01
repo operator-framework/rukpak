@@ -41,6 +41,8 @@ spec:
               key: setup.sh
         securityContext:
           privileged: true
+        terminationMessagePolicy: FallbackToLogsOnError
       containers:
       - name: wait
         image: registry.k8s.io/pause:3.1
+        terminationMessagePolicy: FallbackToLogsOnError

@@ -25,6 +25,7 @@ spec:
             requests:
               cpu: 1m
               memory: 15Mi
+          terminationMessagePolicy: FallbackToLogsOnError
       volumes:
         - name: tls
           secret:
