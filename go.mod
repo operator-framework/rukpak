@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/nlepage/go-tarfs v1.2.1
 	github.com/onsi/ginkgo/v2 v2.17.2
-	github.com/onsi/gomega v1.33.0
+	github.com/onsi/gomega v1.33.1
 	github.com/operator-framework/api v0.23.0
 	github.com/operator-framework/helm-operator-plugins v0.1.4-0.20240423180823-6e9815980fce
 	github.com/operator-framework/operator-registry v1.40.0
