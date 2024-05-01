@@ -45,6 +45,7 @@ spec:
             requests:
               cpu: 1m
               memory: 15Mi
+          terminationMessagePolicy: FallbackToLogsOnError
         - name: manager
           securityContext:
             allowPrivilegeEscalation: false
@@ -68,6 +69,7 @@ spec:
             requests:
               cpu: 10m
               memory: 160Mi
+          terminationMessagePolicy: FallbackToLogsOnError
       volumes:
         - name: bundle-cache
           emptyDir: {}

@@ -143,7 +143,8 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment
 					WithName("util").
 					WithMountPath("/util/bin"),
 				).
-				WithSecurityContext(containerSecurityContext),
+				WithSecurityContext(containerSecurityContext).
+				WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError),
 			).
 			WithContainers(applyconfigurationcorev1.Container().
 				WithName(imageBundleUnpackContainerName).
@@ -153,7 +154,8 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment
 					WithName("util").
 					WithMountPath("/bin"),
 				).
-				WithSecurityContext(containerSecurityContext),
+				WithSecurityContext(containerSecurityContext).
+				WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError),
 			).
 			WithVolumes(applyconfigurationcorev1.Volume().
 				WithName("util").

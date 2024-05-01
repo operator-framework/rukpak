@@ -12,6 +12,7 @@ spec:
     - "sh"
     - "-c"
     - "htpasswd -Bbn myuser mypasswd >> /auth/htpasswd"
+    terminationMessagePolicy: FallbackToLogsOnError
     volumeMounts:
     - name: auth-vol
       mountPath: "/auth"
@@ -38,6 +39,7 @@ spec:
       value: "/certs/tls.crt"
     - name: REGISTRY_HTTP_TLS_KEY
       value: "/certs/tls.key"
+    terminationMessagePolicy: FallbackToLogsOnError
   volumes:
   - name: repo-vol
     emptyDir: {}

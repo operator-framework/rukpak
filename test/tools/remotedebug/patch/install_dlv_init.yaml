@@ -24,6 +24,7 @@ spec:
           - -ldflags
           - "-s -w -extldflags '-static'"
           - github.com/go-delve/delve/cmd/dlv@latest
+          terminationMessagePolicy: FallbackToLogsOnError
           volumeMounts:
           - name: gobindir
             mountPath: /go/bin/

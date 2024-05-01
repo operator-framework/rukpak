@@ -10,6 +10,7 @@ spec:
     image: ghcr.io/containerd/nerdctl
     imagePullPolicy: Always
     name: nerdctl
+    terminationMessagePolicy: FallbackToLogsOnError
     volumeMounts:
     - mountPath: /run/containerd
       name: run-containerd
