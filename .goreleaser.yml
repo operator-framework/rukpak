@@ -11,7 +11,6 @@ builds:
   - id: unpack
     main: ./cmd/unpack
     binary: unpack
-    tags: "{{.Env.GO_BUILD_TAGS}}"
     goos:
     - linux
     goarch:
@@ -22,7 +21,6 @@ builds:
   - id: helm
     main: ./cmd/helm
     binary: helm
-    tags: "{{.Env.GO_BUILD_TAGS}}"
     goos:
       - linux
     goarch:
@@ -33,7 +31,6 @@ builds:
   - id: core
     main: ./cmd/core
     binary: core
-    tags: "{{.Env.GO_BUILD_TAGS}}"
     goos:
     - linux
     goarch:
@@ -44,7 +41,6 @@ builds:
   - id: webhooks
     main: ./cmd/webhooks
     binary: webhooks
-    tags: "{{.Env.GO_BUILD_TAGS}}"
     goos:
       - linux
     goarch:
@@ -55,7 +51,6 @@ builds:
   - id: crdvalidator
     main: ./cmd/crdvalidator
     binary: crdvalidator
-    tags: "{{.Env.GO_BUILD_TAGS}}"
     goos:
     - linux
     goarch:
