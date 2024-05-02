@@ -13,7 +13,7 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/util"
 )
 
 const (

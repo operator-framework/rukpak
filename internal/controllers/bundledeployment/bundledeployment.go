@@ -41,10 +41,10 @@ import (
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/healthchecks"
 	helmpredicate "github.com/operator-framework/rukpak/internal/helm-operator-plugins/predicate"
-	unpackersource "github.com/operator-framework/rukpak/internal/source"
-	"github.com/operator-framework/rukpak/internal/storage"
-	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/pkg/features"
+	unpackersource "github.com/operator-framework/rukpak/pkg/source"
+	"github.com/operator-framework/rukpak/pkg/storage"
+	"github.com/operator-framework/rukpak/pkg/util"
 )
 
 /*

@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/util"
 )
 
 var _ = Describe("HTTP", func() {

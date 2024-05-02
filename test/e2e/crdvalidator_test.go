@@ -11,7 +11,7 @@ import (
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/cmd/crdvalidator/annotation"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/util"
 	"github.com/operator-framework/rukpak/test/testutil"
 )
 
