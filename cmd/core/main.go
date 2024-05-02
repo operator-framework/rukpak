@@ -49,11 +49,11 @@ import (
 	"github.com/operator-framework/rukpak/internal/finalizer"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
 	"github.com/operator-framework/rukpak/internal/provisioner/registry"
-	"github.com/operator-framework/rukpak/internal/source"
-	"github.com/operator-framework/rukpak/internal/storage"
-	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/pkg/features"
+	"github.com/operator-framework/rukpak/pkg/source"
+	"github.com/operator-framework/rukpak/pkg/storage"
+	"github.com/operator-framework/rukpak/pkg/util"
 )
 
 var (

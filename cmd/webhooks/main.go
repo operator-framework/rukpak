@@ -33,9 +33,9 @@ import (
 	crwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
-	"github.com/operator-framework/rukpak/internal/util"
 	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/internal/webhook"
+	"github.com/operator-framework/rukpak/pkg/util"
 )
 
 var (

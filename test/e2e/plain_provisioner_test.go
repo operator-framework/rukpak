@@ -30,8 +30,8 @@ import (
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/provisioner/plain"
-	"github.com/operator-framework/rukpak/internal/storage"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/storage"
+	"github.com/operator-framework/rukpak/pkg/util"
 )
 
 const (

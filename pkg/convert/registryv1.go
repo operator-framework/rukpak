@@ -27,7 +27,7 @@ import (
 	registrybundle "github.com/operator-framework/operator-registry/pkg/lib/bundle"
 
 	registry "github.com/operator-framework/rukpak/internal/operator-registry"
-	"github.com/operator-framework/rukpak/internal/util"
+	"github.com/operator-framework/rukpak/pkg/util"
 )
 
 type RegistryV1 struct {
