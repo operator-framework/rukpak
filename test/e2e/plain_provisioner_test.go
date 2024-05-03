@@ -1443,7 +1443,7 @@ func checkProvisionerBundleDeployment(ctx context.Context, object client.Object,
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: "manager",
-			Command:   []string{"ls", filepath.Join(storage.DefaultBundleCacheDir, fmt.Sprintf("%s.tgz", object.GetName()))},
+			Command:   []string{"/ls", filepath.Join(storage.DefaultBundleCacheDir, fmt.Sprintf("%s.tgz", object.GetName()))},
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,

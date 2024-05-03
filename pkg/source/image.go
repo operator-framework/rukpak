@@ -138,7 +138,7 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment
 				WithName("install-unpacker").
 				WithImage(i.UnpackImage).
 				WithImagePullPolicy(corev1.PullIfNotPresent).
-				WithCommand("cp", "-Rv", "/unpack", "/util/bin/unpack").
+				WithCommand("/cp", "-Rv", "/unpack", "/util/bin/unpack").
 				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
 					WithName("util").
 					WithMountPath("/util/bin"),
@@ -154,7 +154,7 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment
 					WithName("util").
 					WithMountPath("/bin"),
 				).
-				WithSecurityContext(containerSecurityContext).
+				WithSecurityContext(containerSecurityContext.WithRunAsUser(1001)).
 				WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError),
 			).
 			WithVolumes(applyconfigurationcorev1.Volume().
@@ -162,7 +162,7 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment
 				WithEmptyDir(applyconfigurationcorev1.EmptyDirVolumeSource()),
 			).
 			WithSecurityContext(applyconfigurationcorev1.PodSecurityContext().
-				WithRunAsNonRoot(false).
+				WithRunAsNonRoot(true).
 				WithSeccompProfile(applyconfigurationcorev1.SeccompProfile().
 					WithType(corev1.SeccompProfileTypeRuntimeDefault),
 				),

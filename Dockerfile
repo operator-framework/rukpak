@@ -1,4 +1,11 @@
-FROM gcr.io/distroless/static:debug-nonroot
+FROM gcr.io/distroless/static:debug-nonroot AS builder
+
+# Stage 2: 
+FROM gcr.io/distroless/static:nonroot
+
+# Grab the cp binary so we can cp the unpack
+# binary to a shared volume in the bundle image.
+COPY --from=builder /busybox/cp /busybox/ls /
 
 WORKDIR /
 
