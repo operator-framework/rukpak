@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"strings"
 
 	"github.com/nlepage/go-tarfs"
@@ -112,6 +113,12 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment
 	// this PSA definition either configurable or workable in a restricted namespace.
 	//
 	// See https://github.com/operator-framework/rukpak/pull/539 for more detail.
+
+	// This should ideally be a persistent volume that remains even after the
+	// pod is re-created. Since unpack image process is about to change to use
+	// a registry client, and the test coverage procedure is to revisited, creating
+	// a temp solution that uses an empty dir.
+	gocoverdirEnv := os.Getenv("GOCOVERDIR")
 	containerSecurityContext := applyconfigurationcorev1.SecurityContext().
 		WithAllowPrivilegeEscalation(false).
 		WithCapabilities(applyconfigurationcorev1.Capabilities().
@@ -150,17 +157,34 @@ func (i *Image) getDesiredPodApplyConfig(bundle *rukpakv1alpha2.BundleDeployment
 				WithName(imageBundleUnpackContainerName).
 				WithImage(bundle.Spec.Source.Image.Ref).
 				WithCommand("/bin/unpack", "--bundle-dir", "/").
-				WithVolumeMounts(applyconfigurationcorev1.VolumeMount().
-					WithName("util").
-					WithMountPath("/bin"),
-				).
+				WithVolumeMounts(func() []*applyconfigurationcorev1.VolumeMountApplyConfiguration {
+					var volumeMounts []*applyconfigurationcorev1.VolumeMountApplyConfiguration
+					if gocoverdirEnv != "" {
+						volumeMounts = append(volumeMounts, applyconfigurationcorev1.VolumeMount().
+							WithName("test-coverage").
+							WithMountPath(gocoverdirEnv))
+					}
+					volumeMounts = append(volumeMounts, applyconfigurationcorev1.VolumeMount().
+						WithName("util").
+						WithMountPath("/bin"))
+					return volumeMounts
+				}()...).
+				WithEnv(applyconfigurationcorev1.EnvVar().WithName("GOCOVERDIR").WithValue(gocoverdirEnv)).
 				WithSecurityContext(containerSecurityContext.WithRunAsUser(1001)).
 				WithTerminationMessagePolicy(corev1.TerminationMessageFallbackToLogsOnError),
 			).
-			WithVolumes(applyconfigurationcorev1.Volume().
-				WithName("util").
-				WithEmptyDir(applyconfigurationcorev1.EmptyDirVolumeSource()),
-			).
+			WithVolumes(func() []*applyconfigurationcorev1.VolumeApplyConfiguration {
+				var volumes []*applyconfigurationcorev1.VolumeApplyConfiguration
+				if gocoverdirEnv != "" {
+					volumes = append(volumes, applyconfigurationcorev1.Volume().
+						WithName("test-coverage").
+						WithEmptyDir(applyconfigurationcorev1.EmptyDirVolumeSource()))
+				}
+				volumes = append(volumes, applyconfigurationcorev1.Volume().
+					WithName("util").
+					WithEmptyDir(applyconfigurationcorev1.EmptyDirVolumeSource()))
+				return volumes
+			}()...).
 			WithSecurityContext(applyconfigurationcorev1.PodSecurityContext().
 				WithRunAsNonRoot(true).
 				WithSeccompProfile(applyconfigurationcorev1.SeccompProfile().
