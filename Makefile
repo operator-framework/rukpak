@@ -117,7 +117,7 @@ test-e2e: $(GINKGO) ## Run the e2e tests
 	$(GINKGO) $(E2E_FLAGS) --trace $(FOCUS) test/e2e
 
 e2e: KIND_CLUSTER_NAME := rukpak-e2e
-e2e: run image-registry local-git kind-load-bundles registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
+e2e: run image-registry secure-image-registry local-git kind-load-bundles registry-load-bundles secure-registry-load-bundles test-e2e kind-cluster-cleanup ## Run e2e tests against an ephemeral kind cluster
 
 kind-cluster: $(KIND) kind-cluster-cleanup ## Standup a kind cluster
 	$(KIND) create cluster --name ${KIND_CLUSTER_NAME} ${KIND_CLUSTER_CONFIG}
@@ -127,7 +127,10 @@ kind-cluster-cleanup: $(KIND) ## Delete the kind cluster
 	$(KIND) delete cluster --name ${KIND_CLUSTER_NAME}
 
 image-registry: ## Setup in-cluster image registry
-	./test/tools/imageregistry/setup_imageregistry.sh ${KIND_CLUSTER_NAME}
+	./test/tools/imageregistry/image-registry.sh ${REGISTRY_NAMESPACE} ${REGISTRY_NAME}
+
+secure-image-registry: ## Setup a private in-cluster image registry
+	./test/tools/imageregistry/image-registry-secure.sh ${REGISTRY_NAMESPACE} ${REGISTRY_NAME}
 
 local-git: ## Setup in-cluster git repository
 	./test/tools/git/setup_git.sh ${KIND_CLUSTER_NAME}
@@ -218,8 +221,19 @@ kind-load: $(KIND) ## Loads the currently constructed image onto the cluster
 	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER_NAME)
 
 registry-load-bundles: ## Load selected e2e testdata container images created in kind-load-bundles into registry
-	$(CONTAINER_RUNTIME) tag localhost/testdata/bundles/plain-v0:valid $(DNS_NAME):5000/bundles/plain-v0:valid
-	./test/tools/imageregistry/load_test_image.sh $(KIND) $(KIND_CLUSTER_NAME)
+	testdata/bundles/plain-v0/valid/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:valid
+	testdata/bundles/plain-v0/dependent/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:dependent
+	testdata/bundles/plain-v0/provides/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:provides
+	testdata/bundles/plain-v0/empty/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:empty
+	testdata/bundles/plain-v0/no-manifests/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:no-manifests
+	testdata/bundles/plain-v0/invalid-missing-crds/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:invalid-missing-crds
+	testdata/bundles/plain-v0/invalid-crds-and-crs/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:invalid-crds-and-crs
+	testdata/bundles/plain-v0/subdir/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/plain-v0:subdir
+	testdata/bundles/registry/valid/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/registry:valid
+	testdata/bundles/registry/invalid/build-push-e2e-bundle.sh ${REGISTRY_NAMESPACE} $(DNS_NAME):5000/bundles/registry:invalid
+	
+secure-registry-load-bundles: ## Load selected e2e testdata container images created in kind-load-bundles into private registry
+	testdata/bundles/plain-v0/valid/build-push-e2e-bundle-secure.sh ${REGISTRY_NAMESPACE} docker-registry-secure.rukpak-e2e.svc.cluster.local:5000/bundles/plain-v0:valid
 
 ###########
 # Release #

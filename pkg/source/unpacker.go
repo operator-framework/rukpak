@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"net/http"
 
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
@@ -30,6 +29,7 @@ import (
 // file tree and delegate bundle format concerns to bundle parsers.
 type Unpacker interface {
 	Unpack(context.Context, *rukpakv1alpha2.BundleDeployment) (*Result, error)
+	Cleanup(context.Context, *rukpakv1alpha2.BundleDeployment) error
 }
 
 // Result conveys progress information about unpacking bundle content.
@@ -90,17 +90,20 @@ func (s *unpacker) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDepl
 	return source.Unpack(ctx, bundle)
 }
 
+func (s *unpacker) Cleanup(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) error {
+	source, ok := s.sources[bundle.Spec.Source.Type]
+	if !ok {
+		return fmt.Errorf("source type %q not supported", bundle.Spec.Source.Type)
+	}
+	return source.Cleanup(ctx, bundle)
+}
+
 // NewDefaultUnpacker returns a new composite Source that unpacks bundles using
 // a default source mapping with built-in implementations of all of the supported
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(mgr manager.Manager, namespace, unpackImage string, rootCAs *x509.CertPool) (Unpacker, error) {
-	cfg := mgr.GetConfig()
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
+func NewDefaultUnpacker(mgr manager.Manager, namespace, cacheDir string, rootCAs *x509.CertPool) (Unpacker, error) {
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	if httpTransport.TLSClientConfig == nil {
 		httpTransport.TLSClientConfig = &tls.Config{
@@ -109,11 +112,9 @@ func NewDefaultUnpacker(mgr manager.Manager, namespace, unpackImage string, root
 	}
 	httpTransport.TLSClientConfig.RootCAs = rootCAs
 	return NewUnpacker(map[rukpakv1alpha2.SourceType]Unpacker{
-		rukpakv1alpha2.SourceTypeImage: &Image{
-			Client:       mgr.GetClient(),
-			KubeClient:   kubeClient,
-			PodNamespace: namespace,
-			UnpackImage:  unpackImage,
+		rukpakv1alpha2.SourceTypeImage: &ImageRegistry{
+			BaseCachePath: cacheDir,
+			AuthNamespace: namespace,
 		},
 		rukpakv1alpha2.SourceTypeGit: &Git{
 			Reader:          mgr.GetClient(),
