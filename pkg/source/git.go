@@ -128,6 +128,10 @@ func (r *Git) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeploymen
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
 
+func (r *Git) Cleanup(_ context.Context, _ *rukpakv1alpha2.BundleDeployment) error {
+	return nil
+}
+
 func (r *Git) configAuth(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (transport.AuthMethod, error) {
 	var auth transport.AuthMethod
 	if strings.HasPrefix(bundle.Spec.Source.Git.Repository, "http") {

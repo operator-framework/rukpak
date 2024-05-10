@@ -55,7 +55,7 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/core"]
           args:
-            - "--unpack-image=quay.io/operator-framework/rukpak:devel"
+            - "--unpack-cache-dir=/var/cache/unpack"
             - "--provisioner-storage-dir=/var/cache/bundles"
             - "--http-bind-address=127.0.0.1:8080"
             - "--http-external-address=https://$(CORE_SERVICE_NAME).$(CORE_SERVICE_NAMESPACE).svc"
@@ -65,6 +65,8 @@ spec:
           volumeMounts:
             - name: bundle-cache
               mountPath: /var/cache/bundles
+            - name: unpack-cache
+              mountPath: /var/cache/unpack
           resources:
             requests:
               cpu: 10m
@@ -72,4 +74,6 @@ spec:
           terminationMessagePolicy: FallbackToLogsOnError
       volumes:
         - name: bundle-cache
+          emptyDir: {}
+        - name: unpack-cache
           emptyDir: {}

@@ -37,7 +37,8 @@ var _ = Describe("registry provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:valid"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "registry:valid"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -87,7 +88,8 @@ var _ = Describe("registry provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "registry:invalid"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "registry:invalid"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},

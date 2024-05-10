@@ -210,6 +210,13 @@ spec:
                     description: Image is the bundle image that backs the content
                       of this bundle.
                     properties:
+                      insecureSkipTLSVerify:
+                        description: |-
+                          InsecureSkipTLSVerify indicates that TLS certificate validation should be skipped.
+                          If this option is specified, the HTTPS protocol will still be used to
+                          fetch the specified image reference.
+                          This should not be used in a production environment.
+                        type: boolean
                       pullSecret:
                         description: ImagePullSecretName contains the name of the
                           image pull secret in the namespace that the provisioner
@@ -448,6 +455,13 @@ spec:
                     description: Image is the bundle image that backs the content
                       of this bundle.
                     properties:
+                      insecureSkipTLSVerify:
+                        description: |-
+                          InsecureSkipTLSVerify indicates that TLS certificate validation should be skipped.
+                          If this option is specified, the HTTPS protocol will still be used to
+                          fetch the specified image reference.
+                          This should not be used in a production environment.
+                        type: boolean
                       pullSecret:
                         description: ImagePullSecretName contains the name of the
                           image pull secret in the namespace that the provisioner

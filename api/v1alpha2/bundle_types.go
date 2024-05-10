@@ -61,6 +61,12 @@ type ImageSource struct {
 	Ref string `json:"ref"`
 	// ImagePullSecretName contains the name of the image pull secret in the namespace that the provisioner is deployed.
 	ImagePullSecretName string `json:"pullSecret,omitempty"`
+	// InsecureSkipTLSVerify indicates that TLS certificate validation should be skipped.
+	// If this option is specified, the HTTPS protocol will still be used to
+	// fetch the specified image reference.
+	// This should not be used in a production environment.
+	// +optional
+	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
 }
 
 type GitSource struct {

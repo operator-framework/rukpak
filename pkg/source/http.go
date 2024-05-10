@@ -73,6 +73,10 @@ func (b *HTTP) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployme
 	return &Result{Bundle: fs, ResolvedSource: bundle.Spec.Source.DeepCopy(), State: StateUnpacked, Message: message}, nil
 }
 
+func (b *HTTP) Cleanup(_ context.Context, _ *rukpakv1alpha2.BundleDeployment) error {
+	return nil
+}
+
 // getCredentials reads credentials from the secret specified in the bundle
 // It returns the username ane password when they are in the secret
 func (b *HTTP) getCredentials(ctx context.Context, bundle *rukpakv1alpha2.BundleDeployment) (string, string, error) {

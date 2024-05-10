@@ -66,7 +66,8 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -107,7 +108,8 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -122,7 +124,6 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		It("should eventually report a successful state", func() {
-
 			By("eventually writing a non-empty image digest to the status", func() {
 				Eventually(func() (*rukpakv1alpha2.BundleSource, error) {
 					if err := c.Get(ctx, client.ObjectKeyFromObject(bundleDeployment), bundleDeployment); err != nil {
@@ -138,42 +139,6 @@ var _ = Describe("plain provisioner bundle", func() {
 					)),
 				))
 			})
-		})
-
-		It("should re-create underlying system resources", func() {
-			var (
-				pod *corev1.Pod
-			)
-
-			By("getting the underlying bundle unpacking pod")
-			selector := util.NewBundleDeploymentLabelSelector(bundleDeployment)
-			Eventually(func() bool {
-				pods := &corev1.PodList{}
-				if err := c.List(ctx, pods, &client.ListOptions{
-					Namespace:     defaultSystemNamespace,
-					LabelSelector: selector,
-				}); err != nil {
-					return false
-				}
-				if len(pods.Items) != 1 {
-					return false
-				}
-				pod = &pods.Items[0]
-				return true
-			}).Should(BeTrue())
-
-			By("storing the pod's original UID")
-			originalUID := pod.GetUID()
-
-			By("deleting the underlying pod and waiting for it to be re-created")
-			err := c.Delete(context.Background(), pod)
-			Expect(err).ToNot(HaveOccurred())
-
-			By("verifying the pod's UID has changed")
-			Eventually(func() (types.UID, error) {
-				err := c.Get(ctx, client.ObjectKeyFromObject(pod), pod)
-				return pod.GetUID(), err
-			}).ShouldNot(Equal(originalUID))
 		})
 	})
 
@@ -196,8 +161,9 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref:                 "docker-registry.rukpak-e2e.svc.cluster.local:5000/bundles/plain-v0:valid",
-							ImagePullSecretName: "registrysecret",
+							Ref:                   "docker-registry-secure.rukpak-e2e.svc.cluster.local:5000/bundles/plain-v0:valid",
+							ImagePullSecretName:   "secureregistrysecret",
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -264,7 +230,8 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:non-existent-tag"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:non-existent-tag"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -279,26 +246,6 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		It("checks the bundle's phase is stuck in pending", func() {
-			By("waiting until the pod is reporting ImagePullBackOff state")
-			Eventually(func() bool {
-				pod := &corev1.Pod{}
-				if err := c.Get(ctx, types.NamespacedName{
-					Name:      bundleDeployment.GetName(),
-					Namespace: defaultSystemNamespace,
-				}, pod); err != nil {
-					return false
-				}
-				if pod.Status.Phase != corev1.PodPending {
-					return false
-				}
-				for _, status := range pod.Status.ContainerStatuses {
-					if status.State.Waiting != nil && status.State.Waiting.Reason == "ImagePullBackOff" {
-						return true
-					}
-				}
-				return false
-			}).Should(BeTrue())
-
 			By("waiting for the bundle to report back that state")
 			Eventually(func() bool {
 				err := c.Get(ctx, client.ObjectKeyFromObject(bundleDeployment), bundleDeployment)
@@ -309,7 +256,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				if unpackPending == nil {
 					return false
 				}
-				if unpackPending.Message != fmt.Sprintf(`Back-off pulling image "%s"`, bundleDeployment.Spec.Source.Image.Ref) {
+				if !strings.Contains(unpackPending.Message, "source bundle content: error fetching image descriptor") {
 					return false
 				}
 				return true
@@ -336,7 +283,8 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:empty"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:empty"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -386,7 +334,8 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:no-manifests"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:no-manifests"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -418,18 +367,14 @@ var _ = Describe("plain provisioner bundle", func() {
 	})
 
 	When("Bundles are backed by a git repository", func() {
-		var (
-			ctx context.Context
-		)
+		var ctx context.Context
 
 		BeforeEach(func() {
 			ctx = context.Background()
 		})
 
 		When("the bundle is backed by a git commit", func() {
-			var (
-				bundleDeployment *rukpakv1alpha2.BundleDeployment
-			)
+			var bundleDeployment *rukpakv1alpha2.BundleDeployment
 			BeforeEach(func() {
 				bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -477,9 +422,7 @@ var _ = Describe("plain provisioner bundle", func() {
 			})
 		})
 		When("the bundle deployment is backed by a git tag", func() {
-			var (
-				bundleDeployment *rukpakv1alpha2.BundleDeployment
-			)
+			var bundleDeployment *rukpakv1alpha2.BundleDeployment
 			BeforeEach(func() {
 				bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -546,9 +489,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		When("the bundle deployment is backed by a git branch", func() {
-			var (
-				bundleDeployment *rukpakv1alpha2.BundleDeployment
-			)
+			var bundleDeployment *rukpakv1alpha2.BundleDeployment
 			BeforeEach(func() {
 				bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -615,9 +556,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 
 		When("the bundle deployment has a custom manifests directory", func() {
-			var (
-				bundleDeployment *rukpakv1alpha2.BundleDeployment
-			)
+			var bundleDeployment *rukpakv1alpha2.BundleDeployment
 			BeforeEach(func() {
 				bundleDeployment = &rukpakv1alpha2.BundleDeployment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1025,7 +964,8 @@ var _ = Describe("plain provisioner bundle", func() {
 					Source: rukpakv1alpha2.BundleSource{
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
-							Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:subdir"),
+							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:subdir"),
+							InsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -1219,7 +1159,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	var _ = Describe("plain provisioner bundleDeployment", func() {
+	_ = Describe("plain provisioner bundleDeployment", func() {
 		When("a BundleDeployment is dependent on another BundleDeployment", func() {
 			var (
 				ctx         context.Context
@@ -1238,7 +1178,8 @@ var _ = Describe("plain provisioner bundle", func() {
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeImage,
 							Image: &rukpakv1alpha2.ImageSource{
-								Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:dependent"),
+								Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:dependent"),
+								InsecureSkipTLSVerify: true,
 							},
 						},
 					},
@@ -1249,7 +1190,6 @@ var _ = Describe("plain provisioner bundle", func() {
 			AfterEach(func() {
 				By("deleting the testing dependent BundleDeployment resource")
 				Expect(client.IgnoreNotFound(c.Delete(ctx, dependentBD))).To(Succeed())
-
 			})
 			When("the providing BundleDeployment does not exist", func() {
 				It("should eventually project a failed installation for the dependent BundleDeployment", func() {
@@ -1269,9 +1209,7 @@ var _ = Describe("plain provisioner bundle", func() {
 				})
 			})
 			When("the providing BundleDeployment is created", func() {
-				var (
-					providesBD *rukpakv1alpha2.BundleDeployment
-				)
+				var providesBD *rukpakv1alpha2.BundleDeployment
 				BeforeEach(func() {
 					ctx = context.Background()
 
@@ -1286,7 +1224,8 @@ var _ = Describe("plain provisioner bundle", func() {
 							Source: rukpakv1alpha2.BundleSource{
 								Type: rukpakv1alpha2.SourceTypeImage,
 								Image: &rukpakv1alpha2.ImageSource{
-									Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:provides"),
+									Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:provides"),
+									InsecureSkipTLSVerify: true,
 								},
 							},
 						},
@@ -1297,7 +1236,6 @@ var _ = Describe("plain provisioner bundle", func() {
 				AfterEach(func() {
 					By("deleting the testing providing BundleDeployment resource")
 					Expect(client.IgnoreNotFound(c.Delete(ctx, providesBD))).To(Succeed())
-
 				})
 				It("should eventually project a successful installation for the dependent BundleDeployment", func() {
 					Eventually(func() (*metav1.Condition, error) {
@@ -1335,7 +1273,8 @@ var _ = Describe("plain provisioner bundle", func() {
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeImage,
 							Image: &rukpakv1alpha2.ImageSource{
-								Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-crds-and-crs"),
+								Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:invalid-crds-and-crs"),
+								InsecureSkipTLSVerify: true,
 							},
 						},
 					},
@@ -1366,8 +1305,7 @@ var _ = Describe("plain provisioner bundle", func() {
 		})
 	})
 
-	var _ = Describe("plain provisioner garbage collection", func() {
-
+	_ = Describe("plain provisioner garbage collection", func() {
 		When("a BundleDeployment has been deleted", func() {
 			var (
 				ctx context.Context
@@ -1390,7 +1328,8 @@ var _ = Describe("plain provisioner bundle", func() {
 						Source: rukpakv1alpha2.BundleSource{
 							Type: rukpakv1alpha2.SourceTypeImage,
 							Image: &rukpakv1alpha2.ImageSource{
-								Ref: fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
+								Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "plain-v0:valid"),
+								InsecureSkipTLSVerify: true,
 							},
 						},
 					},

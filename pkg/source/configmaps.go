@@ -82,3 +82,7 @@ func (o *ConfigMaps) Unpack(ctx context.Context, bundle *rukpakv1alpha2.BundleDe
 	message := generateMessage("configMaps")
 	return &Result{Bundle: bundleFS, ResolvedSource: resolvedSource, State: StateUnpacked, Message: message}, nil
 }
+
+func (o *ConfigMaps) Cleanup(_ context.Context, _ *rukpakv1alpha2.BundleDeployment) error {
+	return nil
+}
