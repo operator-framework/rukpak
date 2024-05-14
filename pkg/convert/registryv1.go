@@ -141,7 +141,7 @@ func RegistryV1ToPlain(rv1 fs.FS, installNamespace string, watchNamespaces []str
 	return plainFS, nil
 }
 
-func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNamespace string, targetNamespaces []string) error {
+func validateTargetNamespaces(supportedInstallModes sets.Set[string], targetNamespaces []string) error {
 	set := sets.New[string](targetNamespaces...)
 	switch set.Len() {
 	case 0:
@@ -150,12 +150,6 @@ func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNam
 		}
 	case 1:
 		if set.Has("") && supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
-			return nil
-		}
-		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeSingleNamespace)) {
-			return nil
-		}
-		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeOwnNamespace)) && targetNamespaces[0] == installNamespace {
 			return nil
 		}
 	default:
@@ -194,7 +188,7 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 		}
 	}
 
-	if err := validateTargetNamespaces(supportedInstallModes, installNamespace, targetNamespaces); err != nil {
+	if err := validateTargetNamespaces(supportedInstallModes, targetNamespaces); err != nil {
 		return nil, err
 	}
 
