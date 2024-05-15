@@ -143,15 +143,12 @@ func RegistryV1ToPlain(rv1 fs.FS, installNamespace string, watchNamespaces []str
 
 func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNamespace string, targetNamespaces []string) error {
 	set := sets.New[string](targetNamespaces...)
-	switch set.Len() {
-	case 0:
+	switch {
+	case set.Len() == 0 || (set.Len() == 1 && set.Has("")):
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
 			return nil
 		}
-	case 1:
-		if set.Has("") && supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
-			return nil
-		}
+	case set.Len() == 1 && !set.Has(""):
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeSingleNamespace)) {
 			return nil
 		}

@@ -222,6 +222,94 @@ var _ = Describe("RegistryV1 Suite", func() {
 				Expect(plainBundle.Objects).To(HaveLen(6))
 			})
 
+			It("should convert into plain manifests successfully with single namespace", func() {
+				csv = v1alpha1.ClusterServiceVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "testCSV",
+					},
+					Spec: v1alpha1.ClusterServiceVersionSpec{
+						InstallModes: []v1alpha1.InstallMode{{Type: v1alpha1.InstallModeTypeSingleNamespace, Supported: true}},
+						InstallStrategy: v1alpha1.NamedInstallStrategy{
+							StrategySpec: v1alpha1.StrategyDetailsDeployment{
+								Permissions: []v1alpha1.StrategyDeploymentPermissions{
+									{
+										ServiceAccountName: "testServiceAccount",
+										Rules: []rbacv1.PolicyRule{
+											{
+												APIGroups: []string{"test"},
+												Resources: []string{"pods"},
+												Verbs:     []string{"*"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				By("creating a registry v1 bundle")
+				watchNamespaces = []string{"testWatchNs1"}
+				unstructuredSvc := convertToUnstructured(svc)
+				registryv1Bundle = RegistryV1{
+					PackageName: "testPkg",
+					CSV:         csv,
+					Others:      []unstructured.Unstructured{unstructuredSvc},
+				}
+
+				By("converting to plain")
+				plainBundle, err := Convert(registryv1Bundle, installNamespace, watchNamespaces)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("verifying if plain bundle has required objects")
+				Expect(plainBundle).ShouldNot(BeNil())
+				Expect(plainBundle.Objects).To(HaveLen(4))
+			})
+
+			It("should convert into plain manifests successfully with own namespace", func() {
+				csv = v1alpha1.ClusterServiceVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "testCSV",
+					},
+					Spec: v1alpha1.ClusterServiceVersionSpec{
+						InstallModes: []v1alpha1.InstallMode{{Type: v1alpha1.InstallModeTypeOwnNamespace, Supported: true}},
+						InstallStrategy: v1alpha1.NamedInstallStrategy{
+							StrategySpec: v1alpha1.StrategyDetailsDeployment{
+								Permissions: []v1alpha1.StrategyDeploymentPermissions{
+									{
+										ServiceAccountName: "testServiceAccount",
+										Rules: []rbacv1.PolicyRule{
+											{
+												APIGroups: []string{"test"},
+												Resources: []string{"pods"},
+												Verbs:     []string{"*"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				By("creating a registry v1 bundle")
+				watchNamespaces = []string{installNamespace}
+				unstructuredSvc := convertToUnstructured(svc)
+				registryv1Bundle = RegistryV1{
+					PackageName: "testPkg",
+					CSV:         csv,
+					Others:      []unstructured.Unstructured{unstructuredSvc},
+				}
+
+				By("converting to plain")
+				plainBundle, err := Convert(registryv1Bundle, installNamespace, watchNamespaces)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("verifying if plain bundle has required objects")
+				Expect(plainBundle).ShouldNot(BeNil())
+				Expect(plainBundle.Objects).To(HaveLen(4))
+			})
+
 			It("should error when multinamespace mode is supported with an empty string in target namespaces", func() {
 				By("creating a registry v1 bundle")
 				watchNamespaces = []string{"testWatchNs1", ""}
@@ -269,7 +357,12 @@ var _ = Describe("RegistryV1 Suite", func() {
 						Name: "testCSV",
 					},
 					Spec: v1alpha1.ClusterServiceVersionSpec{
-						InstallModes: []v1alpha1.InstallMode{{Type: v1alpha1.InstallModeTypeAllNamespaces, Supported: false}},
+						InstallModes: []v1alpha1.InstallMode{
+							{Type: v1alpha1.InstallModeTypeAllNamespaces, Supported: false},
+							{Type: v1alpha1.InstallModeTypeOwnNamespace, Supported: true},
+							{Type: v1alpha1.InstallModeTypeSingleNamespace, Supported: true},
+							{Type: v1alpha1.InstallModeTypeMultiNamespace, Supported: true},
+						},
 					},
 				}
 
