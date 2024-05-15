@@ -1,3 +1,8 @@
+# Setting SHELL to bash allows bash commands to be executed by recipes.
+# Options are set to exit when a recipe line exits non-zero or a piped command fails.
+SHELL := /usr/bin/env bash -o pipefail
+.SHELLFLAGS := -ec
+
 ###########################
 # Configuration Variables #
 ###########################
@@ -36,7 +41,7 @@ CONTAINER_RUNTIME := docker
 else ifneq (, $(shell command -v podman 2>/dev/null))
 CONTAINER_RUNTIME := podman
 else
-$(error Could not find docker or podman in path!)
+$(warning Could not find docker or podman in path! This may result in targets requiring a container runtime failing!)
 endif
 
 # By default setup-envtest will write to $XDG_DATA_HOME, or $HOME/.local/share if that is not defined.
@@ -246,7 +251,7 @@ ENABLE_RELEASE_PIPELINE := false
 endif
 export ENABLE_RELEASE_PIPELINE
 
-ifeq ($(origin release: GORELEASER_ARGS), undefined)
+ifeq ($(origin GORELEASER_ARGS), undefined)
 release: GORELEASER_ARGS := --snapshot --clean
 endif
 release: $(GORELEASER) ## Run goreleaser
