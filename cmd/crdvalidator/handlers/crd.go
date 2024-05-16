@@ -37,7 +37,7 @@ import (
 type CrdValidator struct {
 	log     logr.Logger
 	client  client.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 func NewCrdValidator(log logr.Logger, client client.Client) CrdValidator {

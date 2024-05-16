@@ -235,7 +235,6 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 
 	// handle finalizers.
 	_, err := c.finalizers.Finalize(ctx, bd)
-
 	if err != nil {
 		bd.Status.ResolvedSource = nil
 		bd.Status.ContentURL = ""
@@ -371,9 +370,18 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 			_, isWatched := c.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()]
 			if !isWatched {
 				if err := c.controller.Watch(
-					source.Kind(c.cache, unstructuredObj),
-					handler.EnqueueRequestForOwner(c.cl.Scheme(), c.cl.RESTMapper(), bd, handler.OnlyControllerOwner()),
-					helmpredicate.DependentPredicateFuncs()); err != nil {
+					source.Kind(
+						c.cache,
+						unstructuredObj,
+						handler.TypedEnqueueRequestForOwner[*unstructured.Unstructured](
+							c.cl.Scheme(),
+							c.cl.RESTMapper(),
+							bd,
+							handler.OnlyControllerOwner(),
+						),
+						helmpredicate.DependentPredicateFuncs[*unstructured.Unstructured](),
+					),
+				); err != nil {
 					return err
 				}
 				c.dynamicWatchGVKs[unstructuredObj.GroupVersionKind()] = struct{}{}

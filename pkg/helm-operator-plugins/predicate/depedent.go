@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	crtpredicate "sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -30,29 +31,28 @@ var log = logf.Log.WithName("predicate")
 type GenerationChangedPredicate = crtpredicate.GenerationChangedPredicate
 
 // DependentPredicateFuncs returns functions defined for filtering events
-func DependentPredicateFuncs() crtpredicate.Funcs {
-	dependentPredicate := crtpredicate.Funcs{
+func DependentPredicateFuncs[T client.Object]() crtpredicate.TypedFuncs[T] {
+	dependentPredicate := crtpredicate.TypedFuncs[T]{
 		// We don't need to reconcile dependent resource creation events
 		// because dependent resources are only ever created during
 		// reconciliation. Another reconcile would be redundant.
-		CreateFunc: func(e event.CreateEvent) bool {
-			o := e.Object.(*unstructured.Unstructured)
-			log.V(1).Info("Skipping reconciliation for dependent resource creation", "name", o.GetName(), "namespace", o.GetNamespace(), "apiVersion", o.GroupVersionKind().GroupVersion(), "kind", o.GroupVersionKind().Kind)
+		CreateFunc: func(e event.TypedCreateEvent[T]) bool {
+			o := e.Object
+			log.V(1).Info("Skipping reconciliation for dependent resource creation", "name", o.GetName(), "namespace", o.GetNamespace(), "apiVersion", o.GetObjectKind().GroupVersionKind().GroupVersion(), "kind", o.GetObjectKind().GroupVersionKind().Kind)
 			return false
 		},
-
 		// Reconcile when a dependent resource is deleted so that it can be
 		// recreated.
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			o := e.Object.(*unstructured.Unstructured)
-			log.V(1).Info("Reconciling due to dependent resource deletion", "name", o.GetName(), "namespace", o.GetNamespace(), "apiVersion", o.GroupVersionKind().GroupVersion(), "kind", o.GroupVersionKind().Kind)
+		DeleteFunc: func(e event.TypedDeleteEvent[T]) bool {
+			o := e.Object
+			log.V(1).Info("Reconciling due to dependent resource deletion", "name", o.GetName(), "namespace", o.GetNamespace(), "apiVersion", o.GetObjectKind().GroupVersionKind().GroupVersion(), "kind", o.GetObjectKind().GroupVersionKind().Kind)
 			return true
 		},
 
 		// Don't reconcile when a generic event is received for a dependent
-		GenericFunc: func(e event.GenericEvent) bool {
-			o := e.Object.(*unstructured.Unstructured)
-			log.V(1).Info("Skipping reconcile due to generic event", "name", o.GetName(), "namespace", o.GetNamespace(), "apiVersion", o.GroupVersionKind().GroupVersion(), "kind", o.GroupVersionKind().Kind)
+		GenericFunc: func(e event.TypedGenericEvent[T]) bool {
+			o := e.Object
+			log.V(1).Info("Skipping reconcile due to generic event", "name", o.GetName(), "namespace", o.GetNamespace(), "apiVersion", o.GetObjectKind().GroupVersionKind().GroupVersion(), "kind", o.GetObjectKind().GroupVersionKind().Kind)
 			return false
 		},
 
@@ -60,9 +60,9 @@ func DependentPredicateFuncs() crtpredicate.Funcs {
 		// be patched back to the resource managed by the CR, if
 		// necessary. Ignore updates that only change the status and
 		// resourceVersion.
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldObj := e.ObjectOld.(*unstructured.Unstructured).DeepCopy()
-			newObj := e.ObjectNew.(*unstructured.Unstructured).DeepCopy()
+		UpdateFunc: func(e event.TypedUpdateEvent[T]) bool {
+			oldObj := e.ObjectOld.DeepCopyObject().(*unstructured.Unstructured)
+			newObj := e.ObjectNew.DeepCopyObject().(*unstructured.Unstructured)
 
 			delete(oldObj.Object, "status")
 			delete(newObj.Object, "status")
