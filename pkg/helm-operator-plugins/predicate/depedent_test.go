@@ -11,12 +11,12 @@ import (
 func TestDependentPredicateFuncsCreate(t *testing.T) {
 	for _, tt := range []struct {
 		description string
-		arg         event.CreateEvent
+		arg         event.TypedCreateEvent[*unstructured.Unstructured]
 		result      bool
 	}{
 		{
 			description: "Happy path - return false for Create event",
-			arg: event.CreateEvent{
+			arg: event.TypedCreateEvent[*unstructured.Unstructured]{
 				Object: &unstructured.Unstructured{
 					Object: map[string]interface{}{"key": "Value"},
 				},
@@ -25,7 +25,7 @@ func TestDependentPredicateFuncsCreate(t *testing.T) {
 		},
 	} {
 		t.Run(tt.description, func(t *testing.T) {
-			funcs := DependentPredicateFuncs()
+			funcs := DependentPredicateFuncs[*unstructured.Unstructured]()
 			result := funcs.CreateFunc(tt.arg)
 			require.Equal(t, tt.result, result)
 		})
@@ -35,12 +35,12 @@ func TestDependentPredicateFuncsCreate(t *testing.T) {
 func TestDependentPredicateFuncsDelete(t *testing.T) {
 	for _, tt := range []struct {
 		description string
-		arg         event.DeleteEvent
+		arg         event.TypedDeleteEvent[*unstructured.Unstructured]
 		result      bool
 	}{
 		{
 			description: "Happy path - return true for Delete event",
-			arg: event.DeleteEvent{
+			arg: event.TypedDeleteEvent[*unstructured.Unstructured]{
 				Object: &unstructured.Unstructured{
 					Object: map[string]interface{}{"key": "Value"},
 				},
@@ -49,7 +49,7 @@ func TestDependentPredicateFuncsDelete(t *testing.T) {
 		},
 	} {
 		t.Run(tt.description, func(t *testing.T) {
-			funcs := DependentPredicateFuncs()
+			funcs := DependentPredicateFuncs[*unstructured.Unstructured]()
 			result := funcs.DeleteFunc(tt.arg)
 			require.Equal(t, tt.result, result)
 		})
@@ -59,12 +59,12 @@ func TestDependentPredicateFuncsDelete(t *testing.T) {
 func TestDependentPredicateFuncsGeneric(t *testing.T) {
 	for _, tt := range []struct {
 		description string
-		arg         event.GenericEvent
+		arg         event.TypedGenericEvent[*unstructured.Unstructured]
 		result      bool
 	}{
 		{
 			description: "Happy path - return false for Generic event",
-			arg: event.GenericEvent{
+			arg: event.TypedGenericEvent[*unstructured.Unstructured]{
 				Object: &unstructured.Unstructured{
 					Object: map[string]interface{}{"key": "Value"},
 				},
@@ -73,7 +73,7 @@ func TestDependentPredicateFuncsGeneric(t *testing.T) {
 		},
 	} {
 		t.Run(tt.description, func(t *testing.T) {
-			funcs := DependentPredicateFuncs()
+			funcs := DependentPredicateFuncs[*unstructured.Unstructured]()
 			result := funcs.GenericFunc(tt.arg)
 			require.Equal(t, tt.result, result)
 		})
@@ -83,12 +83,12 @@ func TestDependentPredicateFuncsGeneric(t *testing.T) {
 func TestDependentPredicateFuncsUpdate(t *testing.T) {
 	for _, tt := range []struct {
 		description string
-		arg         event.UpdateEvent
+		arg         event.TypedUpdateEvent[*unstructured.Unstructured]
 		result      bool
 	}{
 		{
 			description: "No update - return false",
-			arg: event.UpdateEvent{
+			arg: event.TypedUpdateEvent[*unstructured.Unstructured]{
 				ObjectOld: &unstructured.Unstructured{
 					Object: map[string]interface{}{"key": "Value", "status": "statusValue"},
 				},
@@ -100,7 +100,7 @@ func TestDependentPredicateFuncsUpdate(t *testing.T) {
 		},
 		{
 			description: "No update with status difference - return false ignoring status differences",
-			arg: event.UpdateEvent{
+			arg: event.TypedUpdateEvent[*unstructured.Unstructured]{
 				ObjectOld: &unstructured.Unstructured{
 					Object: map[string]interface{}{"key": "Value", "status": "oldstatusValue"},
 				},
@@ -112,7 +112,7 @@ func TestDependentPredicateFuncsUpdate(t *testing.T) {
 		},
 		{
 			description: "With update - return true",
-			arg: event.UpdateEvent{
+			arg: event.TypedUpdateEvent[*unstructured.Unstructured]{
 				ObjectOld: &unstructured.Unstructured{
 					Object: map[string]interface{}{"key": "Value", "status": "statusValue"},
 				},
@@ -124,7 +124,7 @@ func TestDependentPredicateFuncsUpdate(t *testing.T) {
 		},
 	} {
 		t.Run(tt.description, func(t *testing.T) {
-			funcs := DependentPredicateFuncs()
+			funcs := DependentPredicateFuncs[*unstructured.Unstructured]()
 			result := funcs.UpdateFunc(tt.arg)
 			require.Equal(t, tt.result, result)
 		})
