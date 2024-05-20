@@ -15,7 +15,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.17.3
 	github.com/onsi/gomega v1.33.1
 	github.com/operator-framework/api v0.24.0
-	github.com/operator-framework/helm-operator-plugins v0.2.1
+	github.com/operator-framework/helm-operator-plugins v0.2.2-0.20240520180534-f463c36fedf9
 	github.com/operator-framework/operator-registry v1.42.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
@@ -35,8 +35,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.18.2
 	sigs.k8s.io/yaml v1.4.0
 )
-
-replace github.com/operator-framework/helm-operator-plugins => ../helm-operator-plugins/
 
 require (
 	cloud.google.com/go/compute v1.24.0 // indirect
