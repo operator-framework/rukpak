@@ -69,6 +69,24 @@ type BundleDeploymentSpec struct {
 	//
 	// config is provisioner specific configurations
 	Config runtime.RawExtension `json:"config,omitempty"`
+
+	//+kubebuilder:Optional
+	// Preflight defines the configuration of preflight checks.
+	Preflight *PreflightConfig `json:"preflight,omitempty"`
+}
+
+// PreflightConfig holds the configuration for the preflight checks.
+type PreflightConfig struct {
+	//+kubebuilder:Required
+	// CRDUpgradeSafety holds necessary configuration for the CRD Upgrade Safety preflight checks.
+	CRDUpgradeSafety *CRDUpgradeSafetyPreflightConfig `json:"crdUpgradeSafety,omitempty"`
+}
+
+// CRDUpgradeSafetyPreflightConfig is the configuration for CRD upgrade safety preflight check.
+type CRDUpgradeSafetyPreflightConfig struct {
+	//+kubebuilder:Required
+	// Disabled represents the state of the CRD upgrade safety preflight check being disabled/enabled.
+	Disabled bool `json:"disabled,omitempty"`
 }
 
 // BundleDeploymentStatus defines the observed state of BundleDeployment
