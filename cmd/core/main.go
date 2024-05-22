@@ -28,6 +28,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/spf13/pflag"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
@@ -51,6 +52,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/pkg/features"
 	"github.com/operator-framework/rukpak/pkg/finalizer"
+	"github.com/operator-framework/rukpak/pkg/preflights/crdupgradesafety"
 	"github.com/operator-framework/rukpak/pkg/source"
 	"github.com/operator-framework/rukpak/pkg/storage"
 	"github.com/operator-framework/rukpak/pkg/util"
@@ -231,11 +233,23 @@ func main() {
 		setupLog.Error(err, "unable to create action client getter")
 		os.Exit(1)
 	}
+
+	aeClient, err := apiextensionsv1client.NewForConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to create apiextensions client")
+		os.Exit(1)
+	}
+
+	preflights := []bundledeployment.Preflight{
+		crdupgradesafety.NewPreflight(aeClient.CustomResourceDefinitions()),
+	}
+
 	commonBDProvisionerOptions := []bundledeployment.Option{
 		bundledeployment.WithActionClientGetter(acg),
 		bundledeployment.WithFinalizers(bundleFinalizers),
 		bundledeployment.WithStorage(bundleStorage),
 		bundledeployment.WithUnpacker(unpacker),
+		bundledeployment.WithPreflights(preflights...),
 	}
 
 	if err := bundledeployment.SetupWithManager(mgr, systemNamespace, append(
