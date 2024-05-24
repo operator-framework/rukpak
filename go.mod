@@ -24,12 +24,12 @@ require (
 	golang.org/x/crypto v0.23.0
 	golang.org/x/sync v0.7.0
 	helm.sh/helm/v3 v3.15.1
-	k8s.io/api v0.30.0
+	k8s.io/api v0.30.1
 	k8s.io/apiextensions-apiserver v0.30.0
-	k8s.io/apimachinery v0.30.0
+	k8s.io/apimachinery v0.30.1
 	k8s.io/cli-runtime v0.30.0
-	k8s.io/client-go v0.30.0
-	k8s.io/component-base v0.30.0
+	k8s.io/client-go v0.30.1
+	k8s.io/component-base v0.30.1
 	k8s.io/kube-aggregator v0.30.0
 	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0
 	sigs.k8s.io/cli-utils v0.36.0
