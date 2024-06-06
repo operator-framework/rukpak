@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	carvel.dev/kapp v0.62.1-0.20240508153820-7d8a03ed7ccf
-	github.com/containerd/containerd v1.7.17
+	github.com/containerd/containerd v1.7.18
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-logr/logr v1.4.2
