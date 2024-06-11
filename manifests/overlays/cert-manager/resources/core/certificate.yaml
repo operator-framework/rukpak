@@ -3,7 +3,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: core
-  namespace: rukpak-system
+  namespace: olmv1-system
 spec:
   secretName: core-cert
   dnsNames:

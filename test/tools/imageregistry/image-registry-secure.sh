@@ -123,6 +123,6 @@ spec:
     targetPort: 5000
 EOF
 
-kubectl create secret docker-registry "secureregistrysecret" --docker-server=${name}-secure.${namespace}.svc.cluster.local:5000 --docker-username="myuser" --docker-password="mypasswd" --docker-email="email@foo.com" -n rukpak-system
+kubectl create secret docker-registry "secureregistrysecret" --docker-server=${name}-secure.${namespace}.svc.cluster.local:5000 --docker-username="myuser" --docker-password="mypasswd" --docker-email="email@foo.com" -n olmv1-system
 kubectl create secret docker-registry "secureregistrysecret" --docker-server=${name}-secure.${namespace}.svc.cluster.local:5000 --docker-username="myuser" --docker-password="mypasswd" --docker-email="email@foo.com" -n rukpak-e2e
 kubectl wait --for=condition=Available -n "${namespace}" "deploy/${name}-secure" --timeout=60s

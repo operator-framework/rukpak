@@ -1,6 +1,6 @@
 package util
 
 const (
-	DefaultSystemNamespace = "rukpak-system"
+	DefaultSystemNamespace = "olmv1-system"
 	DefaultUnpackImage     = "quay.io/operator-framework/rukpak:main"
 )

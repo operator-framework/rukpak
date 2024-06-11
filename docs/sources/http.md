@@ -44,7 +44,7 @@ used. This should be used only for testing.
 1. Create the secret
 
 ```sh
-kubectl create secret generic accesssecret --type "kubernetes.io/basic-auth" --from-literal=username=myusername --from-literal=password=mypassword -n rukpak-system
+kubectl create secret generic accesssecret --type "kubernetes.io/basic-auth" --from-literal=username=myusername --from-literal=password=mypassword -n olmv1-system
 ```
 
 2. Create a bundle deployment referencing a private compressed archive file:

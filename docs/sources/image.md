@@ -58,7 +58,7 @@ A Bundle can reference content in a private image registry by creating an `pullS
 Create the secret for quay.io registry
 
 ```bash
-kubectl create secret docker-registry mysecret --docker-server=quay.io --docker-username="your user name" --docker-password="your password" --docker-email="your e-mail adress" -n rukpak-system
+kubectl create secret docker-registry mysecret --docker-server=quay.io --docker-username="your user name" --docker-password="your password" --docker-email="your e-mail adress" -n olmv1-system
 ```
 
 Use the secret to pull the private image
@@ -88,7 +88,7 @@ spec:
 #### Method 2: Add the secret to the `imagePullSecrets` in the `default` service account in the provisioner deployed namespace
 
 ```bash
-kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "mysecret"}]}' -n rukpak-system
+kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "mysecret"}]}' -n olmv1-system
 ```
 * This command replaces the secrets already in the `imagePullSecrets`.  To add the secret to the existing secrets, add the secret in the imagePullSecrets array of the existing secrets like `imagePullSecrets": [{"name": "mysecret"}, {"name": "existing_secret1"}, {"name": "existing_secret2"}]`
 

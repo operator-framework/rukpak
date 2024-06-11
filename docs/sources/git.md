@@ -96,7 +96,7 @@ used. This should be used only for testing.
 ```sh
 echo -n 'user name' > username.txt
 echo -n 'password' > password.txt
-kubectl create secret generic gitsecret --type "kubernetes.io/basic-auth" --from-file=username=./username.txt --from-file=password=./password.txt -n rukpak-system
+kubectl create secret generic gitsecret --type "kubernetes.io/basic-auth" --from-file=username=./username.txt --from-file=password=./password.txt -n olmv1-system
 ```
 
 2. Find an existing private git repository or create a new one that is private by default
@@ -130,7 +130,7 @@ EOF
 
 ```sh
 cat ~/.ssh/known_hosts | grep 'github' > ssh_knownhosts.txt
-kubectl create secret generic gitsecret --type "kubernetes.io/ssh-auth" --from-file=ssh-privatekey=~/.ssh/id_rsa --from-file=ssh-knownhosts=./ssh_konwnhosts.txt -n rukpak-system
+kubectl create secret generic gitsecret --type "kubernetes.io/ssh-auth" --from-file=ssh-privatekey=~/.ssh/id_rsa --from-file=ssh-knownhosts=./ssh_konwnhosts.txt -n olmv1-system
 ```
 
 2. Find an existing private git repository or create a new one that is private by default

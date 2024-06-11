@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: rukpak-system
+  namespace: olmv1-system
   name: helm-provisioner
 spec:
   ports:

@@ -7,4 +7,4 @@ webhooks:
   - name: vconfigmaps.core.rukpak.io
     namespaceSelector:
       matchLabels:
-        kubernetes.io/metadata.name: rukpak-system
+        kubernetes.io/metadata.name: olmv1-system

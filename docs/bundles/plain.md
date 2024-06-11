@@ -131,5 +131,5 @@ For using the bundle with a [`ConfigMap` source (also known as a local source)](
 
 2. Create a `ConfigMap` from the `manifests/` directory
 ```bash
-kubectl create configmap my-configmap --from-file=manifests -n rukpak-system
+kubectl create configmap my-configmap --from-file=manifests -n olmv1-system
 ```

@@ -1,4 +1,4 @@
 resources:
 - ./webhooks
 
-namespace: rukpak-system
+namespace: olmv1-system

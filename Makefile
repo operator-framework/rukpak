@@ -30,7 +30,7 @@ BIN_DIR          := bin
 VERSION_PATH     := $(PKG)/internal/version
 GIT_COMMIT       := $(shell git rev-parse HEAD)
 PKGS             := $(shell go list ./...)
-RUKPAK_NAMESPACE := rukpak-system
+RUKPAK_NAMESPACE := olmv1-system
 
 REGISTRY_NAME      := "docker-registry"
 REGISTRY_NAMESPACE := rukpak-e2e

@@ -10,4 +10,4 @@ subjects:
   - apiGroup: ""
     kind: ServiceAccount
     name: core-admin
-    namespace: rukpak-system
+    namespace: olmv1-system

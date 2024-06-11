@@ -28,7 +28,7 @@ kubectl create configmap <configmap name> --from-file=<manifests directory>
 1. Create the configmap
 
 ``` bash
-kubectl create configmap my-configmap --from-file=../testdata/bundles/plain-v0/valid/manifests -n rukpak-system
+kubectl create configmap my-configmap --from-file=../testdata/bundles/plain-v0/valid/manifests -n olmv1-system
 ```
 
 2. Create a bundle
@@ -45,7 +45,7 @@ spec:
     local:
       configmap:
         name: my-configmay
-        namespace: rukpak-system
+        namespace: olmv1-system
   provisionerClassName: core-rukpak-io-plain
 EOF
 ```

@@ -9,10 +9,10 @@ kubectl create ns $GIT_NAMESPACE || true
 
 mkdir -p test/tools/git/tmp
 kubectl delete secret ssh-secret -n $GIT_NAMESPACE
-kubectl delete secret gitsecret -n rukpak-system
+kubectl delete secret gitsecret -n olmv1-system
 ssh-keygen -t rsa -b 4096 -C "akuroda@us.ibm.com" -P "" -f test/tools/git/tmp/id_rsa
 kubectl create secret generic ssh-secret --from-file=test/tools/git/tmp/id_rsa --from-file=test/tools/git/tmp/id_rsa.pub -n $GIT_NAMESPACE
-kubectl create secret generic gitsecret --type "kubernetes.io/ssh-auth" --from-file=ssh-privatekey=test/tools/git/tmp/id_rsa --from-file=ssh-knownhosts=test/tools/git/ssh_knownhosts.txt -n rukpak-system
+kubectl create secret generic gitsecret --type "kubernetes.io/ssh-auth" --from-file=ssh-privatekey=test/tools/git/tmp/id_rsa --from-file=ssh-knownhosts=test/tools/git/ssh_knownhosts.txt -n olmv1-system
 rm -rf test/tools/git/tmp
 
 #

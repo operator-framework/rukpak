@@ -10,4 +10,4 @@ subjects:
   - apiGroup: ""
     kind: ServiceAccount
     name: helm-provisioner-admin
-    namespace: rukpak-system
+    namespace: olmv1-system

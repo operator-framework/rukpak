@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: rukpak-system
+  namespace: olmv1-system
   name: helm-provisioner
   labels:
     app: helm-provisioner

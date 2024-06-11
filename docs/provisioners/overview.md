@@ -62,7 +62,7 @@ APIs, `Bundle` and `BundleDeployment`. A user can specify a particular `Bundle` 
 inspection before any application of the resources. Given a `Bundle` resource named `my-bundle`, a provisioner
 will pull down and unpack the bundle to a tar.gz file that is saved using the provisioner's internal storage mechanism.
 
-By default, RukPak's built-in provisioners and other core resources are deployed into the `rukpak-system` namespace.
+By default, RukPak's built-in provisioners and other core resources are deployed into the `olmv1-system` namespace.
 
 The content of a bundle can be queried using the `status.contentURL`, assuming you have the necessary
 RBAC permissions to access bundle content.

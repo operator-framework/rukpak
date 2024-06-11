@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: core-remote-debug
-  namespace: rukpak-system
+  namespace: olmv1-system
 spec:
   type: NodePort
   ports:

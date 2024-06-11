@@ -212,7 +212,7 @@ The deployment should show ready and available:
 ```console
 $ helm list
 NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
-my-ahoy rukpak-system   1               2022-08-27 22:08:23.310271084 +0000 UTC deployed        hello-world-0.1.0       1.16.0
+my-ahoy olmv1-system   1               2022-08-27 22:08:23.310271084 +0000 UTC deployed        hello-world-0.1.0       1.16.0
 
 $ kubectl get deployments.apps my-ahoy-hello-world
 NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
@@ -390,7 +390,7 @@ helm list
 
 ```console
 NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
-my-ahoy rukpak-system   2               2022-08-27 22:14:50.56889877 +0000 UTC  deployed        hello-world-0.1.0       1.16.0
+my-ahoy olmv1-system   2               2022-08-27 22:14:50.56889877 +0000 UTC  deployed        hello-world-0.1.0       1.16.0
 ```
 
 Now the helm chart version is `hello-world-0.1.0`.  Change the git branch to `v0.1.1` from `main`
@@ -456,7 +456,7 @@ helm list
 
 ```console
 NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
-my-ahoy rukpak-system   3               2022-08-27 22:12:51.056782394 +0000 UTC deployed        hello-world-0.1.1       1.16.0
+my-ahoy olmv1-system   3               2022-08-27 22:12:51.056782394 +0000 UTC deployed        hello-world-0.1.1       1.16.0
 ```
 
 Now the helm chart version is `hello-world-0.1.1`.
