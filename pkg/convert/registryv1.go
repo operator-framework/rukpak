@@ -141,22 +141,22 @@ func RegistryV1ToPlain(rv1 fs.FS, installNamespace string, watchNamespaces []str
 	return plainFS, nil
 }
 
-func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNamespace string, targetNamespaces []string) error {
+func validateInstallModes(supportedInstallModes sets.Set[string]) error {
+	if !supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
+		return fmt.Errorf(
+			"the bundle does not support required %q install mode. Supported install modes: %v",
+			v1alpha1.InstallModeTypeAllNamespaces,
+			sets.List(supportedInstallModes),
+		)
+	}
+
+	return nil
+}
+
+func validateTargetNamespaces(supportedInstallModes sets.Set[string], targetNamespaces []string) error {
 	set := sets.New[string](targetNamespaces...)
-	switch {
-	case set.Len() == 0 || (set.Len() == 1 && set.Has("")):
+	if set.Len() == 0 || (set.Len() == 1 && set.Has("")) {
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
-			return nil
-		}
-	case set.Len() == 1 && !set.Has(""):
-		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeSingleNamespace)) {
-			return nil
-		}
-		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeOwnNamespace)) && targetNamespaces[0] == installNamespace {
-			return nil
-		}
-	default:
-		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeMultiNamespace)) && !set.Has("") {
 			return nil
 		}
 	}
@@ -183,15 +183,18 @@ func Convert(in RegistryV1, installNamespace string, targetNamespaces []string) 
 			supportedInstallModes.Insert(string(im.Type))
 		}
 	}
+
+	if err := validateInstallModes(supportedInstallModes); err != nil {
+		return nil, err
+	}
+
 	if len(targetNamespaces) == 0 {
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
 			targetNamespaces = []string{""}
-		} else if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeOwnNamespace)) {
-			targetNamespaces = []string{installNamespace}
 		}
 	}
 
-	if err := validateTargetNamespaces(supportedInstallModes, installNamespace, targetNamespaces); err != nil {
+	if err := validateTargetNamespaces(supportedInstallModes, targetNamespaces); err != nil {
 		return nil, err
 	}
 
