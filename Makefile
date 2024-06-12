@@ -91,13 +91,13 @@ generate: $(CONTROLLER_GEN) ## Generate code and manifests
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./api/...
 	$(CONTROLLER_GEN) rbac:roleName=core-admin \
 		paths=./internal/controllers/bundledeployment/... \
-		paths=./internal/provisioner/plain/... \
-		paths=./internal/provisioner/registry/... \
+		paths=./pkg/provisioner/plain/... \
+		paths=./pkg/provisioner/registry/... \
 			output:stdout > ./manifests/base/core/resources/cluster_role.yaml
 	$(CONTROLLER_GEN) rbac:roleName=webhooks-admin paths=./internal/webhook/... output:stdout > ./manifests/base/apis/webhooks/resources/cluster_role.yaml
 	$(CONTROLLER_GEN) rbac:roleName=helm-provisioner-admin \
 		paths=./internal/controllers/bundledeployment/... \
-		paths=./internal/provisioner/helm/... \
+		paths=./pkg/provisioner/helm/... \
 		    output:stdout > ./manifests/base/provisioners/helm/resources/cluster_role.yaml
 
 verify: tidy fmt generate ## Verify the current code generation and lint

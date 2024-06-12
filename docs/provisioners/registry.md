@@ -2,7 +2,7 @@
 
 ## Summary
 
-The `registry` provisioner is one of core Rukpak [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner)
+The `registry` provisioner is one of core Rukpak [provisioners](https://github.com/operator-framework/rukpak/tree/main/pkg/provisioner)
 that knows how to interact with bundles of a particular format.
 These `registry+v1` bundles, or `registry` bundles, are container images containing a set of static Kubernetes YAML
 manifests organized in the legacy Operator Lifecycle Manger (OLM) format. For more information on the `registry+v1` format, see
