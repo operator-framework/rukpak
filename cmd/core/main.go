@@ -50,6 +50,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/pkg/features"
 	"github.com/operator-framework/rukpak/pkg/finalizer"
+	"github.com/operator-framework/rukpak/pkg/handler"
 	"github.com/operator-framework/rukpak/pkg/preflights/crdupgradesafety"
 	"github.com/operator-framework/rukpak/pkg/provisioner/plain"
 	"github.com/operator-framework/rukpak/pkg/provisioner/registry"
@@ -255,7 +256,7 @@ func main() {
 	if err := bundledeployment.SetupWithManager(mgr, systemNamespace, append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(plain.ProvisionerID),
-		bundledeployment.WithHandler(bundledeployment.HandlerFunc(plain.HandleBundleDeployment)),
+		bundledeployment.WithHandler(handler.HandlerFunc(plain.HandleBundleDeployment)),
 	)...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", plain.ProvisionerID)
 		os.Exit(1)
@@ -264,7 +265,7 @@ func main() {
 	if err := bundledeployment.SetupWithManager(mgr, systemNamespace, append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(registry.ProvisionerID),
-		bundledeployment.WithHandler(bundledeployment.HandlerFunc(registry.HandleBundleDeployment)),
+		bundledeployment.WithHandler(handler.HandlerFunc(registry.HandleBundleDeployment)),
 	)...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", registry.ProvisionerID)
 		os.Exit(1)
