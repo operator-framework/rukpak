@@ -148,6 +148,7 @@ func validateTargetNamespaces(supportedInstallModes sets.Set[string], installNam
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeAllNamespaces)) {
 			return nil
 		}
+		return fmt.Errorf("supported install modes %v do not support targeting all namespaces", sets.List(supportedInstallModes))
 	case set.Len() == 1 && !set.Has(""):
 		if supportedInstallModes.Has(string(v1alpha1.InstallModeTypeSingleNamespace)) {
 			return nil
