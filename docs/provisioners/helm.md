@@ -2,7 +2,7 @@
 
 ## Summary
 
-The `helm` provisioner is one of the [provisioners](https://github.com/operator-framework/rukpak/tree/main/internal/provisioner) of RukPak.
+The `helm` provisioner is one of the [provisioners](https://github.com/operator-framework/rukpak/tree/main/pkg/provisioner) of RukPak.
 It is able to instantiate a given `helm+v3` bundle with a specified helm chart onto a cluster where it then installs the content. It does so by reconciling `Bundle` and `BundleDeployment` types that have
 the `spec.provisionerClassName` field set to `core-rukpak-io-helm`. This field must be set to the correct provisioner
 name in order for the `helm` provisioner to see and interact with the bundle.
