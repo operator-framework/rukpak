@@ -44,6 +44,7 @@ import (
 	"github.com/operator-framework/rukpak/internal/controllers/bundledeployment"
 	"github.com/operator-framework/rukpak/internal/version"
 	"github.com/operator-framework/rukpak/pkg/finalizer"
+	"github.com/operator-framework/rukpak/pkg/handler"
 	"github.com/operator-framework/rukpak/pkg/provisioner/helm"
 	"github.com/operator-framework/rukpak/pkg/source"
 	"github.com/operator-framework/rukpak/pkg/storage"
@@ -232,7 +233,7 @@ func main() {
 	if err := bundledeployment.SetupWithManager(mgr, systemNamespace, append(
 		commonBDProvisionerOptions,
 		bundledeployment.WithProvisionerID(helm.ProvisionerID),
-		bundledeployment.WithHandler(bundledeployment.HandlerFunc(helm.HandleBundleDeployment)),
+		bundledeployment.WithHandler(handler.HandlerFunc(helm.HandleBundleDeployment)),
 	)...); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", rukpakv1alpha2.BundleDeploymentKind, "provisionerID", helm.ProvisionerID)
 		os.Exit(1)

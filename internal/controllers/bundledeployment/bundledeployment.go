@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	crfinalizer "sigs.k8s.io/controller-runtime/pkg/finalizer"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
+	crhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -41,6 +41,7 @@ import (
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
 	"github.com/operator-framework/rukpak/internal/healthchecks"
 	"github.com/operator-framework/rukpak/pkg/features"
+	"github.com/operator-framework/rukpak/pkg/handler"
 	helmpredicate "github.com/operator-framework/rukpak/pkg/helm-operator-plugins/predicate"
 	unpackersource "github.com/operator-framework/rukpak/pkg/source"
 	"github.com/operator-framework/rukpak/pkg/storage"
@@ -65,7 +66,7 @@ limitations under the License.
 
 type Option func(bd *controller)
 
-func WithHandler(h Handler) Option {
+func WithHandler(h handler.Handler) Option {
 	return func(c *controller) {
 		c.handler = h
 	}
@@ -182,7 +183,7 @@ type controller struct {
 	cl    client.Client
 	cache cache.Cache
 
-	handler       Handler
+	handler       handler.Handler
 	provisionerID string
 	acg           helmclient.ActionClientGetter
 	storage       storage.Storage
@@ -413,11 +414,11 @@ func (c *controller) reconcile(ctx context.Context, bd *rukpakv1alpha2.BundleDep
 					source.Kind(
 						c.cache,
 						unstructuredObj,
-						handler.TypedEnqueueRequestForOwner[*unstructured.Unstructured](
+						crhandler.TypedEnqueueRequestForOwner[*unstructured.Unstructured](
 							c.cl.Scheme(),
 							c.cl.RESTMapper(),
 							bd,
-							handler.OnlyControllerOwner(),
+							crhandler.OnlyControllerOwner(),
 						),
 						helmpredicate.DependentPredicateFuncs[*unstructured.Unstructured](),
 					),
