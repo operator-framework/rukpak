@@ -1,5 +1,5 @@
-carvel.dev/kapp v0.62.1-0.20240508153820-7d8a03ed7ccf h1:i3TZEmJNR0eYnxwhSUmFPm0zEqF1ixN+6nFEs7TBt2k=
-carvel.dev/kapp v0.62.1-0.20240508153820-7d8a03ed7ccf/go.mod h1:fTRlfVQf5Wnms+NuL4eBaMaADPZjIoL9xwCMmwEX/hs=
+carvel.dev/kapp v0.62.1 h1:PQQEVXvpOUFUujl1AXSw+fta57dTQqCKEFgj271JoeU=
+carvel.dev/kapp v0.62.1/go.mod h1:vvL0to7zzCAZPIYv0kQK+uMHzumIIgDI6umNLoy1kNE=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
