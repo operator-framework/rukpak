@@ -223,6 +223,10 @@ spec:
                     description: Image is the bundle image that backs the content
                       of this bundle.
                     properties:
+                      certificateData:
+                        description: CertificateData contains the PEM data of the
+                          certificate that is to be used for the TLS connection
+                        type: string
                       insecureSkipTLSVerify:
                         description: |-
                           InsecureSkipTLSVerify indicates that TLS certificate validation should be skipped.
@@ -468,6 +472,10 @@ spec:
                     description: Image is the bundle image that backs the content
                       of this bundle.
                     properties:
+                      certificateData:
+                        description: CertificateData contains the PEM data of the
+                          certificate that is to be used for the TLS connection
+                        type: string
                       insecureSkipTLSVerify:
                         description: |-
                           InsecureSkipTLSVerify indicates that TLS certificate validation should be skipped.

@@ -7,8 +7,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rukpakv1alpha2 "github.com/operator-framework/rukpak/api/v1alpha2"
@@ -23,6 +25,19 @@ var _ = Describe("registry provisioner bundle", func() {
 		)
 		BeforeEach(func() {
 			ctx = context.Background()
+			var secret corev1.Secret
+
+			name := types.NamespacedName{
+				Name:      "rukpak-e2e-registry",
+				Namespace: "rukpak-e2e",
+			}
+			err := c.Get(ctx, name, &secret)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(secret.Type).To(Equal(corev1.SecretTypeTLS))
+			data, ok := secret.Data["ca.crt"]
+			Expect(ok).To(BeTrue())
+			Expect(data).ToNot(BeNil())
+			certData := string(data[:])
 
 			bd = &rukpakv1alpha2.BundleDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -38,12 +53,13 @@ var _ = Describe("registry provisioner bundle", func() {
 						Type: rukpakv1alpha2.SourceTypeImage,
 						Image: &rukpakv1alpha2.ImageSource{
 							Ref:                   fmt.Sprintf("%v/%v", ImageRepo, "registry:valid"),
-							InsecureSkipTLSVerify: true,
+							InsecureSkipTLSVerify: false,
+							CertificateData:       certData,
 						},
 					},
 				},
 			}
-			err := c.Create(ctx, bd)
+			err = c.Create(ctx, bd)
 			Expect(err).ToNot(HaveOccurred())
 		})
 		AfterEach(func() {

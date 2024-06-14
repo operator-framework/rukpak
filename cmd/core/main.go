@@ -199,7 +199,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	unpacker, err := source.NewDefaultUnpacker(mgr, systemNamespace, unpackCacheDir, rootCAs)
+	unpacker, err := source.NewDefaultUnpacker(mgr, systemNamespace, unpackCacheDir)
 	if err != nil {
 		setupLog.Error(err, "unable to setup bundle unpacker")
 		os.Exit(1)

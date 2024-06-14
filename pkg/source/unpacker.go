@@ -2,11 +2,8 @@ package source
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io/fs"
-	"net/http"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -103,14 +100,7 @@ func (s *unpacker) Cleanup(ctx context.Context, bundle *rukpakv1alpha2.BundleDep
 // source types.
 //
 // TODO: refactor NewDefaultUnpacker due to growing parameter list
-func NewDefaultUnpacker(mgr manager.Manager, namespace, cacheDir string, rootCAs *x509.CertPool) (Unpacker, error) {
-	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	if httpTransport.TLSClientConfig == nil {
-		httpTransport.TLSClientConfig = &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		}
-	}
-	httpTransport.TLSClientConfig.RootCAs = rootCAs
+func NewDefaultUnpacker(mgr manager.Manager, namespace, cacheDir string) (Unpacker, error) {
 	return NewUnpacker(map[rukpakv1alpha2.SourceType]Unpacker{
 		rukpakv1alpha2.SourceTypeImage: &ImageRegistry{
 			BaseCachePath: cacheDir,

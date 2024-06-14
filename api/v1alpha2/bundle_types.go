@@ -67,6 +67,8 @@ type ImageSource struct {
 	// This should not be used in a production environment.
 	// +optional
 	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
+	// CertificateData contains the PEM data of the certificate that is to be used for the TLS connection
+	CertificateData string `json:"certificateData,omitempty"`
 }
 
 type GitSource struct {

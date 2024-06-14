@@ -47,6 +47,7 @@ spec:
   isCA: true
   dnsNames:
     - ${name}-secure.${namespace}.svc
+    - ${name}-secure.${namespace}.svc.cluster.local
   privateKey:
     algorithm: ECDSA
     size: 256

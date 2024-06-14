@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -64,14 +65,25 @@ func (i *ImageRegistry) Unpack(ctx context.Context, bundle *rukpakv1alpha2.Bundl
 		remoteOpts = append(remoteOpts, remote.WithAuthFromKeychain(authChain))
 	}
 
-	if bundle.Spec.Source.Image.InsecureSkipTLSVerify {
-		insecureTransport := remote.DefaultTransport.(*http.Transport).Clone()
-		if insecureTransport.TLSClientConfig == nil {
-			insecureTransport.TLSClientConfig = &tls.Config{} // nolint:gosec
-		}
-		insecureTransport.TLSClientConfig.InsecureSkipVerify = true // nolint:gosec
-		remoteOpts = append(remoteOpts, remote.WithTransport(insecureTransport))
+	transport := remote.DefaultTransport.(*http.Transport).Clone()
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: false,
+			MinVersion:         tls.VersionTLS12,
+		} // nolint:gosec
 	}
+	if bundle.Spec.Source.Image.InsecureSkipTLSVerify {
+		transport.TLSClientConfig.InsecureSkipVerify = true // nolint:gosec
+	}
+	if bundle.Spec.Source.Image.CertificateData != "" {
+		pool, err := x509.SystemCertPool()
+		if err != nil || pool == nil {
+			pool = x509.NewCertPool()
+		}
+		transport.TLSClientConfig.RootCAs = pool
+		transport.TLSClientConfig.RootCAs.AppendCertsFromPEM([]byte(bundle.Spec.Source.Image.CertificateData))
+	}
+	remoteOpts = append(remoteOpts, remote.WithTransport(transport))
 
 	digest, isDigest := imgRef.(name.Digest)
 	if isDigest {
@@ -141,6 +153,7 @@ func unpackedResult(fsys fs.FS, bundle *rukpakv1alpha2.BundleDeployment, ref str
 				Ref:                   ref,
 				ImagePullSecretName:   bundle.Spec.Source.Image.ImagePullSecretName,
 				InsecureSkipTLSVerify: bundle.Spec.Source.Image.InsecureSkipTLSVerify,
+				CertificateData:       bundle.Spec.Source.Image.CertificateData,
 			},
 		},
 		State: StateUnpacked,
