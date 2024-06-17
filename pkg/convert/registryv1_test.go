@@ -382,6 +382,55 @@ var _ = Describe("RegistryV1 Suite", func() {
 			})
 		})
 
+		Context("Should enforce limitations", func() {
+			It("should not allow bundles with webhooks", func() {
+				By("creating a registry v1 bundle")
+				csv := v1alpha1.ClusterServiceVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "testCSV",
+					},
+					Spec: v1alpha1.ClusterServiceVersionSpec{
+						InstallModes:       []v1alpha1.InstallMode{{Type: v1alpha1.InstallModeTypeAllNamespaces, Supported: true}},
+						WebhookDefinitions: []v1alpha1.WebhookDescription{{ConversionCRDs: []string{"fake-webhook.package-with-webhooks.io"}}},
+					},
+				}
+				watchNamespaces := []string{metav1.NamespaceAll}
+				registryv1Bundle = RegistryV1{
+					PackageName: "testPkg",
+					CSV:         csv,
+				}
+
+				By("converting to plain")
+				plainBundle, err := Convert(registryv1Bundle, installNamespace, watchNamespaces)
+				Expect(err).To(MatchError(ContainSubstring("webhookDefinitions are not supported")))
+				Expect(plainBundle).To(BeNil())
+			})
+
+			It("should not allow bundles with API service definitions", func() {
+				By("creating a registry v1 bundle")
+				csv := v1alpha1.ClusterServiceVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "testCSV",
+					},
+					Spec: v1alpha1.ClusterServiceVersionSpec{
+						InstallModes: []v1alpha1.InstallMode{{Type: v1alpha1.InstallModeTypeAllNamespaces, Supported: true}},
+						APIServiceDefinitions: v1alpha1.APIServiceDefinitions{
+							Owned: []v1alpha1.APIServiceDescription{{Name: "fake-owned-api-definition"}},
+						},
+					},
+				}
+				watchNamespaces := []string{metav1.NamespaceAll}
+				registryv1Bundle = RegistryV1{
+					PackageName: "testPkg",
+					CSV:         csv,
+				}
+
+				By("converting to plain")
+				plainBundle, err := Convert(registryv1Bundle, installNamespace, watchNamespaces)
+				Expect(err).To(MatchError(ContainSubstring("apiServiceDefintions are not supported")))
+				Expect(plainBundle).To(BeNil())
+			})
+		})
 	})
 })
 
