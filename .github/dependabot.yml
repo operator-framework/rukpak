@@ -8,3 +8,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      k8s-dependencies:
+        patterns:
+        - "k8s.io/*"
+        - "sigs.k8s.io/*"
