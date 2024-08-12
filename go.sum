@@ -1,5 +1,7 @@
-carvel.dev/kapp v0.62.1-0.20240508153820-7d8a03ed7ccf h1:i3TZEmJNR0eYnxwhSUmFPm0zEqF1ixN+6nFEs7TBt2k=
-carvel.dev/kapp v0.62.1-0.20240508153820-7d8a03ed7ccf/go.mod h1:fTRlfVQf5Wnms+NuL4eBaMaADPZjIoL9xwCMmwEX/hs=
+carvel.dev/kapp v0.63.2 h1:Fy0XXZRKn0e5XGL8y/Tqr1lCFPJejvp/bDlTDXQicCQ=
+carvel.dev/kapp v0.63.2/go.mod h1:1N6sOl3tqkIterSvng8DMc5/4PDlbCHVfLD/M7vLnps=
+carvel.dev/vendir v0.40.0 h1:JdhCp/EjAPGI8F5zoAVYwZHf1sPEFee19RpgGb3ciT8=
+carvel.dev/vendir v0.40.0/go.mod h1:XPdluJu7322RZNx05AA4gYnV52aKywBdh7Ma12GuM2Q=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
@@ -525,8 +527,8 @@ github.com/mattn/go-isatty v0.0.3/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNx
 github.com/mattn/go-isatty v0.0.8/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.11/go.mod h1:PhnuNfih5lzO57/f3n+odYbM4JtupLOxQOAqxQCu2WE=
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
-github.com/mattn/go-isatty v0.0.19 h1:JITubQf0MOLdlGRuRq+jtsDlekdYPia9ZFsB8h/APPA=
-github.com/mattn/go-isatty v0.0.19/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
+github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/mattn/go-runewidth v0.0.15 h1:UNAjwbU9l54TA3KzvqLGxwWjHmMgBUVhBiTjelZgg3U=
 github.com/mattn/go-runewidth v0.0.15/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
 github.com/mattn/go-sqlite3 v1.14.6/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
@@ -742,10 +744,8 @@ github.com/vbatts/tar-split v0.11.5/go.mod h1:yZbwRsSeGjusneWgA781EKej9HF8vme8ok
 github.com/vito/go-interact v0.0.0-20171111012221-fa338ed9e9ec/go.mod h1:wPlfmglZmRWMYv/qJy3P+fK/UnoQB5ISk4txfNd9tDo=
 github.com/vito/go-interact v1.0.1 h1:O8xi8c93bRUv2Tb/v6HdiuGc+WnWt+AQzF74MOOdlBs=
 github.com/vito/go-interact v1.0.1/go.mod h1:HrdHSJXD2yn1MhlTwSIMeFgQ5WftiIorszVGd3S/DAA=
-github.com/vmware-tanzu/carvel-kapp-controller v0.50.2 h1:/0iDxqCzQIDLhasdnx2Hw+iW5VbL2OenfHESbWOZ5fE=
-github.com/vmware-tanzu/carvel-kapp-controller v0.50.2/go.mod h1:dcE+zg3cMl6CWRWwA1K9I9x24wGF98wlsatz5UEfdFo=
-github.com/vmware-tanzu/carvel-vendir v0.36.0 h1:F9FNk2YysC6DlUDP2Nl2ynsv6JH8S0FYT4OK6HrRco0=
-github.com/vmware-tanzu/carvel-vendir v0.36.0/go.mod h1:rPGI/zItMK4QgLRpLix2aykoYufavHyKqqLTONXb2uE=
+github.com/vmware-tanzu/carvel-kapp-controller v0.51.0 h1:lCCHy9n/AzWPtq5gqbINJHgmF32RCUkh9DbVQgx6HAs=
+github.com/vmware-tanzu/carvel-kapp-controller v0.51.0/go.mod h1:go1MQz1D2kVgjaE2ZHtuHGECFk8EDLeXMpjmDNDzuJM=
 github.com/xanzy/ssh-agent v0.3.3 h1:+/15pJfg/RsTxqYcX6fHqOXZwwMP+2VyYWJeWM2qQFM=
 github.com/xanzy/ssh-agent v0.3.3/go.mod h1:6dzNDKs0J9rVPHPhaGCukekBHKqfl+L3KghI1Bc68Uw=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=
