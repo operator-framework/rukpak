@@ -1,5 +1,14 @@
 # RukPak
 
+---
+> [!WARNING]
+> This repository has been archived in August 2024.
+> The community is excited to be working on a new design for OLM (v1). As part of that effort, RukPak's functionality has been moved to v1's primary repository: [operator controller](https://www.github.com/operator-framework/operator-controller).
+
+If you have any questions, please engage with us: [![Slack Channel](https://img.shields.io/badge/chat-4A154B?logo=slack&logoColor=white "Slack Channel")](https://kubernetes.slack.com/archives/C0181L6JYQ2)
+
+---
+
 [![GitHub Actions](https://github.com/operator-framework/rukpak/workflows/e2e/badge.svg)](https://github.com/operator-framework/rukpak/actions)
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 [![Go Report Card](https://goreportcard.com/badge/github.com/operator-framework/rukpak)](https://goreportcard.com/report/github.com/operator-framework/rukpak)
